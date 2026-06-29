@@ -1,0 +1,8 @@
+services:
+  web:
+    build: .
+    image: chattodo-web
+    container_name: chattodo-web
+    ports:
+      - "80:80"      # 宿主机:容器。若 80 被占用，改成 "8080:80"
+    restart: unless-stopped
