@@ -46,7 +46,11 @@ export default function ChatDock() {
         {state.chat.map((m) => (
           <div key={m.id} className={`msg ${m.role}`}>
             <div className="who">{m.role === 'user' ? '你' : 'Agent'}</div>
-            <div className="bubble">{m.text}</div>
+            {m.typing ? (
+              <div className="bubble typing"><span /><span /><span /></div>
+            ) : (
+              <div className="bubble">{m.text}</div>
+            )}
           </div>
         ))}
       </div>
