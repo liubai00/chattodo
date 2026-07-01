@@ -8,6 +8,7 @@ import Database from './pages/Database'
 import NonTodo from './pages/NonTodo'
 import AgentSettings from './pages/AgentSettings'
 import AppSettings from './pages/AppSettings'
+import AiModel from './pages/AiModel'
 
 export default function App() {
   const [page, setPage] = useState('dashboard')
@@ -26,6 +27,8 @@ export default function App() {
         return <AgentSettings />
       case 'settings':
         return <AppSettings />
+      case 'aimodel':
+        return <AiModel />
       default:
         return <Dashboard setPage={setPage} />
     }

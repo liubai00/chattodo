@@ -8,3 +8,6 @@ dist-ssr
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# local archive (design bundle) — keep the extracted todo/ folder, not the zip
+/todo.zip

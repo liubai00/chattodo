@@ -1,0 +1,14 @@
+services:
+  chattodo-api:
+    build: ../server
+    image: chattodo-api
+    container_name: chattodo-api
+    # Bound to localhost only — reached via nginx /todo/api/, never exposed directly.
+    ports:
+      - "127.0.0.1:8788:8787"
+    volumes:
+      - chattodo-data:/data
+    restart: unless-stopped
+
+volumes:
+  chattodo-data:

@@ -8,6 +8,7 @@ const NAV = [
   { key: 'nontodo', label: 'NonTodo 隔离', ico: '◇', group: '隔离区', isolation: true },
   { key: 'agent', label: 'Agent 设置', ico: '⚙', group: '设置' },
   { key: 'settings', label: 'App 设置', ico: '⊟', group: '设置' },
+  { key: 'aimodel', label: 'AI 模型', ico: '✸', group: '设置' },
 ]
 
 export default function Sidebar({ page, setPage }) {

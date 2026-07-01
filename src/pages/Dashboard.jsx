@@ -13,7 +13,7 @@ export default function Dashboard({ setPage }) {
   const recentIdeas = visible.todoIdeas.filter((i) => i.status === 'clarifying').slice(0, 3)
 
   function generatePlan() {
-    setPlan(actions.planNow())
+    actions.planNow().then(setPlan)
   }
 
   return (

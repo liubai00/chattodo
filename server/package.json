@@ -1,0 +1,19 @@
+{
+  "name": "chattodo-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chattodo backend — Fastify + SQLite",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "migrate": "node --env-file-if-exists=.env src/db/migrate.js",
+    "seed": "node --env-file-if-exists=.env src/db/seed.js",
+    "test": "node --env-file-if-exists=.env --test"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "better-sqlite3": "^12.11.1",
+    "fastify": "^5.9.0"
+  }
+}
