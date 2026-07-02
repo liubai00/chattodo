@@ -1,5 +1,13 @@
 import { triageInput, triageInputSync } from './triage/index.js'
 
+// 项目归属：输入文本里出现项目名 → 自动挂到该项目（大小写不敏感）。
+export function matchProjectId(repos, text) {
+  const t = String(text || '').toLowerCase()
+  if (!t) return null
+  const hit = repos.projects.all().find((p) => p.name && p.name.length >= 2 && t.includes(p.name.toLowerCase()))
+  return hit ? hit.id : null
+}
+
 // Persist a triage result: create the routed entity + a generation record.
 // Shared by /api/capture and the rule-based chat path.
 export function persistCapture(repos, { result, text, source = 'web' }) {
@@ -8,7 +16,7 @@ export function persistCapture(repos, { result, text, source = 'web' }) {
   if (result.kind === 'task') {
     entityType = 'task'
     entity = repos.tasks.create({
-      title: result.title, notes: '', status: 'todo', projectId: null,
+      title: result.title, notes: '', status: 'todo', projectId: matchProjectId(repos, text),
       tags: result.tags || [], context: result.context || '',
       dueAt: result.dueAt || null, plannedAt: result.plannedAt || null,
       durationMinutes: result.durationMinutes || 30, priority: result.priority || 3,

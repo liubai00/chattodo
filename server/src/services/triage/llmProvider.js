@@ -13,10 +13,112 @@ const TRIAGE_SYSTEM = `你是一个「todo-first」分类器。把用户输入�
  "suggestedNextAction":"建议下一步(仅todo_idea)","summary":"摘要(仅non_todo)","suggestedDestination":"archive|copy|export|discard(仅non_todo)"}
 只返回一个 JSON 对象。`
 
-function extractJson(s) {
+export function extractJson(s) {
   const m = String(s || '').match(/\{[\s\S]*\}/)
   if (!m) throw new Error('LLM 未返回 JSON：' + String(s).slice(0, 120))
   return JSON.parse(m[0])
+}
+
+// Incrementally pulls the leading "reply" string value out of streaming JSON
+// (`{"reply":"…","actions":[…]}`), emitting decoded characters as they arrive.
+// Handles \n \t \" \\ and \uXXXX escapes split across chunk boundaries.
+export function makeReplyExtractor(onDelta) {
+  let pre = ''
+  let started = false
+  let closed = false
+  let pending = ''
+  return (chunk) => {
+    if (closed) return
+    if (!started) {
+      pre += chunk
+      const m = pre.match(/"reply"\s*:\s*"/)
+      if (!m) return
+      started = true
+      chunk = pre.slice(m.index + m[0].length)
+      pre = ''
+    }
+    pending += chunk
+    let out = ''
+    let i = 0
+    while (i < pending.length) {
+      const c = pending[i]
+      if (c === '\\') {
+        if (i + 1 >= pending.length) break // escape split across chunks — wait
+        const n = pending[i + 1]
+        if (n === 'u') {
+          if (i + 6 > pending.length) break
+          const code = parseInt(pending.slice(i + 2, i + 6), 16)
+          out += Number.isNaN(code) ? '' : String.fromCharCode(code)
+          i += 6
+        } else {
+          out += n === 'n' ? '\n' : n === 't' ? '\t' : n === 'r' ? '' : n
+          i += 2
+        }
+      } else if (c === '"') {
+        closed = true
+        i++
+        break
+      } else {
+        out += c
+        i++
+      }
+    }
+    pending = pending.slice(i)
+    if (out) onDelta(out)
+  }
+}
+
+// Streaming completion: calls onToken with each text delta, returns the full text.
+export async function llmStreamText(system, messages, cfg, onToken) {
+  const turns = normalizeTurns(messages)
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), cfg.streamTimeoutMs || 60000)
+  try {
+    let url, headers, body, pick
+    if (cfg.provider === 'anthropic') {
+      const base = (cfg.baseUrl || 'https://api.anthropic.com').replace(/\/+$/, '')
+      url = `${base}/v1/messages`
+      headers = { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01' }
+      body = { model: cfg.model, max_tokens: 1024, system, messages: turns, stream: true }
+      pick = (j) => (j.type === 'content_block_delta' ? (j.delta?.text || '') : '')
+    } else {
+      url = `${cfg.baseUrl.replace(/\/+$/, '')}/chat/completions`
+      headers = { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}` }
+      body = { model: cfg.model, temperature: 0.2, messages: [{ role: 'system', content: system }, ...turns], stream: true }
+      pick = (j) => j.choices?.[0]?.delta?.content || ''
+    }
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ac.signal })
+    if (!res.ok) throw new Error(`${cfg.provider} ${res.status}: ${(await res.text()).slice(0, 200)}`)
+    if (!res.body || !res.body.getReader) {
+      // upstream didn't stream — degrade to one shot
+      const text = await res.text()
+      try { const j = JSON.parse(text); const t = cfg.provider === 'anthropic' ? (j.content?.[0]?.text || '') : (j.choices?.[0]?.message?.content || ''); if (t && onToken) onToken(t); return t } catch { return text }
+    }
+    const reader = res.body.getReader()
+    const dec = new TextDecoder()
+    let full = ''
+    let carry = ''
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      carry += dec.decode(value, { stream: true })
+      const lines = carry.split('\n')
+      carry = lines.pop()
+      for (const line of lines) {
+        const s = line.trim()
+        if (!s.startsWith('data:')) continue
+        const payload = s.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
+        try {
+          const t = pick(JSON.parse(payload))
+          if (t) { full += t; if (onToken) onToken(t) }
+        } catch { /* partial frame */ }
+      }
+    }
+    return full
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // Anthropic requires user-first, strictly alternating roles; OpenAI tolerates

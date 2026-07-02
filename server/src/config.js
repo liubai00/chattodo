@@ -6,6 +6,9 @@ export const config = {
   host: process.env.HOST || '127.0.0.1',
   dbPath: process.env.DB_PATH || './data/chattodo.db',
   defaultUserId: process.env.DEFAULT_USER_ID || 'u_default',
+  // 实时事件总线：设置 REDIS_URL 走 Redis pub/sub（多实例可横向扩展）；
+  // 不设置或连接失败 → 自动回退进程内总线（单实例功能等价）。
+  redisUrl: process.env.REDIS_URL || '',
   ai: {
     provider: process.env.AI_PROVIDER || 'rule', // rule | openai | anthropic
     baseUrl: process.env.AI_BASE_URL || '',

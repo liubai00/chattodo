@@ -70,7 +70,8 @@ const serTask = (k, v) => (k === 'tags' ? JSON.stringify(v ?? []) : v)
 const toSub = (r) => r && { id: r.id, text: r.text, done: !!r.done, createdAt: r.created_at }
 const toComment = (r) => r && { id: r.id, author: r.author, text: r.text, createdAt: r.created_at }
 const toAct = (r) => r && { id: r.id, text: r.text, createdAt: r.created_at }
-const toNotif = (r) => r && { id: r.id, type: r.type, icon: r.icon, color: r.color, text: r.text, read: !!r.read, createdAt: r.created_at }
+const toNotif = (r) => r && { id: r.id, type: r.type, icon: r.icon, color: r.color, text: r.text, read: !!r.read, actionType: r.action_type || null, actionRef: r.action_ref || null, handled: !!r.handled, createdAt: r.created_at }
+const toCollab = (r) => r && { id: r.id, taskId: r.task_id, ownerId: r.owner_id, userId: r.user_id, invitedBy: r.invited_by, status: r.status, remind: !!r.remind, createdAt: r.created_at, respondedAt: r.responded_at }
 
 export function makeRepos(db, userId = config.defaultUserId) {
   const projects = {
@@ -85,9 +86,24 @@ export function makeRepos(db, userId = config.defaultUserId) {
     },
   }
 
+  // 任务访问级别：owner（自己的）| collaborator（已接受协作）| null（无权）。
+  const taskAccess = (taskId) => {
+    const row = db.prepare(`SELECT user_id FROM tasks WHERE id = ?`).get(taskId)
+    if (!row) return null
+    if (row.user_id === userId) return 'owner'
+    const c = db.prepare(`SELECT 1 FROM task_collaborators WHERE task_id = ? AND user_id = ? AND status = 'accepted'`).get(taskId, userId)
+    return c ? 'collaborator' : null
+  }
+
   const tasks = {
-    all: () => db.prepare(`SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC`).all(userId).map(toTask),
-    get: (id) => toTask(db.prepare(`SELECT * FROM tasks WHERE id = ? AND user_id = ?`).get(id, userId)),
+    // 可见集 = 自己的 + 已接受协作的（协作任务在业务层带 collab 标记）
+    all: () => db.prepare(`SELECT * FROM tasks WHERE user_id = ? OR id IN (SELECT task_id FROM task_collaborators WHERE user_id = ? AND status = 'accepted') ORDER BY created_at DESC`).all(userId, userId).map(toTask),
+    get(id) {
+      const access = taskAccess(id)
+      if (!access) return undefined
+      return toTask(db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id))
+    },
+    access: taskAccess,
     create(data) {
       const id = data.id || makeId('task')
       const ts = nowIso()
@@ -98,8 +114,15 @@ export function makeRepos(db, userId = config.defaultUserId) {
           data.durationMinutes ?? null, data.priority ?? 3, data.privacyScope ?? 'work', data.sourceIdeaId ?? null, ts, ts)
       return this.get(id)
     },
-    update(id, patch) { applyUpdate(db, 'tasks', id, userId, patch, TASK_FIELDS, serTask); return this.get(id) },
-    remove: (id) => db.prepare(`DELETE FROM tasks WHERE id = ? AND user_id = ?`).run(id, userId),
+    // owner 全字段可改；协作者只允许改状态（完成/进行中）。
+    update(id, patch) {
+      const access = taskAccess(id)
+      if (!access) return undefined
+      if (access === 'owner') { applyUpdate(db, 'tasks', id, userId, patch, TASK_FIELDS, serTask); return this.get(id) }
+      if ('status' in patch) db.prepare(`UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?`).run(patch.status, nowIso(), id)
+      return this.get(id)
+    },
+    remove: (id) => db.prepare(`DELETE FROM tasks WHERE id = ? AND user_id = ?`).run(id, userId), // owner only
   }
 
   const ideas = {
@@ -215,43 +238,124 @@ export function makeRepos(db, userId = config.defaultUserId) {
     },
   }
 
+  const AI_DEFAULTS = { provider: 'rule', baseUrl: '', model: '', apiKey: '', fallbackToRule: true, updatedAt: null }
+  const aiWrite = (rowId, patch) => {
+    db.prepare(`INSERT OR IGNORE INTO ai_config (id, updated_at) VALUES (?, ?)`).run(rowId, nowIso())
+    const map = { provider: 'provider', baseUrl: 'base_url', model: 'model', apiKey: 'api_key', fallbackToRule: 'fallback_to_rule' }
+    const sets = []; const vals = []
+    for (const [k, col] of Object.entries(map)) {
+      if (k in patch) { sets.push(`${col} = ?`); vals.push(k === 'fallbackToRule' ? (patch[k] ? 1 : 0) : patch[k]) }
+    }
+    sets.push('updated_at = ?'); vals.push(nowIso())
+    vals.push(rowId)
+    db.prepare(`UPDATE ai_config SET ${sets.join(', ')} WHERE id = ?`).run(...vals)
+  }
   const aiConfig = {
-    // Missing row (fresh unseeded DB) → rule-mode defaults instead of undefined.
-    get: () => toAiConfig(db.prepare(`SELECT * FROM ai_config WHERE id = 'default'`).get())
-      || { provider: 'rule', baseUrl: '', model: '', apiKey: '', fallbackToRule: true, updatedAt: null },
-    update(patch) {
-      db.prepare(`INSERT OR IGNORE INTO ai_config (id, updated_at) VALUES ('default', ?)`).run(nowIso())
-      const map = { provider: 'provider', baseUrl: 'base_url', model: 'model', apiKey: 'api_key', fallbackToRule: 'fallback_to_rule' }
-      const sets = []; const vals = []
-      for (const [k, col] of Object.entries(map)) {
-        if (k in patch) { sets.push(`${col} = ?`); vals.push(k === 'fallbackToRule' ? (patch[k] ? 1 : 0) : patch[k]) }
-      }
-      sets.push('updated_at = ?'); vals.push(nowIso())
-      db.prepare(`UPDATE ai_config SET ${sets.join(', ')} WHERE id = 'default'`).run(...vals)
-      return this.get()
-    },
+    // Team config ('default' row) + optional per-user override row ('u:<id>').
+    getTeam: () => toAiConfig(db.prepare(`SELECT * FROM ai_config WHERE id = 'default'`).get()) || { ...AI_DEFAULTS },
+    getOwn: () => toAiConfig(db.prepare(`SELECT * FROM ai_config WHERE id = ?`).get('u:' + userId)),
+    // Effective config: personal override wins, else team.
+    get() { return this.getOwn() || this.getTeam() },
+    update(patch) { aiWrite('default', patch); return this.getTeam() }, // admin: team row
+    updateOwn(patch) { aiWrite('u:' + userId, patch); return this.getOwn() },
+    clearOwn() { db.prepare(`DELETE FROM ai_config WHERE id = ?`).run('u:' + userId) },
   }
 
+  // 子任务/评论/活动属于任务本身（不是查看者）：有任务访问权即可读写，作者身份仍记在行上。
   const subtasks = {
-    byTask: (taskId) => db.prepare(`SELECT * FROM subtasks WHERE user_id = ? AND task_id = ? ORDER BY created_at`).all(userId, taskId).map(toSub),
-    create(taskId, text) { const id = makeId('sub'); db.prepare(`INSERT INTO subtasks (id,user_id,task_id,text,done,created_at) VALUES (?,?,?,?,0,?)`).run(id, userId, taskId, text, nowIso()); return toSub(db.prepare(`SELECT * FROM subtasks WHERE id = ?`).get(id)) },
-    toggle(id) { const r = db.prepare(`SELECT done FROM subtasks WHERE id = ? AND user_id = ?`).get(id, userId); if (!r) return null; db.prepare(`UPDATE subtasks SET done = ? WHERE id = ? AND user_id = ?`).run(r.done ? 0 : 1, id, userId); return toSub(db.prepare(`SELECT * FROM subtasks WHERE id = ?`).get(id)) },
-    remove: (id) => db.prepare(`DELETE FROM subtasks WHERE id = ? AND user_id = ?`).run(id, userId),
+    byTask: (taskId) => taskAccess(taskId) ? db.prepare(`SELECT * FROM subtasks WHERE task_id = ? ORDER BY created_at`).all(taskId).map(toSub) : [],
+    create(taskId, text) { if (!taskAccess(taskId)) return null; const id = makeId('sub'); db.prepare(`INSERT INTO subtasks (id,user_id,task_id,text,done,created_at) VALUES (?,?,?,?,0,?)`).run(id, userId, taskId, text, nowIso()); return toSub(db.prepare(`SELECT * FROM subtasks WHERE id = ?`).get(id)) },
+    toggle(id) { const r = db.prepare(`SELECT task_id, done FROM subtasks WHERE id = ?`).get(id); if (!r || !taskAccess(r.task_id)) return null; db.prepare(`UPDATE subtasks SET done = ? WHERE id = ?`).run(r.done ? 0 : 1, id); return toSub(db.prepare(`SELECT * FROM subtasks WHERE id = ?`).get(id)) },
+    remove(id) { const r = db.prepare(`SELECT task_id FROM subtasks WHERE id = ?`).get(id); if (r && taskAccess(r.task_id)) db.prepare(`DELETE FROM subtasks WHERE id = ?`).run(id) },
   }
   const comments = {
-    byTask: (taskId) => db.prepare(`SELECT * FROM comments WHERE user_id = ? AND task_id = ? ORDER BY created_at`).all(userId, taskId).map(toComment),
-    create(taskId, author, text) { const id = makeId('cmt'); db.prepare(`INSERT INTO comments (id,user_id,task_id,author,text,created_at) VALUES (?,?,?,?,?,?)`).run(id, userId, taskId, author, text, nowIso()); return toComment(db.prepare(`SELECT * FROM comments WHERE id = ?`).get(id)) },
+    byTask: (taskId) => taskAccess(taskId) ? db.prepare(`SELECT * FROM comments WHERE task_id = ? ORDER BY created_at`).all(taskId).map(toComment) : [],
+    create(taskId, author, text) { if (!taskAccess(taskId)) return null; const id = makeId('cmt'); db.prepare(`INSERT INTO comments (id,user_id,task_id,author,text,created_at) VALUES (?,?,?,?,?,?)`).run(id, userId, taskId, author, text, nowIso()); return toComment(db.prepare(`SELECT * FROM comments WHERE id = ?`).get(id)) },
   }
   const activity = {
-    byTask: (taskId) => db.prepare(`SELECT * FROM activity WHERE user_id = ? AND task_id = ? ORDER BY created_at DESC`).all(userId, taskId).map(toAct),
+    byTask: (taskId) => taskAccess(taskId) ? db.prepare(`SELECT * FROM activity WHERE task_id = ? ORDER BY created_at DESC`).all(taskId).map(toAct) : [],
     log(taskId, text) { const id = makeId('act'); db.prepare(`INSERT INTO activity (id,user_id,task_id,text,created_at) VALUES (?,?,?,?,?)`).run(id, userId, taskId, text, nowIso()); return id },
+  }
+
+  // 协作关系：邀请-确认制。幂等邀请、拒后 24h 冷却、可随时退出。
+  const collaborators = {
+    forTask: (taskId) => db.prepare(`SELECT c.*, u.name AS user_name FROM task_collaborators c LEFT JOIN users u ON u.id = c.user_id WHERE c.task_id = ? ORDER BY c.created_at`).all(taskId)
+      .map((r) => ({ ...toCollab(r), userName: r.user_name || r.user_id })),
+    myPending: () => db.prepare(`SELECT c.*, t.title AS task_title, t.due_at AS task_due, u.name AS inviter_name
+                                 FROM task_collaborators c JOIN tasks t ON t.id = c.task_id LEFT JOIN users u ON u.id = c.invited_by
+                                 WHERE c.user_id = ? AND c.status = 'pending' ORDER BY c.created_at DESC`).all(userId)
+      .map((r) => ({ ...toCollab(r), taskTitle: r.task_title, taskDueAt: r.task_due, inviterName: r.inviter_name || r.invited_by })),
+    // taskId → {remind, ownerName}（我已接受的协作任务），供来源标记与提醒过滤
+    myAcceptedMap() {
+      const rows = db.prepare(`SELECT c.task_id, c.remind, u.name AS owner_name FROM task_collaborators c LEFT JOIN users u ON u.id = c.owner_id WHERE c.user_id = ? AND c.status = 'accepted'`).all(userId)
+      const m = new Map()
+      for (const r of rows) m.set(r.task_id, { remind: !!r.remind, from: r.owner_name || '' })
+      return m
+    },
+    get: (id) => toCollab(db.prepare(`SELECT * FROM task_collaborators WHERE id = ?`).get(id)),
+    // 邀请（owner 调用）：已有 pending/accepted → 原样返回；24h 内被拒 → null（冷却）；更早被拒/已退出 → 重新置为 pending。
+    invite(taskId, targetUserId) {
+      const task = db.prepare(`SELECT * FROM tasks WHERE id = ? AND user_id = ?`).get(taskId, userId)
+      if (!task || targetUserId === userId) return null
+      const existing = db.prepare(`SELECT * FROM task_collaborators WHERE task_id = ? AND user_id = ?`).get(taskId, targetUserId)
+      if (existing) {
+        if (existing.status === 'pending' || existing.status === 'accepted') return { collab: toCollab(existing), reused: true }
+        if (existing.status === 'declined' && existing.responded_at && Date.now() - new Date(existing.responded_at).getTime() < 24 * 3600000) return null
+        db.prepare(`UPDATE task_collaborators SET status = 'pending', invited_by = ?, created_at = ?, responded_at = NULL WHERE id = ?`).run(userId, nowIso(), existing.id)
+        return { collab: this.get(existing.id), reused: false }
+      }
+      const id = makeId('clb')
+      db.prepare(`INSERT INTO task_collaborators (id,task_id,owner_id,user_id,invited_by,status,remind,created_at) VALUES (?,?,?,?,?,'pending',1,?)`)
+        .run(id, taskId, userId, targetUserId, userId, nowIso())
+      return { collab: this.get(id), reused: false }
+    },
+    // 响应（被邀请人调用）。decision: 'accepted' | 'declined' | 'following'
+    respond(id, decision, remind = true) {
+      const row = db.prepare(`SELECT * FROM task_collaborators WHERE id = ? AND user_id = ? AND status = 'pending'`).get(id, userId)
+      if (!row) return null
+      const d = decision === true ? 'accepted' : decision === false ? 'declined' : decision
+      if (!['accepted', 'declined', 'following'].includes(d)) return null
+      db.prepare(`UPDATE task_collaborators SET status = ?, remind = ?, responded_at = ? WHERE id = ?`)
+        .run(d, remind ? 1 : 0, nowIso(), id)
+      return this.get(id)
+    },
+    leave(taskId) {
+      const r = db.prepare(`UPDATE task_collaborators SET status = 'left', responded_at = ? WHERE task_id = ? AND user_id = ? AND status IN ('accepted','following')`).run(nowIso(), taskId, userId)
+      return r.changes > 0
+    },
+    acceptedUsersOf: (taskId) => db.prepare(`SELECT user_id FROM task_collaborators WHERE task_id = ? AND status IN ('accepted','pending','following')`).all(taskId).map((r) => r.user_id),
+    // 进展通知接收者：owner + 已接受/仅关注（调用方自行排除操作者）
+    watchersOf(taskId) {
+      const t = db.prepare(`SELECT user_id FROM tasks WHERE id = ?`).get(taskId)
+      const cs = db.prepare(`SELECT user_id FROM task_collaborators WHERE task_id = ? AND status IN ('accepted','following')`).all(taskId).map((r) => r.user_id)
+      return t ? [t.user_id, ...cs] : cs
+    },
+    removeForTask: (taskId) => db.prepare(`DELETE FROM task_collaborators WHERE task_id = ?`).run(taskId),
+  }
+
+  // 自动化规则（当前动作：invite）
+  const autoRules = {
+    all: () => db.prepare(`SELECT * FROM auto_rules WHERE user_id = ? ORDER BY created_at DESC`).all(userId)
+      .map((r) => ({ id: r.id, keyword: r.keyword, action: r.action, targetId: r.target_id, targetName: r.target_name, createdAt: r.created_at })),
+    create(keyword, targetId, targetName) {
+      const id = makeId('rule')
+      db.prepare(`INSERT INTO auto_rules (id,user_id,keyword,action,target_id,target_name,created_at) VALUES (?,?,?,'invite',?,?,?)`)
+        .run(id, userId, keyword, targetId, targetName || '', nowIso())
+      return this.all().find((r) => r.id === id)
+    },
+    remove: (id) => db.prepare(`DELETE FROM auto_rules WHERE id = ? AND user_id = ?`).run(id, userId),
   }
   const notifications = {
     all: () => db.prepare(`SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC`).all(userId).map(toNotif),
-    create(data) { const id = data.id || makeId('nt'); db.prepare(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,?,?)`).run(id, userId, data.type || null, data.icon || null, data.color || null, data.text, data.read ? 1 : 0, data.createdAt || nowIso()); return toNotif(db.prepare(`SELECT * FROM notifications WHERE id = ?`).get(id)) },
+    create(data) { const id = data.id || makeId('nt'); db.prepare(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,action_type,action_ref,handled,created_at) VALUES (?,?,?,?,?,?,?,?,?,0,?)`).run(id, userId, data.type || null, data.icon || null, data.color || null, data.text, data.read ? 1 : 0, data.actionType || null, data.actionRef || null, data.createdAt || nowIso()); return toNotif(db.prepare(`SELECT * FROM notifications WHERE id = ?`).get(id)) },
     markAllRead: () => db.prepare(`UPDATE notifications SET read = 1 WHERE user_id = ?`).run(userId),
     markRead: (id) => db.prepare(`UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?`).run(id, userId),
+    // 可操作通知：处理后按钮置灰（按 action_ref 消费，跨用户场景用原始 db 写入方调用）
+    markHandledByRef: (ref) => db.prepare(`UPDATE notifications SET handled = 1, read = 1 WHERE user_id = ? AND action_ref = ?`).run(userId, ref),
+    // dedupe helper: has this exact notification already been generated today?
+    existsToday: (text) => !!db.prepare(`SELECT 1 FROM notifications WHERE user_id = ? AND text = ? AND substr(created_at,1,10) = ? LIMIT 1`)
+      .get(userId, text, new Date().toISOString().slice(0, 10)),
   }
 
-  return { projects, tasks, ideas, nonTodos, agent, settings, captureRecords, corrections, aiErrors, chat, aiConfig, subtasks, comments, activity, notifications }
+  return { projects, tasks, ideas, nonTodos, agent, settings, captureRecords, corrections, aiErrors, chat, aiConfig, subtasks, comments, activity, notifications, collaborators, autoRules }
 }

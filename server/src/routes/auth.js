@@ -1,8 +1,24 @@
+// 内存滑动窗口限流：同一 IP+邮箱 10 分钟内最多 10 次登录/注册尝试（防爆破）。
+const attempts = new Map()
+const RL_MAX = 10
+const RL_WINDOW = 10 * 60 * 1000
+function rateLimited(key) {
+  const now = Date.now()
+  const arr = (attempts.get(key) || []).filter((t) => now - t < RL_WINDOW)
+  arr.push(now)
+  attempts.set(key, arr)
+  if (attempts.size > 5000) { // 防内存膨胀：偶发全量清理过期项
+    for (const [k, v] of attempts) { const alive = v.filter((t) => now - t < RL_WINDOW); if (alive.length) attempts.set(k, alive); else attempts.delete(k) }
+  }
+  return arr.length > RL_MAX
+}
+
 export default async function authRoutes(app) {
   const { auth } = app
 
   app.post('/api/auth/register', async (req, reply) => {
     const { name, email, password } = req.body || {}
+    if (rateLimited(`reg:${req.ip}:${String(email || '').toLowerCase()}`)) return reply.status(429).send({ error: '尝试过于频繁，请 10 分钟后再试' })
     if (!name || !String(name).trim()) return reply.status(400).send({ error: '请输入显示名称' })
     if (!email || !/.+@.+\..+/.test(String(email))) return reply.status(400).send({ error: '邮箱格式不正确' })
     if (!password || String(password).length < 6) return reply.status(400).send({ error: '密码至少 6 位' })
@@ -13,6 +29,7 @@ export default async function authRoutes(app) {
 
   app.post('/api/auth/login', async (req, reply) => {
     const { email, password } = req.body || {}
+    if (rateLimited(`login:${req.ip}:${String(email || '').toLowerCase()}`)) return reply.status(429).send({ error: '尝试过于频繁，请 10 分钟后再试' })
     const user = auth.verifyLogin(email, password)
     if (!user) return reply.status(401).send({ error: '邮箱或密码不正确' })
     return { token: auth.createSession(user.id), user }

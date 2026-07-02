@@ -49,6 +49,7 @@ export const api = {
   getState: () => req('GET', '/state'),
   capture: (text, source = 'chat') => req('POST', '/capture', { text, source }),
   chat: (message) => req('POST', '/chat', { message }),
+  chatStream,
   plan: (blockMinutes) => req('POST', '/plan', blockMinutes ? { blockMinutes } : {}),
 
   listTasks: (params = {}) => req('GET', '/tasks' + toQuery(params)),
@@ -84,7 +85,99 @@ export const api = {
 
   getAiConfig: () => req('GET', '/ai/config'),
   updateAiConfig: (patch) => req('PUT', '/ai/config', patch),
+  updateOwnAiConfig: (patch) => req('PUT', '/ai/config/own', patch),
+  clearOwnAiConfig: () => req('DELETE', '/ai/config/own'),
   testAiConfig: (draft) => req('POST', '/ai/test', draft || {}),
+
+  createProject: (name, description) => req('POST', '/projects', { name, description }),
+  team: () => req('GET', '/team'),
+  commitPlan: (items) => req('POST', '/plan/commit', { items }),
+
+  inviteCollab: (taskId, userId, force) => req('POST', `/tasks/${taskId}/invite`, force ? { userId, force: true } : { userId }),
+  myInvites: () => req('GET', '/invites'),
+  // mode: true/'accept' | false/'decline' | 'follow'（仅关注）
+  respondInvite: (id, mode, remind = true) => req('POST', `/invites/${id}/respond`, mode === 'follow' ? { follow: true, remind } : { accept: mode === true || mode === 'accept', remind }),
+  leaveTask: (taskId) => req('POST', `/tasks/${taskId}/leave`),
+  autoRules: () => req('GET', '/auto-rules'),
+  deleteAutoRule: (id) => req('DELETE', `/auto-rules/${id}`),
+  subscribeEvents,
+}
+
+// Streaming chat turn over SSE. handlers: {onStatus({intent}), onDelta(text)}.
+// Resolves with the final full payload (same shape as api.chat); throws if the
+// stream is unavailable or breaks before `done` — caller falls back to api.chat.
+async function chatStream(message, handlers = {}) {
+  const headers = { 'content-type': 'application/json' }
+  if (TOKEN) headers.authorization = 'Bearer ' + TOKEN
+  const res = await fetch(BASE + '/chat/stream', { method: 'POST', headers, body: JSON.stringify({ message }) })
+  if (!res.ok || !res.body || !res.body.getReader) {
+    const err = new Error('stream unavailable'); err.status = res.status; throw err
+  }
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let carry = ''
+  let done = null
+  for (;;) {
+    const { done: end, value } = await reader.read()
+    if (end) break
+    carry += dec.decode(value, { stream: true })
+    const blocks = carry.split('\n\n')
+    carry = blocks.pop()
+    for (const block of blocks) {
+      let event = 'message'; let data = ''
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) data += line.slice(5).trim()
+      }
+      let obj = null
+      try { obj = JSON.parse(data) } catch { /* ignore */ }
+      if (event === 'delta') handlers.onDelta && handlers.onDelta((obj && obj.text) || '')
+      else if (event === 'status') handlers.onStatus && handlers.onStatus(obj || {})
+      else if (event === 'done') done = obj
+      else if (event === 'error') throw new Error((obj && obj.error) || '流式请求失败')
+    }
+  }
+  if (!done) throw new Error('流式响应中断')
+  return done
+}
+
+// 实时事件通道（SSE）：断线 5s 自动重连；返回 stop() 用于登出时中止。
+function subscribeEvents(onEvent) {
+  let stop = false
+  let ctrl = null
+  const run = async () => {
+    while (!stop) {
+      try {
+        ctrl = new AbortController()
+        const headers = {}
+        if (TOKEN) headers.authorization = 'Bearer ' + TOKEN
+        const res = await fetch(BASE + '/events', { headers, signal: ctrl.signal })
+        if (!res.ok || !res.body || !res.body.getReader) throw new Error('events unavailable')
+        const reader = res.body.getReader()
+        const dec = new TextDecoder()
+        let carry = ''
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          carry += dec.decode(value, { stream: true })
+          const blocks = carry.split('\n\n')
+          carry = blocks.pop()
+          for (const block of blocks) {
+            let event = 'message'; let data = ''
+            for (const line of block.split('\n')) {
+              if (line.startsWith('event:')) event = line.slice(6).trim()
+              else if (line.startsWith('data:')) data += line.slice(5).trim()
+            }
+            if (event === 'hello' || !data) continue
+            try { const obj = JSON.parse(data); if (obj && onEvent && !stop) onEvent(obj) } catch { /* ignore */ }
+          }
+        }
+      } catch { /* retry below */ }
+      if (!stop) await new Promise((r) => setTimeout(r, 5000))
+    }
+  }
+  run()
+  return () => { stop = true; try { ctrl && ctrl.abort() } catch { /* ignore */ } }
 }
 
 function toQuery(params) {

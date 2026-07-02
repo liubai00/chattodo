@@ -46,7 +46,7 @@ const seedChat = [
 
 // Reset all tables and load seed data. Idempotent (safe to re-run).
 export function seedDb(db, userId = config.defaultUserId) {
-  const tables = ['projects', 'tasks', 'todo_ideas', 'non_todo_outputs', 'agent_profile', 'app_settings', 'capture_records', 'corrections', 'ai_errors', 'chat_messages', 'ai_config', 'subtasks', 'comments', 'activity', 'notifications', 'users', 'sessions']
+  const tables = ['projects', 'tasks', 'todo_ideas', 'non_todo_outputs', 'agent_profile', 'app_settings', 'capture_records', 'corrections', 'ai_errors', 'chat_messages', 'ai_config', 'subtasks', 'comments', 'activity', 'notifications', 'task_collaborators', 'users', 'sessions']
   const run = db.transaction(() => {
     for (const t of tables) db.prepare(`DELETE FROM ${t}`).run()
 

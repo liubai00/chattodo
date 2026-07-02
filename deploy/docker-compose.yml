@@ -8,6 +8,17 @@ services:
       - "127.0.0.1:8788:8787"
     volumes:
       - chattodo-data:/data
+    environment:
+      - REDIS_URL=redis://chattodo-redis:6379
+    depends_on:
+      - chattodo-redis
+    restart: unless-stopped
+
+  # 实时事件总线（pub/sub 专用，不持久化）。仅 compose 内网可达，不发布任何端口。
+  chattodo-redis:
+    image: redis:7-alpine
+    container_name: chattodo-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
     restart: unless-stopped
 
 volumes:

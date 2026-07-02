@@ -20,6 +20,10 @@ import aiRoutes from './routes/ai.js'
 import notificationRoutes from './routes/notifications.js'
 import dataRoutes from './routes/data.js'
 import adminRoutes from './routes/admin.js'
+import projectRoutes from './routes/projects.js'
+import teamRoutes from './routes/team.js'
+import collabRoutes from './routes/collab.js'
+import eventRoutes from './routes/events.js'
 
 // Build a Fastify instance. opts.db lets tests inject an isolated in-memory DB;
 // opts.auth === false disables the 401 guard (requests fall back to the
@@ -91,6 +95,10 @@ export function buildApp(opts = {}) {
   app.register(notificationRoutes)
   app.register(dataRoutes)
   app.register(adminRoutes)
+  app.register(projectRoutes)
+  app.register(teamRoutes)
+  app.register(collabRoutes)
+  app.register(eventRoutes)
 
   app.setErrorHandler((err, req, reply) => {
     req.log.error(err)

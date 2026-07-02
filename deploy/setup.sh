@@ -46,7 +46,15 @@ else
   fi
 fi
 
-echo "=== [4/4] verify ==="
+echo "=== [4/5] daily backup cron ==="
+mkdir -p /opt/chattodo-backups
+cat > /etc/cron.d/chattodo-backup <<'CRON'
+30 3 * * * root docker exec chattodo-api node src/db/backup.js >> /var/log/chattodo-backup.log 2>&1 && docker cp chattodo-api:/data/backups/. /opt/chattodo-backups/ >/dev/null 2>&1
+CRON
+chmod 644 /etc/cron.d/chattodo-backup
+echo "backup cron installed (03:30 daily -> /opt/chattodo-backups)"
+
+echo "=== [5/5] verify ==="
 sleep 3
 curl -s -o /dev/null -w "backend  127.0.0.1:8788/api/health -> %{http_code}\n" http://127.0.0.1:8788/api/health || true
 curl -s -o /dev/null -w "nginx    /todo/api/health          -> %{http_code}\n" http://127.0.0.1/todo/api/health || true

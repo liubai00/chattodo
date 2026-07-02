@@ -216,6 +216,15 @@ export function detectIntent(message) {
   return 'capture'
 }
 
+// High-precision multi-item split: newlines / semicolons / numbered lists only
+// (顿号 stays intact — "研究 Cubox、OmniFocus" is one item; the LLM handles those).
+export function splitSegments(text) {
+  const t = String(text || '').trim()
+  const parts = t.split(/\n+|；|;|(?:^|\s)\d+[.、]\s*/).map((s) => s.trim()).filter((s) => s.length >= 4)
+  if (parts.length < 2 || parts.length > 8) return [t]
+  return parts
+}
+
 // Extract the task title a complete/delete command refers to.
 export function extractCommandTarget(message) {
   const m = String(message || '').trim()

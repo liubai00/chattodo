@@ -1,9 +1,19 @@
 import { filterTasks, moveOutOfTodo } from '../services/tasks.js'
 import { visibleFilter } from '../services/privacy.js'
+import { notifyTaskDoneFx } from '../services/collab.js'
+import { makeId, nowIso } from '../lib/ids.js'
 
 const STATUS_LABEL = { todo: '待办', in_progress: '进行中', done: '已完成', archived: '已归档' }
 
 export default async function taskRoutes(app) {
+  // 跨用户通知：按显示名找到成员，往对方的通知中心写一条（自己不通知自己）。
+  const notifyUserByName = (name, actor, text, icon = 'ph-user-switch') => {
+    if (!name || (actor && name === actor.name)) return
+    const target = app.db.prepare(`SELECT id FROM users WHERE name = ?`).get(name)
+    if (!target || (actor && target.id === actor.id)) return
+    app.db.prepare(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,0,?)`)
+      .run(makeId('nt'), target.id, 'assign', icon, 'var(--accent-ink)', text, nowIso())
+  }
   app.get('/api/tasks', async (req) => {
     const repos = req.repos
     const { view, scope, search } = req.query || {}
@@ -34,6 +44,8 @@ export default async function taskRoutes(app) {
     if (!task) return reply.status(404).send({ error: 'task not found' })
     return {
       task,
+      access: repos.tasks.access(task.id),
+      collaborators: repos.collaborators.forTask(task.id),
       generationRecord: repos.captureRecords.getByEntity('task', task.id) || null,
       subtasks: repos.subtasks.byTask(task.id),
       comments: repos.comments.byTask(task.id),
@@ -48,15 +60,21 @@ export default async function taskRoutes(app) {
     const patch = req.body || {}
     const updated = repos.tasks.update(req.params.id, patch)
     if (patch.status && patch.status !== prev.status) repos.activity.log(prev.id, '状态改为「' + (STATUS_LABEL[patch.status] || patch.status) + '」')
-    if (patch.assignee && patch.assignee !== prev.assignee) repos.activity.log(prev.id, '指派给 ' + patch.assignee)
+    if (patch.status === 'done' && prev.status !== 'done') notifyTaskDoneFx(app.db, repos, req.user, prev.id)
+    if (patch.assignee && patch.assignee !== prev.assignee) {
+      repos.activity.log(prev.id, '指派给 ' + patch.assignee)
+      notifyUserByName(patch.assignee, req.user, `${(req.user && req.user.name) || '有人'} 把「${prev.title}」指派给你`)
+    }
     return updated
   })
 
   app.post('/api/tasks/:id/done', async (req, reply) => {
     const repos = req.repos
-    if (!repos.tasks.get(req.params.id)) return reply.status(404).send({ error: 'task not found' })
+    const prev = repos.tasks.get(req.params.id)
+    if (!prev) return reply.status(404).send({ error: 'task not found' })
     const t = repos.tasks.update(req.params.id, { status: 'done' })
     repos.activity.log(req.params.id, '状态改为「已完成」')
+    if (prev.status !== 'done') notifyTaskDoneFx(app.db, repos, req.user, req.params.id)
     return t
   })
 
@@ -76,7 +94,16 @@ export default async function taskRoutes(app) {
 
   app.delete('/api/tasks/:id', async (req, reply) => {
     const repos = req.repos
-    if (!repos.tasks.get(req.params.id)) return reply.status(404).send({ error: 'task not found' })
+    const task = repos.tasks.get(req.params.id)
+    if (!task) return reply.status(404).send({ error: 'task not found' })
+    if (repos.tasks.access(req.params.id) !== 'owner') return reply.status(403).send({ error: '协作任务只有创建者可以删除，你可以选择「退出协作」' })
+    // 通知协作者任务已删除，并清理协作关系
+    const collabUserIds = repos.collaborators.acceptedUsersOf(req.params.id)
+    for (const uid of collabUserIds) {
+      app.db.prepare(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,0,?)`)
+        .run(makeId('nt'), uid, 'assign', 'ph-trash', 'var(--danger)', `「${task.title}」已被 ${(req.user && req.user.name) || '创建者'} 删除`, nowIso())
+    }
+    repos.collaborators.removeForTask(req.params.id)
     repos.tasks.remove(req.params.id)
     return { ok: true }
   })
@@ -107,6 +134,12 @@ export default async function taskRoutes(app) {
     if (!text) return reply.status(400).send({ error: 'text is required' })
     const cmt = repos.comments.create(req.params.id, b.author || (req.user && req.user.name) || '我', text)
     repos.activity.log(req.params.id, '发表了评论')
+    // @提及 → 通知对应成员（按显示名匹配）
+    const task = repos.tasks.get(req.params.id)
+    const mentioned = [...new Set([...text.matchAll(/@([^\s@，。,、.!！?？]{1,20})/g)].map((m) => m[1]))]
+    for (const name of mentioned) {
+      notifyUserByName(name, req.user, `${(req.user && req.user.name) || '有人'} 在「${task.title}」的评论中提到了你`, 'ph-chat-circle')
+    }
     return cmt
   })
 }

@@ -1,8 +1,10 @@
-import { llmMessagesJson } from './triage/llmProvider.js'
+import { llmMessagesJson, llmStreamText, makeReplyExtractor, extractJson } from './triage/llmProvider.js'
 import { planNextBlock } from './planning.js'
 import { visibleFilter } from './privacy.js'
 import { detectDue, extractCommandTarget, triageInputSync } from './triage/ruleProvider.js'
-import { persistCapture } from './capture.js'
+import { persistCapture, matchProjectId } from './capture.js'
+import { convertIdeaToTask } from './ideas.js'
+import { inviteFx, respondInviteFx, findUserByName, extractMentionedUsers, notifyTaskDoneFx, maybeCreateAutoRule, applyAutoInvitesFx } from './collab.js'
 import { nowIso } from '../lib/ids.js'
 
 const AGENT_SYSTEM = `你是用户的 todo-first 智能助理。读懂用户意图，决定要执行的操作，并给出简洁、自然的中文回复。
@@ -12,16 +14,27 @@ const AGENT_SYSTEM = `你是用户的 todo-first 智能助理。读懂用户意�
 【B. 要归档的内容】用户丢进来的想法、待办、信息——才需要 create_* 动作。
 
 可用动作（放进 actions 数组，可为空、可多个）：
-- create_task {title, dueAt(ISO字符串或null), priority(1-4), durationMinutes(数字或null), tags(字符串数组), privacyScope(work|personal|mixed), notes}
+- create_task {title, dueAt(ISO字符串或null), priority(1-4), durationMinutes(数字或null), tags(字符串数组), privacyScope(work|personal|mixed), notes, projectId(上下文 projects 里的 id 或 null)}
 - create_idea {title, suggestedNextAction, privacyScope}   // 有行动倾向但需澄清
 - create_non_todo {title, summary, privacyScope}           // 只是想法/参考/摘录
+- convert_idea {id, dueAt?, priority?, notes?}              // 用户补充了澄清信息后，把 clarifyingIdeas 里的想法转正式任务
 - complete_task {id}                                        // 标记完成，id 用上下文里的任务 id
 - update_task {id, patch}                                   // 修改字段，如 {priority:1} 或 {dueAt:"..."}
 - delete_task {id}                                          // 删除任务（仅当用户明确要求删除）
 - plan {}                                                   // 用户问"接下来做什么/两小时安排"时
 - remember {note}                                           // 用户表达长期偏好/习惯/固定事实时（"以后都…""我习惯…"），写入长期记忆
+- invite_collaborator {taskId?, userName}                   // 用户 @某成员或说"让X一起/交给X"时发协作邀请；taskId 缺省 = 本轮刚创建的任务
+- respond_invite {inviteId?, accept, remind?}               // 用户回应 pendingInvites 里的协作邀请（"接受/拒绝"）；inviteId 缺省 = 最新一条
 
 你能看到之前的对话历史：结合上文理解省略与指代（例如刚创建了任务后用户说"改到九点"，指的就是那个任务，用 update_task 修改它的 dueAt）。上下文 JSON 里的 memory 是你的长期记忆，判断时要遵循。
+额外规则：
+- 一句话里有多件独立的事（"买菜、洗车、报税"）→ 拆成多个 create_task，不要合成一条。
+- 与 openTasks 里明显同一件事 → 不要重复创建，在 reply 里指出已存在。
+- 任务能对应 projects 里的某个项目时填 projectId，否则填 null。
+- 上一轮你对某个想法提了澄清问题、用户这轮回答了 → 用 convert_idea（id 取 clarifyingIdeas 里的），不要再 create_task 造成重复。
+- 消息里 @了 team 里的成员（或"让X一起/叫上X"）→ 在 create_task 之外追加 invite_collaborator；userName 必须逐字取 team 里的名字。
+- pendingInvites 非空且用户在回应邀请（"接受/好的/拒绝"）→ 用 respond_invite，绝不要 create_task。
+- 没有 invite_collaborator 动作就不要说"已通知/已邀请某人"。
 
 判断原则：真正可执行→create_task；模糊→create_idea；非行动信息→create_non_todo。可结合上下文里的已有任务做 complete/update/delete/plan。拿不准是否该删除时，先在 reply 里确认，不要直接删。
 
@@ -40,6 +53,9 @@ const TYPE_ALIAS = {
   delete_task: 'delete_task', deletetask: 'delete_task', remove_task: 'delete_task', del_task: 'delete_task', delete: 'delete_task', remove: 'delete_task',
   plan: 'plan', make_plan: 'plan', schedule: 'plan',
   remember: 'remember', memorize: 'remember', save_memory: 'remember', add_memory: 'remember',
+  convert_idea: 'convert_idea', convertidea: 'convert_idea', idea_to_task: 'convert_idea', promote_idea: 'convert_idea',
+  invite_collaborator: 'invite_collaborator', invitecollaborator: 'invite_collaborator', invite: 'invite_collaborator', add_collaborator: 'invite_collaborator',
+  respond_invite: 'respond_invite', respondinvite: 'respond_invite', accept_invite: 'respond_invite', decline_invite: 'respond_invite',
 }
 
 // Append a durable note to the agent's long-term memory (kept ~1600 chars, oldest dropped).
@@ -77,7 +93,7 @@ export function normalizeAction(a) {
 // Model-driven chat: the LLM reads intent → returns {reply, actions}; we execute
 // the actions against the todo DB (with generation records) and reply naturally.
 // Returns the same unified shape as the rule chat.
-export async function agentChat(repos, { message, aiConfig }) {
+export async function agentChat(repos, { message, aiConfig, onEvent, db, user }) {
   const settings = repos.settings.get()
   const visibleTasks = visibleFilter(repos.tasks.all(), settings)
   const profile = repos.agent.get()
@@ -90,14 +106,29 @@ export async function agentChat(repos, { message, aiConfig }) {
       .filter((t) => t.status !== 'done' && t.status !== 'archived')
       .slice(0, 40)
       .map((t) => ({ id: t.id, title: t.title, status: t.status, dueAt: t.dueAt, priority: t.priority })),
+    projects: repos.projects.all().slice(0, 20).map((p) => ({ id: p.id, name: p.name, description: p.description })),
+    clarifyingIdeas: repos.ideas.all().filter((i) => i.status === 'clarifying').slice(0, 5)
+      .map((i) => ({ id: i.id, title: i.title, suggestedNextAction: i.suggestedNextAction })),
+    team: db ? db.prepare(`SELECT name FROM users ORDER BY created_at LIMIT 20`).all().map((u) => u.name) : [],
+    pendingInvites: repos.collaborators.myPending().slice(0, 5)
+      .map((i) => ({ id: i.id, taskTitle: i.taskTitle, from: i.inviterName, dueAt: i.taskDueAt })),
   }
   // 多轮上下文：带上最近的对话历史（排除报错消息），让"改到九点"这类指代可解析。
   const history = repos.chat.all()
     .filter((m) => !m.isError)
     .slice(-12)
-    .map((m) => ({ role: m.role === 'agent' ? 'assistant' : 'user', content: m.text }))
+    .map((m) => ({ role: m.role === 'agent' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 600) }))
   const userContent = `上下文(JSON)：\n${JSON.stringify(context)}\n\n用户消息：${message}`
-  const out = await llmMessagesJson(AGENT_SYSTEM, [...history, { role: 'user', content: userContent }], aiConfig)
+  const turns = [...history, { role: 'user', content: userContent }]
+  let out
+  if (onEvent) {
+    // 流式：上游 token 边到边喂增量提取器，把 JSON 里 reply 字段的内容实时推给客户端。
+    const feed = makeReplyExtractor((text) => onEvent({ type: 'delta', text }))
+    const full = await llmStreamText(AGENT_SYSTEM, turns, aiConfig, feed)
+    out = extractJson(full)
+  } else {
+    out = await llmMessagesJson(AGENT_SYSTEM, turns, aiConfig)
+  }
 
   const performed = []
   const entities = []
@@ -108,8 +139,9 @@ export async function agentChat(repos, { message, aiConfig }) {
   })
 
   const createTask = (t, reason) => {
+    const projectId = (t.projectId && repos.projects.get(t.projectId)) ? t.projectId : matchProjectId(repos, `${t.title} ${message}`)
     const task = repos.tasks.create({
-      title: t.title, notes: t.notes || '', status: 'todo',
+      title: t.title, notes: t.notes || '', status: 'todo', projectId,
       tags: Array.isArray(t.tags) ? t.tags : [], context: '',
       dueAt: t.dueAt || detectDue(message) || null, plannedAt: null,
       durationMinutes: typeof t.durationMinutes === 'number' ? t.durationMinutes : 30,
@@ -120,6 +152,7 @@ export async function agentChat(repos, { message, aiConfig }) {
     repos.activity.log(task.id, '任务已创建（来自聊天输入）')
     entities.push({ type: 'task', entity: task })
     performed.push({ type: 'create_task', id: task.id, title: task.title })
+    if (db) for (const p of applyAutoInvitesFx(db, repos, user, task, message)) performed.push(p)
     return task
   }
 
@@ -155,6 +188,7 @@ export async function agentChat(repos, { message, aiConfig }) {
         if (repos.tasks.get(a.id)) {
           const task = repos.tasks.update(a.id, { status: 'done' })
           repos.activity.log(a.id, '通过聊天标记完成')
+          if (db) notifyTaskDoneFx(db, repos, user, a.id)
           performed.push({ type: 'complete_task', id: a.id, task })
         }
       } else if (a.type === 'update_task' && a.id && a.patch) {
@@ -170,12 +204,59 @@ export async function agentChat(repos, { message, aiConfig }) {
         performed.push({ type: 'plan' })
       } else if (a.type === 'remember') {
         const note = a.payload.note || a.payload.title || a.payload.text || a.payload.content
-        if (note && appendMemory(repos, note)) performed.push({ type: 'remember', note: String(note).slice(0, 80) })
+        if (note && appendMemory(repos, note)) {
+          performed.push({ type: 'remember', note: String(note).slice(0, 80) })
+          if (db) { const rule = maybeCreateAutoRule(db, repos, note); if (rule) performed.push({ type: 'auto_rule', id: rule.id, keyword: rule.keyword, targetName: rule.targetName }) }
+        }
+      } else if (a.type === 'convert_idea' && a.id) {
+        const conv = convertIdeaToTask(repos, a.id)
+        if (conv) {
+          const patch = {}
+          if (a.payload.dueAt) patch.dueAt = a.payload.dueAt
+          if ([1, 2, 3, 4].includes(a.payload.priority)) patch.priority = a.payload.priority
+          if (a.payload.notes) patch.notes = `${conv.task.notes}\n${a.payload.notes}`.trim()
+          const task = Object.keys(patch).length ? repos.tasks.update(conv.task.id, patch) : conv.task
+          rec('task', out.reply || '澄清后转为任务', 'task', task.id)
+          entities.push({ type: 'task', entity: task })
+          performed.push({ type: 'convert_idea', ideaId: a.id, id: task.id, title: task.title })
+        }
+      } else if (a.type === 'invite_collaborator' && db) {
+        const name = a.payload.userName || a.payload.name || a.payload.user
+        const target = name ? findUserByName(db, name) : null
+        const taskId = a.payload.taskId || a.id || (entities.find((e) => e.type === 'task') || {}).entity?.id
+        if (target && taskId) {
+          const r = inviteFx(db, repos, user, taskId, target.id)
+          if (r.collab) performed.push({ type: 'invite', userId: target.id, userName: target.name, collabId: r.collab.id })
+        }
+      } else if (a.type === 'respond_invite' && db) {
+        const pendings = repos.collaborators.myPending()
+        const inv = a.payload.inviteId ? pendings.find((p) => p.id === a.payload.inviteId) : pendings[0]
+        if (inv) {
+          const accept = a.payload.accept !== false
+          const r = respondInviteFx(db, repos, user, inv.id, accept, a.payload.remind !== false)
+          if (r) {
+            performed.push({ type: 'respond_invite', id: inv.id, accept })
+            if (accept && r.task) entities.push({ type: 'task', entity: r.task })
+          }
+        }
       }
     } catch { /* skip malformed action */ }
   }
 
   let reply = (out.reply || '好的。').trim()
+
+  // 守卫（协作）：声称"已邀请/已通知 X"但没有 invite 动作 → 尝试按 @成员兜底真邀请。
+  if (db && /(已邀请|已通知|会通知|邀请了)/.test(reply) && !performed.some((p) => p.type === 'invite')) {
+    const taskEntity = entities.find((e) => e.type === 'task')
+    const mentioned = extractMentionedUsers(db, message)
+    if (taskEntity && mentioned.length) {
+      for (const u of mentioned) {
+        const r = inviteFx(db, repos, user, taskEntity.entity.id, u.id)
+        if (r.collab) performed.push({ type: 'invite', userId: u.id, userName: u.name, collabId: r.collab.id, recovered: true })
+      }
+    }
+    if (!performed.some((p) => p.type === 'invite')) reply += '\n（提示：本次没有实际发出协作邀请——@成员名 或说清楚要邀请谁。）'
+  }
 
   // 诚实守卫：reply 声称已执行，但实际什么都没做 → 服务端兜底真执行，绝不让 AI 空口说白话。
   if (!entities.length && !performed.length) {

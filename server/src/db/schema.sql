@@ -174,15 +174,45 @@ CREATE TABLE IF NOT EXISTS activity (
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
-  id         TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL DEFAULT 'u_default',
-  type       TEXT,
-  icon       TEXT,
-  color      TEXT,
-  text       TEXT NOT NULL,
-  read       INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL DEFAULT 'u_default',
+  type        TEXT,
+  icon        TEXT,
+  color       TEXT,
+  text        TEXT NOT NULL,
+  read        INTEGER NOT NULL DEFAULT 0,
+  action_type TEXT,                        -- e.g. 'invite' → renders accept/decline buttons
+  action_ref  TEXT,                        -- id the action operates on (collaborator row id)
+  handled     INTEGER NOT NULL DEFAULT 0,  -- action consumed (buttons gray out)
+  created_at  TEXT NOT NULL
 );
+
+-- 任务协作（邀请-确认制）：任务仍归 owner，接受后协作者获得同一条任务的读写视图。
+CREATE TABLE IF NOT EXISTS task_collaborators (
+  id           TEXT PRIMARY KEY,
+  task_id      TEXT NOT NULL,
+  owner_id     TEXT NOT NULL,
+  user_id      TEXT NOT NULL,              -- 被邀请成员
+  invited_by   TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'pending', -- pending | accepted | declined | left
+  remind       INTEGER NOT NULL DEFAULT 1,      -- 接受时选择：纳入我的提醒/规划
+  created_at   TEXT NOT NULL,
+  responded_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_collab_task ON task_collaborators(task_id);
+CREATE INDEX IF NOT EXISTS idx_collab_user ON task_collaborators(user_id);
+
+-- 记忆驱动的自动化规则（"以后合同类任务都邀请张伟"）。
+CREATE TABLE IF NOT EXISTS auto_rules (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL,
+  keyword     TEXT NOT NULL,               -- 命中任务标题/原文的关键词
+  action      TEXT NOT NULL DEFAULT 'invite',
+  target_id   TEXT NOT NULL,               -- 动作对象（成员 userId）
+  target_name TEXT NOT NULL DEFAULT '',
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_autorules_user ON auto_rules(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_subtasks_task ON subtasks(task_id);
 CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id);

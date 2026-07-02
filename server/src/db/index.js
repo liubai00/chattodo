@@ -15,6 +15,10 @@ export function applySchema(db) {
   const setCols = db.prepare('PRAGMA table_info(app_settings)').all().map((c) => c.name)
   if (!setCols.includes('notif_prefs')) db.exec(`ALTER TABLE app_settings ADD COLUMN notif_prefs TEXT NOT NULL DEFAULT '{}'`)
   if (!setCols.includes('theme')) db.exec(`ALTER TABLE app_settings ADD COLUMN theme TEXT NOT NULL DEFAULT 'light'`)
+  const ntCols = db.prepare('PRAGMA table_info(notifications)').all().map((c) => c.name)
+  if (!ntCols.includes('action_type')) db.exec('ALTER TABLE notifications ADD COLUMN action_type TEXT')
+  if (!ntCols.includes('action_ref')) db.exec('ALTER TABLE notifications ADD COLUMN action_ref TEXT')
+  if (!ntCols.includes('handled')) db.exec('ALTER TABLE notifications ADD COLUMN handled INTEGER NOT NULL DEFAULT 0')
   return db
 }
 
