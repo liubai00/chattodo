@@ -1,7 +1,7 @@
-import { triageInputSync, detectIntent } from './ruleProvider.js'
+import { triageInputSync, detectIntent, extractCommandTarget } from './ruleProvider.js'
 import { makeLlmProvider } from './llmProvider.js'
 
-export { detectIntent, triageInputSync }
+export { detectIntent, extractCommandTarget, triageInputSync }
 
 // Triage via the configured provider. ctx.aiConfig (from the DB) selects the
 // provider; without a configured key it falls back to the rule engine.

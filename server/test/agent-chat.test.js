@@ -26,7 +26,8 @@ test('agent chat: model intent → creates a task in the DB', async () => {
     const res = (await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '帮我记一下下周要写周报' } })).json()
     assert.equal(res.intent, 'agent')
     assert.ok(res.agentMessage.text.includes('好的'))
-    assert.ok(res.actions.some((a) => a.type === 'create_task'))
+    assert.ok(res.performed.some((a) => a.type === 'create_task'))
+    assert.equal(res.entities[0].type, 'task') // full entity returned for the frontend
     assert.equal(db.prepare("SELECT COUNT(*) AS c FROM tasks WHERE title='写下周周报'").get().c, 1)
     // generation record written for traceability
     const t = db.prepare("SELECT id FROM tasks WHERE title='写下周周报'").get()
@@ -50,9 +51,81 @@ test('agent chat: plan action appends the schedule to the reply', async () => {
   const restore = stubLlm({ reply: '这是接下来的安排：', actions: [{ type: 'plan' }] })
   try {
     const res = (await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '接下来两小时做什么' } })).json()
-    assert.ok(res.actions.some((a) => a.type === 'plan'))
+    assert.ok(res.performed.some((a) => a.type === 'plan'))
     assert.match(res.agentMessage.text, /\d\.\s/) // numbered plan lines appended
   } finally { restore() }
+})
+
+test('agent chat: tolerant action parsing (alias / single-key / nested shapes)', async () => {
+  const { app, db } = makeTestApp()
+  await useOpenAI(app)
+  // "add_task" alias + payload at top level
+  let restore = stubLlm({ reply: '好的', actions: [{ action: 'add_task', title: '别名任务A' }] })
+  try { await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '随便' } }) } finally { restore() }
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM tasks WHERE title='别名任务A'").get().c, 1)
+  // single-key form {"create_task": {...}}
+  restore = stubLlm({ reply: '好的', actions: [{ create_task: { title: '单键任务B' } }] })
+  try { await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '随便' } }) } finally { restore() }
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM tasks WHERE title='单键任务B'").get().c, 1)
+})
+
+test('honesty guard: reply claims "已添加" with empty actions → capture actually happens', async () => {
+  const { app, db } = makeTestApp()
+  await useOpenAI(app)
+  const restore = stubLlm({ reply: '已添加任务：明天晚上八点去吃饭。', actions: [] })
+  try {
+    const res = (await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '明天八点去吃饭' } })).json()
+    assert.equal(res.entities.length, 1) // guard captured it for real
+    assert.ok(res.performed.some((p) => p.recovered))
+  } finally { restore() }
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM capture_records WHERE raw_input='明天八点去吃饭'").get().c, 1)
+})
+
+test('honesty guard: claims "已完成" but no match → appends correction, no fake state change', async () => {
+  const { app, db } = makeTestApp()
+  await useOpenAI(app)
+  const restore = stubLlm({ reply: '已完成「不存在的任务」。', actions: [] })
+  try {
+    const res = (await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '把不存在的任务XYZ标记完成' } })).json()
+    assert.ok(res.reply.includes('没有实际改动'))
+    assert.equal(res.performed.length, 0)
+  } finally { restore() }
+  assert.equal(db.prepare(`SELECT COUNT(*) c FROM tasks WHERE status='done'`).get().c, 1) // only seeded done task
+})
+
+test('agent chat: sends multi-turn history to the LLM (context awareness)', async () => {
+  const { app } = makeTestApp()
+  await useOpenAI(app)
+  // turn 1 (rule-free stub): creates a task
+  let restore = stubLlm({ reply: '已记为任务', actions: [{ type: 'create_task', title: '八点吃饭' }] })
+  try { await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '明天八点去吃饭' } }) } finally { restore() }
+  // turn 2: capture the outgoing request body and assert history is present
+  let captured = null
+  const orig = global.fetch
+  global.fetch = async (_u, opts) => {
+    captured = JSON.parse(opts.body)
+    return { ok: true, status: 200, async json() { return { choices: [{ message: { content: JSON.stringify({ reply: '好的，已改到九点。', actions: [] }) } }] } }, async text() { return '' } }
+  }
+  try {
+    await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '改到九点' } })
+  } finally { global.fetch = orig }
+  const allText = captured.messages.map((m) => m.content).join('\n')
+  assert.ok(allText.includes('明天八点去吃饭'), 'prior user turn included')
+  assert.ok(allText.includes('已记为任务'), 'prior assistant turn included')
+  assert.ok(allText.includes('"memory"'), 'long-term memory field in context')
+  assert.ok(captured.messages.length >= 3)
+})
+
+test('agent chat: remember action appends to long-term memory', async () => {
+  const { app, db } = makeTestApp()
+  await useOpenAI(app)
+  const restore = stubLlm({ reply: '记住了', actions: [{ type: 'remember', note: '用户习惯上午做深度工作' }] })
+  try {
+    const res = (await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '记住，我习惯上午做深度工作' } })).json()
+    assert.ok(res.performed.some((p) => p.type === 'remember'))
+  } finally { restore() }
+  const mem = db.prepare('SELECT memory FROM agent_profile').get().memory
+  assert.ok(mem.includes('上午做深度工作'))
 })
 
 test('chat falls back to rule engine when the LLM call fails', async () => {

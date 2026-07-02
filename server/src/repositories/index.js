@@ -7,7 +7,7 @@ const toTask = (r) => r && {
   projectId: r.project_id, tags: JSON.parse(r.tags || '[]'), context: r.context,
   dueAt: r.due_at, plannedAt: r.planned_at, durationMinutes: r.duration_minutes,
   priority: r.priority, privacyScope: r.privacy_scope, sourceIdeaId: r.source_idea_id,
-  createdAt: r.created_at, updatedAt: r.updated_at,
+  assignee: r.assignee || null, createdAt: r.created_at, updatedAt: r.updated_at,
 }
 const toIdea = (r) => r && {
   id: r.id, title: r.title, rawText: r.raw_text, status: r.status,
@@ -27,9 +27,14 @@ const toAgent = (r) => r && {
   soul: r.soul, memory: r.memory, preferences: r.preferences, workingStyle: r.working_style,
   privacyRules: r.privacy_rules, defaultFollowupStrategy: r.default_followup_strategy, updatedAt: r.updated_at,
 }
-const toSettings = (r) => r && {
-  workspaceMode: r.workspace_mode, privacyMode: !!r.privacy_mode, defaultView: r.default_view,
-  aiVisibility: r.ai_visibility, updatedAt: r.updated_at,
+const toSettings = (r) => {
+  if (!r) return r
+  let notifPrefs = {}
+  try { notifPrefs = JSON.parse(r.notif_prefs || '{}') } catch { /* keep {} */ }
+  return {
+    workspaceMode: r.workspace_mode, privacyMode: !!r.privacy_mode, defaultView: r.default_view,
+    aiVisibility: r.ai_visibility, notifPrefs, theme: r.theme || 'light', updatedAt: r.updated_at,
+  }
 }
 const toChat = (r) => r && { id: r.id, role: r.role, text: r.text, isError: !!r.is_error, createdAt: r.created_at }
 const toRecord = (r) => r && {
@@ -58,9 +63,14 @@ function applyUpdate(db, table, id, userId, patch, fieldMap, serialize = (k, v) 
 const TASK_FIELDS = {
   title: 'title', notes: 'notes', status: 'status', projectId: 'project_id', tags: 'tags',
   context: 'context', dueAt: 'due_at', plannedAt: 'planned_at', durationMinutes: 'duration_minutes',
-  priority: 'priority', privacyScope: 'privacy_scope', sourceIdeaId: 'source_idea_id',
+  priority: 'priority', privacyScope: 'privacy_scope', sourceIdeaId: 'source_idea_id', assignee: 'assignee',
 }
 const serTask = (k, v) => (k === 'tags' ? JSON.stringify(v ?? []) : v)
+
+const toSub = (r) => r && { id: r.id, text: r.text, done: !!r.done, createdAt: r.created_at }
+const toComment = (r) => r && { id: r.id, author: r.author, text: r.text, createdAt: r.created_at }
+const toAct = (r) => r && { id: r.id, text: r.text, createdAt: r.created_at }
+const toNotif = (r) => r && { id: r.id, type: r.type, icon: r.icon, color: r.color, text: r.text, read: !!r.read, createdAt: r.created_at }
 
 export function makeRepos(db, userId = config.defaultUserId) {
   const projects = {
@@ -147,10 +157,10 @@ export function makeRepos(db, userId = config.defaultUserId) {
   const settings = {
     get: () => toSettings(db.prepare(`SELECT * FROM app_settings WHERE user_id = ?`).get(userId)),
     update(patch) {
-      const map = { workspaceMode: 'workspace_mode', privacyMode: 'privacy_mode', defaultView: 'default_view', aiVisibility: 'ai_visibility' }
+      const map = { workspaceMode: 'workspace_mode', privacyMode: 'privacy_mode', defaultView: 'default_view', aiVisibility: 'ai_visibility', notifPrefs: 'notif_prefs', theme: 'theme' }
       const sets = []; const vals = []
       for (const [k, col] of Object.entries(map)) {
-        if (k in patch) { sets.push(`${col} = ?`); vals.push(k === 'privacyMode' ? (patch[k] ? 1 : 0) : patch[k]) }
+        if (k in patch) { sets.push(`${col} = ?`); vals.push(k === 'privacyMode' ? (patch[k] ? 1 : 0) : k === 'notifPrefs' ? JSON.stringify(patch[k] || {}) : patch[k]) }
       }
       sets.push('updated_at = ?'); vals.push(nowIso())
       vals.push(userId)
@@ -206,8 +216,11 @@ export function makeRepos(db, userId = config.defaultUserId) {
   }
 
   const aiConfig = {
-    get: () => toAiConfig(db.prepare(`SELECT * FROM ai_config WHERE id = 'default'`).get()),
+    // Missing row (fresh unseeded DB) → rule-mode defaults instead of undefined.
+    get: () => toAiConfig(db.prepare(`SELECT * FROM ai_config WHERE id = 'default'`).get())
+      || { provider: 'rule', baseUrl: '', model: '', apiKey: '', fallbackToRule: true, updatedAt: null },
     update(patch) {
+      db.prepare(`INSERT OR IGNORE INTO ai_config (id, updated_at) VALUES ('default', ?)`).run(nowIso())
       const map = { provider: 'provider', baseUrl: 'base_url', model: 'model', apiKey: 'api_key', fallbackToRule: 'fallback_to_rule' }
       const sets = []; const vals = []
       for (const [k, col] of Object.entries(map)) {
@@ -219,5 +232,26 @@ export function makeRepos(db, userId = config.defaultUserId) {
     },
   }
 
-  return { projects, tasks, ideas, nonTodos, agent, settings, captureRecords, corrections, aiErrors, chat, aiConfig }
+  const subtasks = {
+    byTask: (taskId) => db.prepare(`SELECT * FROM subtasks WHERE user_id = ? AND task_id = ? ORDER BY created_at`).all(userId, taskId).map(toSub),
+    create(taskId, text) { const id = makeId('sub'); db.prepare(`INSERT INTO subtasks (id,user_id,task_id,text,done,created_at) VALUES (?,?,?,?,0,?)`).run(id, userId, taskId, text, nowIso()); return toSub(db.prepare(`SELECT * FROM subtasks WHERE id = ?`).get(id)) },
+    toggle(id) { const r = db.prepare(`SELECT done FROM subtasks WHERE id = ? AND user_id = ?`).get(id, userId); if (!r) return null; db.prepare(`UPDATE subtasks SET done = ? WHERE id = ? AND user_id = ?`).run(r.done ? 0 : 1, id, userId); return toSub(db.prepare(`SELECT * FROM subtasks WHERE id = ?`).get(id)) },
+    remove: (id) => db.prepare(`DELETE FROM subtasks WHERE id = ? AND user_id = ?`).run(id, userId),
+  }
+  const comments = {
+    byTask: (taskId) => db.prepare(`SELECT * FROM comments WHERE user_id = ? AND task_id = ? ORDER BY created_at`).all(userId, taskId).map(toComment),
+    create(taskId, author, text) { const id = makeId('cmt'); db.prepare(`INSERT INTO comments (id,user_id,task_id,author,text,created_at) VALUES (?,?,?,?,?,?)`).run(id, userId, taskId, author, text, nowIso()); return toComment(db.prepare(`SELECT * FROM comments WHERE id = ?`).get(id)) },
+  }
+  const activity = {
+    byTask: (taskId) => db.prepare(`SELECT * FROM activity WHERE user_id = ? AND task_id = ? ORDER BY created_at DESC`).all(userId, taskId).map(toAct),
+    log(taskId, text) { const id = makeId('act'); db.prepare(`INSERT INTO activity (id,user_id,task_id,text,created_at) VALUES (?,?,?,?,?)`).run(id, userId, taskId, text, nowIso()); return id },
+  }
+  const notifications = {
+    all: () => db.prepare(`SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC`).all(userId).map(toNotif),
+    create(data) { const id = data.id || makeId('nt'); db.prepare(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,?,?)`).run(id, userId, data.type || null, data.icon || null, data.color || null, data.text, data.read ? 1 : 0, data.createdAt || nowIso()); return toNotif(db.prepare(`SELECT * FROM notifications WHERE id = ?`).get(id)) },
+    markAllRead: () => db.prepare(`UPDATE notifications SET read = 1 WHERE user_id = ?`).run(userId),
+    markRead: (id) => db.prepare(`UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?`).run(id, userId),
+  }
+
+  return { projects, tasks, ideas, nonTodos, agent, settings, captureRecords, corrections, aiErrors, chat, aiConfig, subtasks, comments, activity, notifications }
 }

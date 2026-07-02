@@ -9,6 +9,12 @@ const SCHEMA_PATH = join(here, 'schema.sql')
 
 export function applySchema(db) {
   db.exec(readFileSync(SCHEMA_PATH, 'utf8'))
+  // Idempotent column additions for DBs created before a column existed.
+  const taskCols = db.prepare('PRAGMA table_info(tasks)').all().map((c) => c.name)
+  if (!taskCols.includes('assignee')) db.exec('ALTER TABLE tasks ADD COLUMN assignee TEXT')
+  const setCols = db.prepare('PRAGMA table_info(app_settings)').all().map((c) => c.name)
+  if (!setCols.includes('notif_prefs')) db.exec(`ALTER TABLE app_settings ADD COLUMN notif_prefs TEXT NOT NULL DEFAULT '{}'`)
+  if (!setCols.includes('theme')) db.exec(`ALTER TABLE app_settings ADD COLUMN theme TEXT NOT NULL DEFAULT 'light'`)
   return db
 }
 

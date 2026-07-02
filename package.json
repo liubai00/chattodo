@@ -1,20 +1,19 @@
 {
   "name": "chattodo-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "AI-native todo idea processor — web prototype",
+  "description": "LinX 灵信 · AI-native todo workspace (Vue 3)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.11"
+    "vite": "^5.4.10",
+    "@vitejs/plugin-vue": "^5.1.4"
   }
 }

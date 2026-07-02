@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   priority         INTEGER NOT NULL DEFAULT 3,         -- 1..4
   privacy_scope    TEXT NOT NULL DEFAULT 'work',       -- work | personal | mixed
   source_idea_id   TEXT,
+  assignee         TEXT,
   created_at       TEXT NOT NULL,
   updated_at       TEXT NOT NULL
 );
@@ -77,6 +78,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
   privacy_mode   INTEGER NOT NULL DEFAULT 0,
   default_view   TEXT NOT NULL DEFAULT 'dashboard',
   ai_visibility  TEXT NOT NULL DEFAULT 'visible_scope_only',
+  notif_prefs    TEXT NOT NULL DEFAULT '{}',            -- JSON {assign,due,fail,done:bool}
+  theme          TEXT NOT NULL DEFAULT 'light',         -- light | dark
   updated_at     TEXT NOT NULL
 );
 
@@ -124,6 +127,67 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   is_error   INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
+
+-- Accounts + sessions (registration / login).
+CREATE TABLE IF NOT EXISTS users (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'member',   -- admin | member | viewer
+  created_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token      TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+-- Task detail: subtasks, comments, activity log.
+CREATE TABLE IF NOT EXISTS subtasks (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL DEFAULT 'u_default',
+  task_id    TEXT NOT NULL,
+  text       TEXT NOT NULL,
+  done       INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL DEFAULT 'u_default',
+  task_id    TEXT NOT NULL,
+  author     TEXT NOT NULL,
+  text       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS activity (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL DEFAULT 'u_default',
+  task_id    TEXT NOT NULL,
+  text       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL DEFAULT 'u_default',
+  type       TEXT,
+  icon       TEXT,
+  color      TEXT,
+  text       TEXT NOT NULL,
+  read       INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_subtasks_task ON subtasks(task_id);
+CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id);
+CREATE INDEX IF NOT EXISTS idx_activity_task ON activity(task_id);
+CREATE INDEX IF NOT EXISTS idx_notifs_user ON notifications(user_id);
 
 -- Runtime AI provider config (singleton). Lets the app switch third-party models.
 CREATE TABLE IF NOT EXISTS ai_config (

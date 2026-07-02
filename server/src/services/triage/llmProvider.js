@@ -19,13 +19,32 @@ function extractJson(s) {
   return JSON.parse(m[0])
 }
 
-async function llmComplete(system, user, cfg, signal) {
+// Anthropic requires user-first, strictly alternating roles; OpenAI tolerates
+// anything. Normalize once here so callers can pass raw history.
+function normalizeTurns(messages) {
+  const out = []
+  for (const m of messages) {
+    const role = m.role === 'assistant' ? 'assistant' : 'user'
+    const content = String(m.content || '').trim()
+    if (!content) continue
+    if (!out.length && role === 'assistant') continue // must start with user
+    if (out.length && out[out.length - 1].role === role) {
+      out[out.length - 1].content += '\n\n' + content // merge consecutive same-role
+    } else {
+      out.push({ role, content })
+    }
+  }
+  return out.length ? out : [{ role: 'user', content: '（空）' }]
+}
+
+async function llmComplete(system, messages, cfg, signal) {
+  const turns = normalizeTurns(messages)
   if (cfg.provider === 'anthropic') {
     const base = cfg.baseUrl || 'https://api.anthropic.com'
     const res = await fetch(`${base.replace(/\/+$/, '')}/v1/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: cfg.model, max_tokens: 1024, system, messages: [{ role: 'user', content: user }] }),
+      body: JSON.stringify({ model: cfg.model, max_tokens: 1024, system, messages: turns }),
       signal,
     })
     if (!res.ok) throw new Error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`)
@@ -34,19 +53,24 @@ async function llmComplete(system, user, cfg, signal) {
   const res = await fetch(`${cfg.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}` },
-    body: JSON.stringify({ model: cfg.model, temperature: 0.2, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
+    body: JSON.stringify({ model: cfg.model, temperature: 0.2, messages: [{ role: 'system', content: system }, ...turns] }),
     signal,
   })
   if (!res.ok) throw new Error(`OpenAI 兼容接口 ${res.status}: ${(await res.text()).slice(0, 200)}`)
   return (await res.json()).choices?.[0]?.message?.content || ''
 }
 
-// Reusable: send system+user, get back a parsed JSON object. Used by triage and agent chat.
+// Reusable: send system+user, get back a parsed JSON object. Used by triage.
 export async function llmJson(system, user, cfg) {
+  return llmMessagesJson(system, [{ role: 'user', content: user }], cfg)
+}
+
+// Multi-turn variant: full message history (user/assistant), JSON reply. Used by agent chat.
+export async function llmMessagesJson(system, messages, cfg) {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), cfg.timeoutMs || 25000)
   try {
-    return extractJson(await llmComplete(system, user, cfg, ac.signal))
+    return extractJson(await llmComplete(system, messages, cfg, ac.signal))
   } finally {
     clearTimeout(timer)
   }

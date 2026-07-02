@@ -33,6 +33,7 @@ export function persistCapture(repos, { result, text, source = 'web' }) {
     rawInput: text, source, aiKind: result.kind, confidence: result.confidence,
     aiReason: result.reason, resultEntityType: entityType, resultEntityId: entity.id, status: 'ok',
   })
+  if (entityType === 'task') repos.activity.log(entity.id, '任务已创建（来自聊天输入）')
   return { result, entityType, entity }
 }
 

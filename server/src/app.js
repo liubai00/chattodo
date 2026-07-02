@@ -3,7 +3,9 @@ import cors from '@fastify/cors'
 import { config } from './config.js'
 import { getDb } from './db/index.js'
 import { makeRepos } from './repositories/index.js'
+import { makeAuth } from './services/auth.js'
 import healthRoutes from './routes/health.js'
+import authRoutes from './routes/auth.js'
 import stateRoutes from './routes/state.js'
 import captureRoutes from './routes/capture.js'
 import taskRoutes from './routes/tasks.js'
@@ -15,15 +17,33 @@ import agentRoutes from './routes/agent.js'
 import settingsRoutes from './routes/settings.js'
 import searchRoutes from './routes/search.js'
 import aiRoutes from './routes/ai.js'
+import notificationRoutes from './routes/notifications.js'
+import dataRoutes from './routes/data.js'
+import adminRoutes from './routes/admin.js'
 
-// Build a Fastify instance. opts.db lets tests inject an isolated in-memory DB.
+// Build a Fastify instance. opts.db lets tests inject an isolated in-memory DB;
+// opts.auth === false disables the 401 guard (requests fall back to the
+// default user) — used by unit tests. Production keeps auth on.
 export function buildApp(opts = {}) {
   const app = Fastify({ logger: opts.logger ?? true })
 
   const db = opts.db || getDb()
-  const repos = makeRepos(db, opts.userId || config.defaultUserId)
+  const defaultRepos = makeRepos(db, opts.userId || config.defaultUserId)
+  const auth = makeAuth(db)
+  const reposCache = new Map()
+  const reposFor = (userId) => {
+    if (!reposCache.has(userId)) reposCache.set(userId, makeRepos(db, userId))
+    return reposCache.get(userId)
+  }
   app.decorate('db', db)
-  app.decorate('repos', repos)
+  app.decorate('repos', defaultRepos)
+  app.decorate('auth', auth)
+  app.decorateRequest('user', null)
+  app.decorateRequest('repos', null)
+
+  const requireAuth = opts.auth !== false
+
+  app.register(cors, { origin: true })
 
   // Tolerate empty JSON bodies (action endpoints like /done, /move-out are
   // often POSTed with no body but a JSON content-type by browsers).
@@ -37,9 +57,26 @@ export function buildApp(opts = {}) {
     }
   })
 
-  app.register(cors, { origin: true })
+  // Resolve the session token → per-user repos. Auth-open paths: health + auth.
+  app.addHook('preHandler', async (req, reply) => {
+    const url = req.url || ''
+    if (!url.startsWith('/api')) return
+    const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '')
+    const user = m ? auth.resolve(m[1]) : null
+    if (user) {
+      req.user = user
+      req.repos = reposFor(user.id)
+      return
+    }
+    req.repos = defaultRepos
+    const open = url.startsWith('/api/health') || url.startsWith('/api/auth')
+    if (!open && requireAuth) {
+      return reply.status(401).send({ error: 'unauthorized' })
+    }
+  })
 
   app.register(healthRoutes)
+  app.register(authRoutes)
   app.register(stateRoutes)
   app.register(captureRoutes)
   app.register(taskRoutes)
@@ -51,6 +88,9 @@ export function buildApp(opts = {}) {
   app.register(settingsRoutes)
   app.register(searchRoutes)
   app.register(aiRoutes)
+  app.register(notificationRoutes)
+  app.register(dataRoutes)
+  app.register(adminRoutes)
 
   app.setErrorHandler((err, req, reply) => {
     req.log.error(err)

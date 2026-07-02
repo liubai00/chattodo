@@ -7,6 +7,6 @@ export default async function captureRoutes(app) {
     if (!text || !String(text).trim()) {
       return reply.status(400).send({ error: 'text is required' })
     }
-    return capture(app.repos, { text: String(text), source: source || 'web' })
+    return capture(req.repos, { text: String(text), source: source || 'web' })
   })
 }

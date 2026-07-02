@@ -8,6 +8,7 @@ export function convertIdeaToTask(repos, id) {
     priority: 3, privacyScope: idea.privacyScope, sourceIdeaId: idea.id,
   })
   const updated = repos.ideas.update(id, { status: 'converted' })
+  repos.activity.log(task.id, '由待澄清项转为任务')
   return { task, idea: updated }
 }
 
@@ -21,5 +22,6 @@ export function convertNonToTask(repos, id) {
     priority: 3, privacyScope: non.privacyScope, sourceIdeaId: null,
   })
   repos.nonTodos.remove(id)
+  repos.activity.log(task.id, '由非 todo 转为任务')
   return { task }
 }
