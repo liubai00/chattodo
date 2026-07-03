@@ -34,7 +34,7 @@ const toSettings = (r) => {
   try { notifPrefs = JSON.parse(r.notif_prefs || '{}') } catch { /* keep {} */ }
   return {
     workspaceMode: r.workspace_mode, privacyMode: !!r.privacy_mode, defaultView: r.default_view,
-    aiVisibility: r.ai_visibility, notifPrefs, theme: r.theme || 'light', updatedAt: r.updated_at,
+    aiVisibility: r.ai_visibility, notifPrefs, theme: r.theme || 'light', friendPolicy: r.friend_policy === 'closed' ? 'closed' : 'open', updatedAt: r.updated_at,
   }
 }
 const toChat = (r) => r && { id: r.id, role: r.role, text: r.text, isError: !!r.is_error, createdAt: r.created_at }
@@ -179,10 +179,16 @@ export function makeRepos(db, userId = config.defaultUserId) {
   const settings = {
     get: async () => toSettings(await db.get(`SELECT * FROM app_settings WHERE user_id = ?`, [userId])),
     async update(patch) {
-      const map = { workspaceMode: 'workspace_mode', privacyMode: 'privacy_mode', defaultView: 'default_view', aiVisibility: 'ai_visibility', notifPrefs: 'notif_prefs', theme: 'theme' }
+      const map = { workspaceMode: 'workspace_mode', privacyMode: 'privacy_mode', defaultView: 'default_view', aiVisibility: 'ai_visibility', notifPrefs: 'notif_prefs', theme: 'theme', friendPolicy: 'friend_policy' }
       const sets = []; const vals = []
       for (const [k, col] of Object.entries(map)) {
-        if (k in patch) { sets.push(`${col} = ?`); vals.push(k === 'privacyMode' ? (patch[k] ? 1 : 0) : k === 'notifPrefs' ? JSON.stringify(patch[k] || {}) : patch[k]) }
+        if (k in patch) {
+          const v = k === 'privacyMode' ? (patch[k] ? 1 : 0)
+            : k === 'notifPrefs' ? JSON.stringify(patch[k] || {})
+              : k === 'friendPolicy' ? (patch[k] === 'closed' ? 'closed' : 'open') // 白名单，非法值回退 open
+                : patch[k]
+          sets.push(`${col} = ?`); vals.push(v)
+        }
       }
       sets.push('updated_at = ?'); vals.push(nowIso())
       vals.push(userId)

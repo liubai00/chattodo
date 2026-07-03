@@ -181,6 +181,45 @@ test('auto rule targeting non-friend is not created; friend target works', async
   void c
 })
 
+test('friend policy closed: blocks strangers (API 403 + chat honest), own-initiated flows unaffected', async () => {
+  const { app, a, b, c } = await trio()
+
+  // B 开启「谢绝陌生人好友请求」，设置读写往返生效
+  await app.inject({ method: 'PUT', url: '/api/settings', headers: H(b.token), payload: { friendPolicy: 'closed' } })
+  const sset = (await app.inject({ url: '/api/settings', headers: H(b.token) })).json()
+  assert.equal(sset.friendPolicy, 'closed')
+  // 非法值回退 open 再改回 closed（白名单校验）
+  await app.inject({ method: 'PUT', url: '/api/settings', headers: H(b.token), payload: { friendPolicy: 'whatever' } })
+  assert.equal((await app.inject({ url: '/api/settings', headers: H(b.token) })).json().friendPolicy, 'open')
+  await app.inject({ method: 'PUT', url: '/api/settings', headers: H(b.token), payload: { friendPolicy: 'closed' } })
+
+  // A 按邮箱加 B → 403 + 明确提示；B 未收到任何请求
+  const r1 = await app.inject({ method: 'POST', url: '/api/friends/request', headers: H(a.token), payload: { email: 'fb@x.com' } })
+  assert.equal(r1.statusCode, 403)
+  assert.ok(r1.json().error.includes('谢绝'))
+  assert.equal((await app.inject({ url: '/api/friends', headers: H(b.token) })).json().incoming.length, 0)
+
+  // 聊天路径同样如实拦截：加好友命令 + @提及降级都不能绕过
+  const r2 = await say(app, a.token, '加好友 fb@x.com')
+  assert.ok(r2.reply.includes('谢绝'))
+  assert.ok(!r2.performed.some((p) => p.type === 'add_friend'))
+  const r3 = await say(app, a.token, '周五下午三点和 @博文 复盘一次数据')
+  assert.equal(r3.entities[0].type, 'task')
+  assert.ok(r3.reply.includes('谢绝'))
+  assert.ok(!r3.performed.some((p) => p.type === 'friend_request'))
+
+  // B 主动加 A（closed 不限制自己发起）→ A 接受 → 成为好友
+  const r4 = (await app.inject({ method: 'POST', url: '/api/friends/request', headers: H(b.token), payload: { email: 'fa@x.com' } })).json()
+  assert.ok(r4.friendship)
+  await app.inject({ method: 'POST', url: `/api/friends/${r4.friendship.id}/respond`, headers: H(a.token), payload: { accept: true } })
+  assert.ok((await app.inject({ url: '/api/team', headers: H(b.token) })).json().users.some((u) => u.name === '安娜'))
+
+  // 反向互发不受限：B(closed) 先向 C 发请求，C 再来加 B → 自动成为好友
+  await app.inject({ method: 'POST', url: '/api/friends/request', headers: H(b.token), payload: { email: 'fc@x.com' } })
+  const r5 = (await app.inject({ method: 'POST', url: '/api/friends/request', headers: H(c.token), payload: { email: 'fb@x.com' } })).json()
+  assert.equal(r5.autoAccepted, true)
+})
+
 test('schema upgrade backfills pre-existing users as mutual friends (one-time)', async () => {
   const db = await createDb({ pglite: true })
   await applySchema(db)

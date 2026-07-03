@@ -262,6 +262,7 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
             // 非好友 → 降级为先发好友请求（reply 修正在动作循环后统一追加）
             const fr = await requestFriendByIdFx(db, user, target.id)
             if (fr.friendship || fr.pending) performed.push({ type: 'friend_request', userId: target.id, userName: target.name })
+            else if (fr.error) performed.push({ type: 'add_friend_failed', userName: target.name, error: fr.error })
           }
         }
       } else if (a.type === 'add_friend' && db && user) {
@@ -299,6 +300,8 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
           const fr = await requestFriendByIdFx(db, user, u.id)
           if ((fr.friendship || fr.pending) && !performed.some((p) => p.type === 'friend_request' && p.userId === u.id)) {
             performed.push({ type: 'friend_request', userId: u.id, userName: u.name })
+          } else if (fr.error && !fr.friendship && !fr.pending) {
+            performed.push({ type: 'add_friend_failed', userName: u.name, error: fr.error })
           }
           continue
         }

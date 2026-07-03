@@ -457,7 +457,7 @@
                   </template>
                   <template v-if="vm.friendRows.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:40px 12px;text-align:center;background:var(--panel);border:1px dashed var(--line2);border-radius:14px;"><i class="ph ph-users" style="font-size:30px;"></i><div style="font:500 13px/1.7 var(--font);">还没有好友<br/>在左侧输入对方的注册邮箱发送请求；也可以在聊天里说「加好友 对方邮箱」</div></div></template>
                 </div>
-                <div style="background:var(--mid);border-radius:12px;padding:12px 15px;font:500 12px/1.7 var(--font);color:var(--text3);">添加好友需要对方的注册邮箱（不提供按名字搜索，保护隐私）。成为好友后，双方可以互相 @提及、指派与邀请协作；解除好友不影响已有协作任务。你的邮箱：{{ vm.sEmail }}</div>
+                <div style="background:var(--mid);border-radius:12px;padding:12px 15px;font:500 12px/1.7 var(--font);color:var(--text3);">添加好友需要对方的注册邮箱（不提供按名字搜索，保护隐私）。成为好友后，双方可以互相 @提及、指派与邀请协作；解除好友不影响已有协作任务。不想被陌生人打扰？在 设置 · 隐私与安全 里可谢绝陌生请求。你的邮箱：{{ vm.sEmail }}</div>
               </div>
             </div>
           </template>
@@ -577,7 +577,8 @@
                 <template v-if="vm.isSetPrivacy">
                   <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 18px;box-shadow:var(--shadow);">
                     <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">AI 可见范围</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">AI 制定计划时可读取的数据</div></div><div style="display:inline-flex;background:var(--mid);border-radius:8px;padding:3px;gap:2px;"><button @click="vm.setVisScope" :style="vm.sVisScope">仅可见范围</button><button @click="vm.setVisAll" :style="vm.sVisAll">全部 todo</button></div></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">默认开启隐私模式</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">登录后自动隐藏跨空间数据</div></div><span @click="vm.togglePm" :style="vm.pmTrack"><span :style="vm.pmKnob"></span></span></div>
+                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">默认开启隐私模式</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">登录后自动隐藏跨空间数据</div></div><span @click="vm.togglePm" :style="vm.pmTrack"><span :style="vm.pmKnob"></span></span></div>
+                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">谢绝陌生人好友请求</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">开启后别人无法向你发起好友请求，只能由你主动添加对方</div></div><span @click="vm.toggleFp" :style="vm.fpTrack"><span :style="vm.fpKnob"></span></span></div>
                   </div>
                   <div style="background:var(--mid);border-radius:12px;padding:13px 15px;font:500 12.5px/1.6 var(--font);color:var(--text2);">隐私模式开启时，AI 只读取当前工作区（工作 / 个人）可见内容，非 todo 内容默认不参与计划。</div>
                 </template>
@@ -821,7 +822,7 @@ class Component {
     mentionOpen: false, mentionQuery: '', mentionAt: -1, mentionIndex: 0, pendingRefs: [],
     selIdeaId: null, selNonId: null, agentSection: 'soul', setSection: 'account',
     agent: {soul:'', memory:'', preferences:'', workingStyle:'', privacyRules:'', followup:''},
-    settings: {name:'', email:'', apiKey:'', aiTested:false, defaultWs:'work', defaultView:'chat', aiVisibility:'visible_scope_only', privacyDefault:false, notifPrefs:{assign:true,due:true,fail:true,done:true}, aiPreset:'规则版（离线）', aiProvider:'rule', aiBaseUrl:'', aiModel:'', aiHasKey:false, aiFallback:true},
+    settings: {name:'', email:'', apiKey:'', aiTested:false, defaultWs:'work', defaultView:'chat', aiVisibility:'visible_scope_only', privacyDefault:false, friendPolicy:'open', notifPrefs:{assign:true,due:true,fail:true,done:true}, aiPreset:'规则版（离线）', aiProvider:'rule', aiBaseUrl:'', aiModel:'', aiHasKey:false, aiFallback:true},
     tasks: [],
     ideas: [],
     nonTodos: [],
@@ -876,7 +877,7 @@ class Component {
         agent:{ soul:ap.soul||'', memory:ap.memory||'', preferences:ap.preferences||'', workingStyle:ap.workingStyle||'', privacyRules:ap.privacyRules||'', followup:ap.defaultFollowupStrategy||'' },
         workspace: as.workspaceMode||s.workspace,
         privacy: as.privacyMode!=null?!!as.privacyMode:s.privacy,
-        settings:{ ...s.settings, defaultWs:as.workspaceMode||s.settings.defaultWs, defaultView:as.defaultView||s.settings.defaultView, aiVisibility:as.aiVisibility||s.settings.aiVisibility, privacyDefault:as.privacyMode!=null?!!as.privacyMode:s.settings.privacyDefault, notifPrefs:{assign:np.assign!==false,due:np.due!==false,fail:np.fail!==false,done:np.done!==false}, apiKey:'', aiTested: ai?!!ai.hasKey:s.settings.aiTested, aiPreset:presetName, aiProvider: ai?ai.provider:s.settings.aiProvider, aiBaseUrl: ai?(ai.baseUrl||''):s.settings.aiBaseUrl, aiModel: ai?(ai.model||''):s.settings.aiModel, aiHasKey: ai?!!ai.hasKey:s.settings.aiHasKey, aiFallback: ai?(ai.fallbackToRule!==false):s.settings.aiFallback },
+        settings:{ ...s.settings, defaultWs:as.workspaceMode||s.settings.defaultWs, defaultView:as.defaultView||s.settings.defaultView, aiVisibility:as.aiVisibility||s.settings.aiVisibility, privacyDefault:as.privacyMode!=null?!!as.privacyMode:s.settings.privacyDefault, friendPolicy:as.friendPolicy==='closed'?'closed':'open', notifPrefs:{assign:np.assign!==false,due:np.due!==false,fail:np.fail!==false,done:np.done!==false}, apiKey:'', aiTested: ai?!!ai.hasKey:s.settings.aiTested, aiPreset:presetName, aiProvider: ai?ai.provider:s.settings.aiProvider, aiBaseUrl: ai?(ai.baseUrl||''):s.settings.aiBaseUrl, aiModel: ai?(ai.model||''):s.settings.aiModel, aiHasKey: ai?!!ai.hasKey:s.settings.aiHasKey, aiFallback: ai?(ai.fallbackToRule!==false):s.settings.aiFallback },
         aiSource: ai&&ai.source==='own'?'own':'team',
         ownAiOpen: !!(ai&&ai.source==='own'),
         _loaded:true,
@@ -1220,7 +1221,7 @@ class Component {
   nonConvert(id){ const n=this.state.nonTodos.find(x=>x.id===id); const nonTodos=this.state.nonTodos.filter(x=>x.id!==id); this.setState({nonTodos, selNonId:nonTodos[0]?nonTodos[0].id:null}); api.nonToTodo(id).then(r=>{ if(r&&r.task) this.setState(s=>({tasks:[this._mapTask(r.task),...s.tasks]})); this.flashToast('已转为 todo · 进入 Todo 数据库'); }).catch(e=>{ if(n) this.setState(s=>({nonTodos:[n,...s.nonTodos]})); this.flashToast('转换失败：'+e.message); }); }
   removeNon(id,msg){ const n=this.state.nonTodos.find(x=>x.id===id); const nonTodos=this.state.nonTodos.filter(x=>x.id!==id); this.setState({nonTodos, selNonId:nonTodos[0]?nonTodos[0].id:null}); api.nonDiscard(id).then(()=>this.flashToast(msg)).catch(e=>{ if(n) this.setState(s=>({nonTodos:[n,...s.nonTodos]})); this.flashToast('操作失败：'+e.message); }); }
   updateAgent(field,val){ this.setState(s=>({agent:{...s.agent,[field]:val}})); const map={soul:'soul',memory:'memory',preferences:'preferences',workingStyle:'workingStyle',privacyRules:'privacyRules',followup:'defaultFollowupStrategy'}; const col=map[field]; if(col) api.updateAgent({[col]:val}).catch(()=>{}); }
-  updateSetting(field,val){ this.setState(s=>({settings:{...s.settings,[field]:val}})); const map={defaultWs:'workspaceMode',defaultView:'defaultView',aiVisibility:'aiVisibility',privacyDefault:'privacyMode'}; const col=map[field]; if(col) api.updateSettings({[col]: field==='privacyDefault'?!!val:val}).catch(()=>{}); }
+  updateSetting(field,val){ this.setState(s=>({settings:{...s.settings,[field]:val}})); const map={defaultWs:'workspaceMode',defaultView:'defaultView',aiVisibility:'aiVisibility',privacyDefault:'privacyMode',friendPolicy:'friendPolicy'}; const col=map[field]; if(col) api.updateSettings({[col]: field==='privacyDefault'?!!val:val}).catch(()=>{}); }
   submitPwd(){
     const {pwdOld,pwdNew}=this.state;
     if(!pwdNew||pwdNew.length<8){ this.flashToast('新密码至少 8 位'); return; }
@@ -1528,6 +1529,7 @@ class Component {
       npDoneTrack:setSw(st.settings.notifPrefs.done).track, npDoneKnob:setSw(st.settings.notifPrefs.done).knob, toggleNpDone:()=>this.toggleNotifPref('done'),
       sVisScope:st.settings.aiVisibility==='visible_scope_only'?segOn:segOff, sVisAll:st.settings.aiVisibility==='all_todo'?segOn:segOff, setVisScope:()=>this.updateSetting('aiVisibility','visible_scope_only'), setVisAll:()=>this.updateSetting('aiVisibility','all_todo'),
       pmTrack:setSw(st.settings.privacyDefault).track, pmKnob:setSw(st.settings.privacyDefault).knob, togglePm:()=>this.updateSetting('privacyDefault',!st.settings.privacyDefault),
+      fpTrack:setSw(st.settings.friendPolicy==='closed').track, fpKnob:setSw(st.settings.friendPolicy==='closed').knob, toggleFp:()=>{ this.updateSetting('friendPolicy',st.settings.friendPolicy==='closed'?'open':'closed'); this.flashToast(st.settings.friendPolicy==='closed'?'已开放接收好友请求':'已谢绝陌生人好友请求 · 只能由你主动添加'); },
       saveSettings:()=>{ api.updateAiConfig(this._aiCfg()).then(()=>{ this.setState(s=>({settings:{...s.settings,apiKey:''}})); this.flashToast('AI 接入配置已保存'); }).catch(e=>this.flashToast('保存失败：'+e.message)); }, exportData:()=>this.doExport(), clearData:()=>this.doClearData(), logout:()=>this.doLogout(),
       userList, hasAdminUser:!!selUser, adminLoading:st.adminLoading, auName:selUser?selUser.name:'—', auEmail:selUser?selUser.email:'', auStatus:selUser?(selUser.errorCount>0?(selUser.errorCount+' 失败'):'正常'):'', auRole:selUser?({admin:'管理员',member:'成员'}[selUser.role]||selUser.role):'', auTasks:selUser?selUser.taskCount:0, auIdeas:selUser?selUser.ideaCount:0, auNon:selUser?selUser.nonCount:0, auErr:!!(selUser&&selUser.errorCount>0), adminLog, hasAdminLog:adminLog.length>0,
       adminErrors, hasAdminErrors:adminErrors.length>0, hasErrors:errorCount>0, errorCount,

@@ -80,8 +80,11 @@ CREATE TABLE IF NOT EXISTS app_settings (
   ai_visibility  TEXT NOT NULL DEFAULT 'visible_scope_only',
   notif_prefs    TEXT NOT NULL DEFAULT '{}',            -- JSON {assign,due,fail,done:bool}
   theme          TEXT NOT NULL DEFAULT 'light',         -- light | dark
+  friend_policy  TEXT NOT NULL DEFAULT 'open',          -- open | closed（谢绝陌生人好友请求）
   updated_at     TEXT NOT NULL
 );
+-- 已存在的库补列（CREATE IF NOT EXISTS 不会给老表加列）
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS friend_policy TEXT NOT NULL DEFAULT 'open';
 
 -- Raw input + AI generation record for every capture (traceability).
 CREATE TABLE IF NOT EXISTS capture_records (

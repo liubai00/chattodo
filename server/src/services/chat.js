@@ -303,7 +303,7 @@ async function ruleChat(repos, { message, db, user }) {
         const fr = await requestFriendByIdFx(db, user, u.id)
         if (fr.friendship && fr.autoAccepted) reply += `\n🤝 你和 ${u.name} 互相发过好友请求——已直接成为好友，可以再 @ 一次发出协作邀请。`
         else if (fr.friendship || fr.pending) { reply += `\n👋 ${u.name} 还不是你的好友——已自动发送好友请求，对方接受后再 @ 即可邀请协作。`; performed.push({ type: 'friend_request', userId: u.id, userName: u.name }) }
-        else if (fr.already) reply += `\n（你们已是好友，但邀请未发出：${fr.error || '请稍后重试'}）`
+        else if (fr.error) reply += `\n（未能向 ${u.name} 发出好友请求：${fr.error}）`
         continue
       }
       const r = await inviteFx(db, repos, user, created[0].entity.id, u.id)

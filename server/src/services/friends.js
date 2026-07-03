@@ -75,7 +75,14 @@ export async function requestFriendByIdFx(db, user, targetUserId) {
     publish(target.id, { kind: 'friends' })
   }
 
+  // 对方的隐私策略：closed = 谢绝陌生人请求（只影响「新发起」；对方主动发过的反向请求不受限）
+  const isClosed = async () => {
+    const row = await db.get(`SELECT friend_policy FROM app_settings WHERE user_id = ?`, [target.id])
+    return !!(row && row.friend_policy === 'closed')
+  }
+
   if (!existing) {
+    if (await isClosed()) return { error: `${target.name} 已设置谢绝陌生人好友请求，需要对方主动添加你`, code: 'closed', target }
     const id = makeId('fr')
     await db.run(`INSERT INTO friendships (id,requester_id,addressee_id,status,created_at) VALUES (?,?,?,'pending',?)`,
       [id, user.id, target.id, now])
@@ -85,11 +92,12 @@ export async function requestFriendByIdFx(db, user, targetUserId) {
   if (existing.status === 'accepted') return { already: true, target }
   if (existing.status === 'pending') {
     if (existing.requester_id === user.id) return { pending: true, target } // 幂等：已发过
-    // 对方早已向我发出请求 → 互有意愿，直接成为好友
+    // 对方早已向我发出请求 → 互有意愿，直接成为好友（不受对方 closed 限制：请求正是对方发起的）
     const r = await respondFriendFx(db, user, existing.id, true)
     return r ? { friendship: { id: existing.id, status: 'accepted' }, target, autoAccepted: true } : { error: '处理失败', code: 'conflict' }
   }
-  // declined → 允许重新发起（方向翻转为当前发起人）
+  // declined → 允许重新发起（方向翻转为当前发起人），同样受对方隐私策略约束
+  if (await isClosed()) return { error: `${target.name} 已设置谢绝陌生人好友请求，需要对方主动添加你`, code: 'closed', target }
   await db.run(`UPDATE friendships SET requester_id = ?, addressee_id = ?, status = 'pending', created_at = ?, responded_at = NULL WHERE id = ?`,
     [user.id, target.id, now, existing.id])
   await notifyRequest(existing.id)

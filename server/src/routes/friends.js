@@ -18,7 +18,7 @@ export default async function friendRoutes(app) {
       return reply.status(429).send({ error: '好友请求发送太频繁，稍后再试' })
     }
     const r = await requestFriendFx(app.db, user, (req.body || {}).email)
-    if (r.error) return reply.status(r.code === 'not_found' ? 404 : 400).send({ error: r.error })
+    if (r.error) return reply.status(r.code === 'not_found' ? 404 : r.code === 'closed' ? 403 : 400).send({ error: r.error })
     return r
   })
 
