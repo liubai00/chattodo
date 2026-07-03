@@ -30,10 +30,10 @@ test('extractCommandTarget pulls the task title out of commands', () => {
 })
 
 test('chat greeting / help / question do NOT create entities', async () => {
-  const { app, db } = makeTestApp()
-  const before = db.prepare('SELECT COUNT(*) c FROM tasks').get().c
-    + db.prepare('SELECT COUNT(*) c FROM todo_ideas').get().c
-    + db.prepare('SELECT COUNT(*) c FROM non_todo_outputs').get().c
+  const { app, db } = await makeTestApp()
+  const before = (await db.prepare('SELECT COUNT(*) c FROM tasks').get()).c
+    + (await db.prepare('SELECT COUNT(*) c FROM todo_ideas').get()).c
+    + (await db.prepare('SELECT COUNT(*) c FROM non_todo_outputs').get()).c
   const g = await say(app, '你好')
   assert.equal(g.intent, 'greeting')
   assert.equal(g.entities.length, 0)
@@ -41,14 +41,14 @@ test('chat greeting / help / question do NOT create entities', async () => {
   assert.equal(h.intent, 'help')
   const q = await say(app, '为什么天空是蓝色的？')
   assert.equal(q.intent, 'question')
-  const after = db.prepare('SELECT COUNT(*) c FROM tasks').get().c
-    + db.prepare('SELECT COUNT(*) c FROM todo_ideas').get().c
-    + db.prepare('SELECT COUNT(*) c FROM non_todo_outputs').get().c
+  const after = (await db.prepare('SELECT COUNT(*) c FROM tasks').get()).c
+    + (await db.prepare('SELECT COUNT(*) c FROM todo_ideas').get()).c
+    + (await db.prepare('SELECT COUNT(*) c FROM non_todo_outputs').get()).c
   assert.equal(after, before) // nothing was captured
 })
 
 test('chat query lists open tasks without creating anything', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   const res = await say(app, '有哪些任务')
   assert.equal(res.intent, 'query')
   assert.ok(res.reply.includes('未完成任务'))
@@ -57,31 +57,31 @@ test('chat query lists open tasks without creating anything', async () => {
 })
 
 test('chat complete command marks the matching task done', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   const res = await say(app, '把整理后端接口清单标记完成')
   assert.equal(res.intent, 'complete')
   assert.equal(res.performed[0].type, 'complete_task')
-  assert.equal(db.prepare(`SELECT status FROM tasks WHERE id = 'task_api'`).get().status, 'done')
+  assert.equal((await db.prepare(`SELECT status FROM tasks WHERE id = 'task_api'`).get()).status, 'done')
 })
 
 test('chat complete with ambiguous / missing target asks instead of acting', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   const res = await say(app, '把不存在的任务XYZ标记完成')
   assert.equal(res.performed.length, 0)
   assert.ok(res.reply.includes('没有找到'))
-  assert.equal(db.prepare(`SELECT COUNT(*) c FROM tasks WHERE status = 'done'`).get().c, 1) // only the seeded done task
+  assert.equal((await db.prepare(`SELECT COUNT(*) c FROM tasks WHERE status = 'done'`).get()).c, 1) // only the seeded done task
 })
 
 test('chat delete command removes the matching task', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   const res = await say(app, '删除预约本周体检')
   assert.equal(res.intent, 'delete')
   assert.equal(res.performed[0].type, 'delete_task')
-  assert.equal(db.prepare(`SELECT COUNT(*) c FROM tasks WHERE id = 'task_gym'`).get().c, 0)
+  assert.equal((await db.prepare(`SELECT COUNT(*) c FROM tasks WHERE id = 'task_gym'`).get()).c, 0)
 })
 
 test('time-anchored input "明天八点去吃饭" becomes a task with the right hour', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   const res = await say(app, '明天八点去吃饭')
   assert.equal(res.intent, 'capture')
   assert.equal(res.entities[0].type, 'task')
@@ -92,15 +92,15 @@ test('time-anchored input "明天八点去吃饭" becomes a task with the right 
 })
 
 test('rule chat: "记住：…" writes long-term memory instead of creating a todo', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   const res = await say(app, '记住：我习惯上午做深度工作')
   assert.equal(res.intent, 'remember')
   assert.equal(res.entities.length, 0)
-  assert.ok(db.prepare('SELECT memory FROM agent_profile').get().memory.includes('上午做深度工作'))
+  assert.ok((await db.prepare('SELECT memory FROM agent_profile').get()).memory.includes('上午做深度工作'))
 })
 
 test('chat plan still returns a plan payload', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   const res = await say(app, '接下来两小时做什么？')
   assert.equal(res.intent, 'plan')
   assert.ok(Array.isArray(res.plan) && res.plan.length >= 1)

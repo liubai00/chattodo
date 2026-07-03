@@ -4,7 +4,7 @@ import { makeTestApp } from './helpers.js'
 import { mergeResult } from '../src/services/triage/llmProvider.js'
 
 test('GET /api/ai/config defaults to rule, no key echoed', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   const cfg = (await app.inject({ url: '/api/ai/config' })).json()
   assert.equal(cfg.provider, 'rule')
   assert.equal(cfg.hasKey, false)
@@ -12,7 +12,7 @@ test('GET /api/ai/config defaults to rule, no key echoed', async () => {
 })
 
 test('PUT /api/ai/config switches provider + stores key (masked on read)', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   const upd = (await app.inject({
     method: 'PUT', url: '/api/ai/config',
     payload: { provider: 'openai', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', apiKey: 'sk-secret' },
@@ -22,18 +22,18 @@ test('PUT /api/ai/config switches provider + stores key (masked on read)', async
   assert.equal(upd.hasKey, true)
   assert.equal(upd.apiKey, undefined)
   // key is actually stored
-  assert.equal(db.prepare("SELECT api_key FROM ai_config WHERE id='default'").get().api_key, 'sk-secret')
+  assert.equal((await db.prepare("SELECT api_key FROM ai_config WHERE id='default'").get()).api_key, 'sk-secret')
 })
 
 test('POST /api/ai/test with rule provider succeeds offline', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   const r = (await app.inject({ method: 'POST', url: '/api/ai/test', payload: { sample: '下周三前提交 MVP 文档评审' } })).json()
   assert.equal(r.ok, true)
   assert.equal(r.kind, 'task')
 })
 
 test('capture falls back to rule + logs ai_error when the LLM call fails', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k' } })
   const orig = global.fetch
   global.fetch = async () => { throw new Error('network down') }
@@ -43,7 +43,7 @@ test('capture falls back to rule + logs ai_error when the LLM call fails', async
   } finally {
     global.fetch = orig
   }
-  assert.ok(db.prepare('SELECT COUNT(*) AS c FROM ai_errors').get().c >= 1, 'ai_error logged')
+  assert.ok((await db.prepare('SELECT COUNT(*) AS c FROM ai_errors').get()).c >= 1, 'ai_error logged')
 })
 
 test('mergeResult: LLM classification + deterministic due date', () => {

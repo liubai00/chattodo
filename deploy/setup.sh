@@ -46,13 +46,24 @@ else
   fi
 fi
 
-echo "=== [4/5] daily backup cron ==="
+echo "=== [4/5] daily Postgres backup cron ==="
 mkdir -p /opt/chattodo-backups
+# 备份脚本：容器内 pg_dump 自定义格式 → 拷到宿主，保留最近 14 份。
+cat > /opt/chattodo-deploy/deploy/backup.sh <<'BK'
+#!/usr/bin/env bash
+set -euo pipefail
+STAMP=$(date +%Y%m%d)
+docker exec chattodo-postgres sh -c 'pg_dump -U chattodo -d chattodo -Fc -f /tmp/chattodo.dump'
+docker cp chattodo-postgres:/tmp/chattodo.dump "/opt/chattodo-backups/chattodo-${STAMP}.dump"
+docker exec chattodo-postgres rm -f /tmp/chattodo.dump
+ls -1t /opt/chattodo-backups/chattodo-*.dump | tail -n +15 | xargs -r rm -f
+BK
+chmod +x /opt/chattodo-deploy/deploy/backup.sh
 cat > /etc/cron.d/chattodo-backup <<'CRON'
-30 3 * * * root docker exec chattodo-api node src/db/backup.js >> /var/log/chattodo-backup.log 2>&1 && docker cp chattodo-api:/data/backups/. /opt/chattodo-backups/ >/dev/null 2>&1
+30 3 * * * root /opt/chattodo-deploy/deploy/backup.sh >> /var/log/chattodo-backup.log 2>&1
 CRON
 chmod 644 /etc/cron.d/chattodo-backup
-echo "backup cron installed (03:30 daily -> /opt/chattodo-backups)"
+echo "backup cron installed (03:30 daily pg_dump -> /opt/chattodo-backups)"
 
 echo "=== [5/5] verify ==="
 sleep 3

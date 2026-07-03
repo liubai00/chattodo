@@ -8,8 +8,8 @@ import { convertIdeaToTask } from './ideas.js'
 import { inviteFx, respondInviteFx, extractMentionedUsers, notifyTaskDoneFx, maybeCreateAutoRule, applyAutoInvitesFx } from './collab.js'
 
 // 澄清闭环：15 分钟内经聊天产生、仍待澄清的想法（用户的下一条补充可直接转正式任务）。
-function findPendingClarify(repos) {
-  const idea = repos.ideas.all().find((i) => i.status === 'clarifying' && i.source === 'chat')
+async function findPendingClarify(repos) {
+  const idea = (await repos.ideas.all()).find((i) => i.status === 'clarifying' && i.source === 'chat')
   if (!idea) return null
   return (Date.now() - new Date(idea.createdAt).getTime() < 15 * 60 * 1000) ? idea : null
 }
@@ -39,19 +39,19 @@ export function identityReply(aiConfig) {
 }
 
 // 重复检测：7 天内已有同名（忽略空白/大小写）未归档任务。
-function findDuplicate(repos, text) {
+async function findDuplicate(repos, text) {
   const norm = (s) => String(s || '').replace(/\s+/g, '').toLowerCase()
   const q = norm(text)
   if (!q) return null
   const weekAgo = Date.now() - 7 * 86400000
-  return repos.tasks.all().find((t) => t.status !== 'archived' && new Date(t.createdAt).getTime() > weekAgo && norm(t.title) === q) || null
+  return (await repos.tasks.all()).find((t) => t.status !== 'archived' && new Date(t.createdAt).getTime() > weekAgo && norm(t.title) === q) || null
 }
 
 // Unified chat-turn result consumed by the frontend:
 // { intent, reply, entities:[{type,entity}], plan|null, performed:[...], userMessage, agentMessage }
-function finish(repos, { message, intent, reply, entities = [], plan = null, performed = [], isError = false }) {
-  const userMessage = repos.chat.create({ role: 'user', text: message })
-  const agentMessage = repos.chat.create({ role: 'agent', text: reply, isError })
+async function finish(repos, { message, intent, reply, entities = [], plan = null, performed = [], isError = false }) {
+  const userMessage = await repos.chat.create({ role: 'user', text: message })
+  const agentMessage = await repos.chat.create({ role: 'agent', text: reply, isError })
   return { intent, reply, entities, plan, performed, userMessage, agentMessage }
 }
 
@@ -67,9 +67,9 @@ const fmtDue = (iso) => {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-const openTasksOf = (repos) => {
-  const settings = repos.settings.get()
-  return visibleFilter(repos.tasks.all(), settings).filter((t) => t.status !== 'done' && t.status !== 'archived')
+const openTasksOf = async (repos) => {
+  const settings = await repos.settings.get()
+  return visibleFilter(await repos.tasks.all(), settings).filter((t) => t.status !== 'done' && t.status !== 'archived')
 }
 
 // Fuzzy title match for complete/delete commands.
@@ -85,15 +85,15 @@ const listLines = (tasks) => tasks.map((t, i) => `${i + 1}. ${t.title}（${fmtDu
 
 // Rule-based chat (offline): understands direct commands / questions and only
 // captures real content — the "everything becomes a todo" behavior is gone.
-function ruleChat(repos, { message, db, user }) {
+async function ruleChat(repos, { message, db, user }) {
   // 协作邀请响应：有待处理邀请时，「接受 / 拒绝」直接生效（对话式确认）
   if (db) {
-    const pending = repos.collaborators.myPending()
+    const pending = await repos.collaborators.myPending()
     const m = message.trim()
     if (pending.length && m.length <= 12 && /^(接受|好的?|可以|行|加入|同意|关注|仅关注|只关注|拒绝|不了|不用了?|先不|婉拒)[!！。~～]*$/.test(m)) {
       const mode = /^(仅?只?关注)/.test(m) ? 'follow' : /^(接受|好的?|可以|行|加入|同意)/.test(m) ? 'accept' : 'decline'
       const inv = pending[0]
-      const r = respondInviteFx(db, repos, user, inv.id, mode, true)
+      const r = await respondInviteFx(db, repos, user, inv.id, mode, true)
       if (r) {
         const rest = pending.length - 1
         const tail = rest > 0 ? `\n（还有 ${rest} 条待处理邀请）` : ''
@@ -125,8 +125,8 @@ function ruleChat(repos, { message, db, user }) {
   }
 
   if (intent === 'plan') {
-    const settings = repos.settings.get()
-    const tasks = visibleFilter(repos.tasks.all(), settings)
+    const settings = await repos.settings.get()
+    const tasks = visibleFilter(await repos.tasks.all(), settings)
     const { plan } = planNextBlock(tasks)
     const reply = plan.length === 0
       ? '当前可见 todo 中没有可安排的任务。先添加几条任务，或切换隐私范围试试。'
@@ -135,7 +135,7 @@ function ruleChat(repos, { message, db, user }) {
   }
 
   if (intent === 'query') {
-    const open = openTasksOf(repos)
+    const open = await openTasksOf(repos)
     const m = message
     let list = open; let label = '未完成任务'
     const sod = (x) => { const d = new Date(x); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() }
@@ -144,8 +144,8 @@ function ruleChat(repos, { message, db, user }) {
     else if (/(逾期|过期)/.test(m)) { list = open.filter((t) => t.dueAt && sod(t.dueAt) < today); label = '已逾期' }
     else if (/(本周|这周)/.test(m)) { list = open.filter((t) => t.dueAt && sod(t.dueAt) >= today && sod(t.dueAt) < today + 7 * 86400000); label = '本周到期' }
     else if (/完成/.test(m) && /(已|哪些)/.test(m)) {
-      const settings = repos.settings.get()
-      list = visibleFilter(repos.tasks.all(), settings).filter((t) => t.status === 'done'); label = '已完成'
+      const settings = await repos.settings.get()
+      list = visibleFilter(await repos.tasks.all(), settings).filter((t) => t.status === 'done'); label = '已完成'
     }
     const sorted = [...list].sort((a, b) => String(a.dueAt || '9999') < String(b.dueAt || '9999') ? -1 : 1).slice(0, 10)
     const reply = sorted.length === 0
@@ -156,9 +156,9 @@ function ruleChat(repos, { message, db, user }) {
 
   if (intent === 'complete' || intent === 'delete') {
     const target = extractCommandTarget(message)
-    const open = intent === 'complete' ? openTasksOf(repos) : (() => {
-      const settings = repos.settings.get()
-      return visibleFilter(repos.tasks.all(), settings).filter((t) => t.status !== 'archived')
+    const open = intent === 'complete' ? await openTasksOf(repos) : await (async () => {
+      const settings = await repos.settings.get()
+      return visibleFilter(await repos.tasks.all(), settings).filter((t) => t.status !== 'archived')
     })()
     const hits = matchTasks(open, target)
     if (!target || hits.length === 0) {
@@ -169,23 +169,23 @@ function ruleChat(repos, { message, db, user }) {
     }
     const t = hits[0]
     if (intent === 'complete') {
-      const task = repos.tasks.update(t.id, { status: 'done' })
-      repos.activity.log(t.id, '通过聊天标记完成')
-      if (db) notifyTaskDoneFx(db, repos, user, t.id)
+      const task = await repos.tasks.update(t.id, { status: 'done' })
+      await repos.activity.log(t.id, '通过聊天标记完成')
+      if (db) await notifyTaskDoneFx(db, repos, user, t.id)
       return finish(repos, { message, intent, reply: `✅ 已完成「${t.title}」。`, performed: [{ type: 'complete_task', id: t.id, task }] })
     }
-    repos.tasks.remove(t.id)
+    await repos.tasks.remove(t.id)
     return finish(repos, { message, intent, reply: `🗑️ 已删除「${t.title}」。`, performed: [{ type: 'delete_task', id: t.id, title: t.title }] })
   }
 
   if (intent === 'remember') {
     const note = message.replace(/^记住[:：，,\s]*/, '').trim() || message
-    appendMemory(repos, note)
+    await appendMemory(repos, note)
     let reply = `🧠 已写入长期记忆：「${note.slice(0, 60)}」。之后判断与规划会参考它（可在 Agent 配置 · 记忆 中查看和修改）。`
     const performed = [{ type: 'remember', note: note.slice(0, 80) }]
     // 记忆里的自动化规则："以后合同类的任务都邀请张伟" → 建立自动邀请规则
     if (db) {
-      const rule = maybeCreateAutoRule(db, repos, note)
+      const rule = await maybeCreateAutoRule(db, repos, note)
       if (rule) { reply += `\n⚙️ 已建立自动规则：新任务包含「${rule.keyword}」→ 自动邀请 ${rule.targetName} 协作。`; performed.push({ type: 'auto_rule', id: rule.id, keyword: rule.keyword, targetName: rule.targetName }) }
     }
     return finish(repos, { message, intent, reply, performed })
@@ -201,7 +201,7 @@ function ruleChat(repos, { message, db, user }) {
   // ---- capture 落库前的三道闸：澄清闭环 → 重复检测 → 多条拆分 ----
 
   // 1) 澄清闭环：刚有待澄清想法，且本条更像补充说明而非新任务 → 合并转正式任务
-  const pending = findPendingClarify(repos)
+  const pending = await findPendingClarify(repos)
   if (pending) {
     if (/^(跳过|算了|不用了?|先不|不转|保持现状)/.test(message.trim())) {
       return finish(repos, { message, intent: 'clarify_skip', reply: `好，「${pending.title}」继续留在待澄清区，想补充时随时说。` })
@@ -210,13 +210,13 @@ function ruleChat(repos, { message, db, user }) {
     const probe = triageInputSync(message)
     const answerish = probe.kind !== 'task' || /(目标|输出|完成标准|标准是|就是|想要|需要产出|补充|针对|关于这)/.test(message)
     if (answerish) {
-      const conv = convertIdeaToTask(repos, pending.id)
+      const conv = await convertIdeaToTask(repos, pending.id)
       if (conv) {
         const due = detectDue(message)
         const patch = { notes: `${pending.rawText}\n补充：${message}` }
         if (due) patch.dueAt = due
-        const task = repos.tasks.update(conv.task.id, patch)
-        repos.captureRecords.create({ rawInput: message, source: 'chat', aiKind: 'task', confidence: 0.9, aiReason: '澄清补充后转为正式任务', resultEntityType: 'task', resultEntityId: task.id, status: 'ok' })
+        const task = await repos.tasks.update(conv.task.id, patch)
+        await repos.captureRecords.create({ rawInput: message, source: 'chat', aiKind: 'task', confidence: 0.9, aiReason: '澄清补充后转为正式任务', resultEntityType: 'task', resultEntityId: task.id, status: 'ok' })
         return finish(repos, {
           message, intent: 'clarify_convert',
           reply: `👌 已结合补充信息，把「${pending.title}」转为正式任务${due ? `（截止 ${fmtDue(due)}）` : ''}。`,
@@ -228,8 +228,8 @@ function ruleChat(repos, { message, db, user }) {
   }
 
   // 2) 重复检测：与已有任务同名 → 不重复创建；在重复警告后再次发送相同内容才视为强制新建
-  const dup = findDuplicate(repos, message)
-  const allMsgs = repos.chat.all()
+  const dup = await findDuplicate(repos, message)
+  const allMsgs = await repos.chat.all()
   const prevUser = allMsgs.filter((m) => m.role === 'user').slice(-1)[0]
   const lastAgent = allMsgs.filter((m) => m.role === 'agent').slice(-1)[0]
   const forced = !!(prevUser && prevUser.text.trim() === message.trim() && lastAgent && lastAgent.text.includes('和已有任务重复'))
@@ -241,7 +241,7 @@ function ruleChat(repos, { message, db, user }) {
   const segments = splitSegments(message)
   const created = []
   for (const seg of segments) {
-    const r = persistCapture(repos, { result: triageInputSync(seg), text: seg, source: 'chat' })
+    const r = await persistCapture(repos, { result: triageInputSync(seg), text: seg, source: 'chat' })
     created.push({ type: r.entityType, entity: r.entity, result: r.result })
   }
   if (created.length > 1) {
@@ -258,13 +258,13 @@ function ruleChat(repos, { message, db, user }) {
   // @成员 → 对刚创建的任务发出协作邀请
   const performed = []
   if (db && created[0].type === 'task') {
-    for (const u of extractMentionedUsers(db, message)) {
-      const r = inviteFx(db, repos, user, created[0].entity.id, u.id)
+    for (const u of await extractMentionedUsers(db, message)) {
+      const r = await inviteFx(db, repos, user, created[0].entity.id, u.id)
       if (r.collab) { reply += `\n🤝 已向 ${u.name} 发出协作邀请（待接受）`; performed.push({ type: 'invite', userId: u.id, userName: u.name, collabId: r.collab.id }) }
       else if (r.needConfirm) reply += `\n（未邀请 ${u.name}：${r.error}）`
     }
     // 自动化规则：任务命中关键词 → 自动邀请
-    for (const p of applyAutoInvitesFx(db, repos, user, created[0].entity, message)) {
+    for (const p of await applyAutoInvitesFx(db, repos, user, created[0].entity, message)) {
       reply += `\n⚙️ 按你的规则「${p.rule}」，已自动邀请 ${p.userName} 协作（待接受）`
       performed.push(p)
     }
@@ -277,7 +277,7 @@ function ruleChat(repos, { message, db, user }) {
 // onEvent (optional): streaming hook — {type:'status',intent} early, then {type:'delta',text}…
 // db/user (optional): enable cross-user effects (协作邀请/响应) — routes pass them in.
 export async function chat(repos, { message, onEvent, db, user }) {
-  const aiConfig = repos.aiConfig?.get?.() || null
+  const aiConfig = await (repos.aiConfig?.get?.() || null)
 
   // 身份提问：后端按真实配置直接回答，truthful 且不消耗模型额度。
   if (isIdentityQuestion(message)) {

@@ -62,10 +62,10 @@ const TYPE_ALIAS = {
 }
 
 // Append a durable note to the agent's long-term memory (kept ~1600 chars, oldest dropped).
-export function appendMemory(repos, note) {
+export async function appendMemory(repos, note) {
   const clean = String(note || '').trim().slice(0, 200)
   if (!clean) return null
-  const cur = (repos.agent.get() || {}).memory || ''
+  const cur = ((await repos.agent.get()) || {}).memory || ''
   const d = new Date()
   let next = (cur ? cur + '\n' : '') + `· [${d.getMonth() + 1}/${d.getDate()}] ${clean}`
   if (next.length > 1600) next = next.slice(next.length - 1600).replace(/^[^·]*·/, '·')
@@ -97,9 +97,16 @@ export function normalizeAction(a) {
 // the actions against the todo DB (with generation records) and reply naturally.
 // Returns the same unified shape as the rule chat.
 export async function agentChat(repos, { message, aiConfig, onEvent, db, user }) {
-  const settings = repos.settings.get()
-  const visibleTasks = visibleFilter(repos.tasks.all(), settings)
-  const profile = repos.agent.get()
+  const settings = await repos.settings.get()
+  const visibleTasks = visibleFilter(await repos.tasks.all(), settings)
+  const profile = await repos.agent.get()
+  const [projList, ideaList, teamRows, pendingList, chatRows] = await Promise.all([
+    repos.projects.all(),
+    repos.ideas.all(),
+    db ? db.all(`SELECT name FROM users ORDER BY created_at LIMIT 20`) : Promise.resolve([]),
+    repos.collaborators.myPending(),
+    repos.chat.all(),
+  ])
   const context = {
     now: nowIso(),
     workspaceMode: settings.workspaceMode,
@@ -109,15 +116,15 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
       .filter((t) => t.status !== 'done' && t.status !== 'archived')
       .slice(0, 40)
       .map((t) => ({ id: t.id, title: t.title, status: t.status, dueAt: t.dueAt, priority: t.priority })),
-    projects: repos.projects.all().slice(0, 20).map((p) => ({ id: p.id, name: p.name, description: p.description })),
-    clarifyingIdeas: repos.ideas.all().filter((i) => i.status === 'clarifying').slice(0, 5)
+    projects: projList.slice(0, 20).map((p) => ({ id: p.id, name: p.name, description: p.description })),
+    clarifyingIdeas: ideaList.filter((i) => i.status === 'clarifying').slice(0, 5)
       .map((i) => ({ id: i.id, title: i.title, suggestedNextAction: i.suggestedNextAction })),
-    team: db ? db.prepare(`SELECT name FROM users ORDER BY created_at LIMIT 20`).all().map((u) => u.name) : [],
-    pendingInvites: repos.collaborators.myPending().slice(0, 5)
+    team: teamRows.map((u) => u.name),
+    pendingInvites: pendingList.slice(0, 5)
       .map((i) => ({ id: i.id, taskTitle: i.taskTitle, from: i.inviterName, dueAt: i.taskDueAt })),
   }
   // 多轮上下文：带上最近的对话历史（排除报错消息），让"改到九点"这类指代可解析。
-  const history = repos.chat.all()
+  const history = chatRows
     .filter((m) => !m.isError)
     .slice(-12)
     .map((m) => ({ role: m.role === 'agent' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 600) }))
@@ -151,9 +158,9 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
     aiReason: (reason || '').slice(0, 160), resultEntityType: type, resultEntityId: id, status: 'ok',
   })
 
-  const createTask = (t, reason) => {
-    const projectId = (t.projectId && repos.projects.get(t.projectId)) ? t.projectId : matchProjectId(repos, `${t.title} ${message}`)
-    const task = repos.tasks.create({
+  const createTask = async (t, reason) => {
+    const projectId = (t.projectId && await repos.projects.get(t.projectId)) ? t.projectId : await matchProjectId(repos, `${t.title} ${message}`)
+    const task = await repos.tasks.create({
       title: String(t.title).slice(0, 200), notes: String(t.notes || '').slice(0, 2000), status: 'todo', projectId,
       tags: Array.isArray(t.tags) ? t.tags : [], context: '',
       dueAt: t.dueAt || detectDue(message) || null, plannedAt: null,
@@ -161,11 +168,11 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
       priority: [1, 2, 3, 4].includes(t.priority) ? t.priority : 3,
       privacyScope: ['work', 'personal', 'mixed'].includes(t.privacyScope) ? t.privacyScope : 'work',
     })
-    rec('task', reason, 'task', task.id)
-    repos.activity.log(task.id, '任务已创建（来自聊天输入）')
+    await rec('task', reason, 'task', task.id)
+    await repos.activity.log(task.id, '任务已创建（来自聊天输入）')
     entities.push({ type: 'task', entity: task })
     performed.push({ type: 'create_task', id: task.id, title: task.title })
-    if (db) for (const p of applyAutoInvitesFx(db, repos, user, task, message)) performed.push(p)
+    if (db) for (const p of await applyAutoInvitesFx(db, repos, user, task, message)) performed.push(p)
     return task
   }
 
@@ -175,78 +182,78 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
     if (!a) continue
     try {
       if (a.type === 'create_task') {
-        if (a.payload.title) createTask(a.payload, out.reply || 'AI 创建任务')
+        if (a.payload.title) await createTask(a.payload, out.reply || 'AI 创建任务')
       } else if (a.type === 'create_idea') {
         const i = a.payload
         if (!i.title) continue
-        const idea = repos.ideas.create({
+        const idea = await repos.ideas.create({
           title: i.title, rawText: message, status: 'clarifying',
           suggestedNextAction: i.suggestedNextAction || i.nextAction || '', aiReason: i.reason || out.reply || '',
           privacyScope: i.privacyScope || 'work', source: 'chat',
         })
-        rec('todo_idea', idea.aiReason, 'todo_idea', idea.id)
+        await rec('todo_idea', idea.aiReason, 'todo_idea', idea.id)
         entities.push({ type: 'todo_idea', entity: idea })
         performed.push({ type: 'create_idea', id: idea.id, title: idea.title })
       } else if (a.type === 'create_non_todo') {
         const n = a.payload
         if (!n.title) continue
-        const non = repos.nonTodos.create({
+        const non = await repos.nonTodos.create({
           title: n.title, summary: n.summary || '', rawText: message, reason: n.reason || out.reply || '',
           suggestedDestination: 'archive', privacyScope: n.privacyScope || 'work', source: 'chat',
         })
-        rec('non_todo', non.reason, 'non_todo', non.id)
+        await rec('non_todo', non.reason, 'non_todo', non.id)
         entities.push({ type: 'non_todo', entity: non })
         performed.push({ type: 'create_non_todo', id: non.id, title: non.title })
       } else if (a.type === 'complete_task' && a.id) {
-        if (repos.tasks.get(a.id)) {
-          const task = repos.tasks.update(a.id, { status: 'done' })
-          repos.activity.log(a.id, '通过聊天标记完成')
-          if (db) notifyTaskDoneFx(db, repos, user, a.id)
+        if (await repos.tasks.get(a.id)) {
+          const task = await repos.tasks.update(a.id, { status: 'done' })
+          await repos.activity.log(a.id, '通过聊天标记完成')
+          if (db) await notifyTaskDoneFx(db, repos, user, a.id)
           performed.push({ type: 'complete_task', id: a.id, task })
         }
       } else if (a.type === 'update_task' && a.id && a.patch) {
-        if (repos.tasks.get(a.id)) {
-          const task = repos.tasks.update(a.id, a.patch)
+        if (await repos.tasks.get(a.id)) {
+          const task = await repos.tasks.update(a.id, a.patch)
           performed.push({ type: 'update_task', id: a.id, task })
         }
       } else if (a.type === 'delete_task' && a.id) {
-        const t = repos.tasks.get(a.id)
-        if (t) { repos.tasks.remove(a.id); performed.push({ type: 'delete_task', id: a.id, title: t.title }) }
+        const t = await repos.tasks.get(a.id)
+        if (t) { await repos.tasks.remove(a.id); performed.push({ type: 'delete_task', id: a.id, title: t.title }) }
       } else if (a.type === 'plan') {
         planOut = planNextBlock(visibleTasks).plan
         performed.push({ type: 'plan' })
       } else if (a.type === 'remember') {
         const note = a.payload.note || a.payload.title || a.payload.text || a.payload.content
-        if (note && appendMemory(repos, note)) {
+        if (note && await appendMemory(repos, note)) {
           performed.push({ type: 'remember', note: String(note).slice(0, 80) })
-          if (db) { const rule = maybeCreateAutoRule(db, repos, note); if (rule) performed.push({ type: 'auto_rule', id: rule.id, keyword: rule.keyword, targetName: rule.targetName }) }
+          if (db) { const rule = await maybeCreateAutoRule(db, repos, note); if (rule) performed.push({ type: 'auto_rule', id: rule.id, keyword: rule.keyword, targetName: rule.targetName }) }
         }
       } else if (a.type === 'convert_idea' && a.id) {
-        const conv = convertIdeaToTask(repos, a.id)
+        const conv = await convertIdeaToTask(repos, a.id)
         if (conv) {
           const patch = {}
           if (a.payload.dueAt) patch.dueAt = a.payload.dueAt
           if ([1, 2, 3, 4].includes(a.payload.priority)) patch.priority = a.payload.priority
           if (a.payload.notes) patch.notes = `${conv.task.notes}\n${a.payload.notes}`.trim()
-          const task = Object.keys(patch).length ? repos.tasks.update(conv.task.id, patch) : conv.task
-          rec('task', out.reply || '澄清后转为任务', 'task', task.id)
+          const task = Object.keys(patch).length ? await repos.tasks.update(conv.task.id, patch) : conv.task
+          await rec('task', out.reply || '澄清后转为任务', 'task', task.id)
           entities.push({ type: 'task', entity: task })
           performed.push({ type: 'convert_idea', ideaId: a.id, id: task.id, title: task.title })
         }
       } else if (a.type === 'invite_collaborator' && db) {
         const name = a.payload.userName || a.payload.name || a.payload.user
-        const target = name ? findUserByName(db, name) : null
+        const target = name ? await findUserByName(db, name) : null
         const taskId = a.payload.taskId || a.id || (entities.find((e) => e.type === 'task') || {}).entity?.id
         if (target && taskId) {
-          const r = inviteFx(db, repos, user, taskId, target.id)
+          const r = await inviteFx(db, repos, user, taskId, target.id)
           if (r.collab) performed.push({ type: 'invite', userId: target.id, userName: target.name, collabId: r.collab.id })
         }
       } else if (a.type === 'respond_invite' && db) {
-        const pendings = repos.collaborators.myPending()
+        const pendings = await repos.collaborators.myPending()
         const inv = a.payload.inviteId ? pendings.find((p) => p.id === a.payload.inviteId) : pendings[0]
         if (inv) {
           const accept = a.payload.accept !== false
-          const r = respondInviteFx(db, repos, user, inv.id, accept, a.payload.remind !== false)
+          const r = await respondInviteFx(db, repos, user, inv.id, accept, a.payload.remind !== false)
           if (r) {
             performed.push({ type: 'respond_invite', id: inv.id, accept })
             if (accept && r.task) entities.push({ type: 'task', entity: r.task })
@@ -261,10 +268,10 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
   // 守卫（协作）：声称"已邀请/已通知 X"但没有 invite 动作 → 尝试按 @成员兜底真邀请。
   if (db && /(已邀请|已通知|会通知|邀请了)/.test(reply) && !performed.some((p) => p.type === 'invite')) {
     const taskEntity = entities.find((e) => e.type === 'task')
-    const mentioned = extractMentionedUsers(db, message)
+    const mentioned = await extractMentionedUsers(db, message)
     if (taskEntity && mentioned.length) {
       for (const u of mentioned) {
-        const r = inviteFx(db, repos, user, taskEntity.entity.id, u.id)
+        const r = await inviteFx(db, repos, user, taskEntity.entity.id, u.id)
         if (r.collab) performed.push({ type: 'invite', userId: u.id, userName: u.name, collabId: r.collab.id, recovered: true })
       }
     }
@@ -277,7 +284,7 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
     const claimsDone = /(已完成|已标记完成|标记为完成|完成了这|已删除|删除了)/.test(reply)
     if (claimsCreate) {
       const result = triageInputSync(message)
-      const { entityType, entity } = persistCapture(repos, { result, text: message, source: 'chat' })
+      const { entityType, entity } = await persistCapture(repos, { result, text: message, source: 'chat' })
       entities.push({ type: entityType, entity, result })
       performed.push({ type: entityType === 'task' ? 'create_task' : entityType === 'todo_idea' ? 'create_idea' : 'create_non_todo', id: entity.id, title: entity.title, recovered: true })
     } else if (claimsDone) {
@@ -286,8 +293,8 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
       const q = (target || '').toLowerCase()
       const hits = q ? open.filter((t) => t.title.toLowerCase() === q || t.title.toLowerCase().includes(q) || q.includes(t.title.toLowerCase())) : []
       if (hits.length === 1) {
-        const task = repos.tasks.update(hits[0].id, { status: 'done' })
-        repos.activity.log(hits[0].id, '通过聊天标记完成')
+        const task = await repos.tasks.update(hits[0].id, { status: 'done' })
+        await repos.activity.log(hits[0].id, '通过聊天标记完成')
         performed.push({ type: 'complete_task', id: hits[0].id, task, recovered: true })
       } else {
         reply += '\n（提示：本次没有实际改动任何任务——请用更完整的任务标题再说一次。）'
@@ -299,7 +306,7 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
     reply += '\n' + planOut.map((p, i) => `${i + 1}. ${p.task.title}（约 ${p.minutes} 分钟）`).join('\n')
   }
 
-  const userMessage = repos.chat.create({ role: 'user', text: message })
-  const agentMessage = repos.chat.create({ role: 'agent', text: reply })
+  const userMessage = await repos.chat.create({ role: 'user', text: message })
+  const agentMessage = await repos.chat.create({ role: 'agent', text: reply })
   return { intent: 'agent', reply, entities, plan: planOut, performed, userMessage, agentMessage }
 }

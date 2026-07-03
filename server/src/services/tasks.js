@@ -19,11 +19,11 @@ export function filterTasks(tasks, { view = 'all', scope = 'all', search = '' } 
 
 // Move a task out of the todo system into the isolation area (misclassification fix).
 // Preserves the original raw input + generation record and logs a correction.
-export function moveOutOfTodo(repos, id) {
-  const task = repos.tasks.get(id)
+export async function moveOutOfTodo(repos, id) {
+  const task = await repos.tasks.get(id)
   if (!task) return null
-  const rec = repos.captureRecords.getByEntity('task', id)
-  const non = repos.nonTodos.create({
+  const rec = await repos.captureRecords.getByEntity('task', id)
+  const non = await repos.nonTodos.create({
     title: task.title,
     summary: task.notes || task.title,
     rawText: rec?.rawInput || task.notes || task.title,
@@ -33,8 +33,8 @@ export function moveOutOfTodo(repos, id) {
     source: 'correction',
     corrected: true,
   })
-  repos.captureRecords.relink(id, 'non_todo', non.id)
-  repos.corrections.create({ entityType: 'non_todo', entityId: non.id, fromKind: 'task', toKind: 'non_todo', note: '移出 todo（误分类纠错）' })
-  repos.tasks.remove(id)
+  await repos.captureRecords.relink(id, 'non_todo', non.id)
+  await repos.corrections.create({ entityType: 'non_todo', entityId: non.id, fromKind: 'task', toKind: 'non_todo', note: '移出 todo（误分类纠错）' })
+  await repos.tasks.remove(id)
   return non
 }

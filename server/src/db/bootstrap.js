@@ -1,16 +1,18 @@
-// Container startup: ensure schema exists; seed only if the DB is empty.
-// Safe to run on every boot (won't wipe existing data).
-import { config } from '../config.js'
-import { createDb, applySchema } from './index.js'
+// Container startup: ensure schema, then populate an EMPTY database once —
+// migrating from a legacy SQLite file if present, otherwise seeding demo data.
+// Never touches an already-populated DB. Uses the async driver (Postgres in prod).
+import { getDriver } from './driver.js'
 import { seedDb } from './seed.js'
+import { migrateFromSqlite } from './migrate-from-sqlite.js'
 
-const db = createDb(config.dbPath)
-applySchema(db)
-const count = db.prepare('SELECT COUNT(*) AS c FROM tasks').get().c
-if (count === 0) {
-  seedDb(db)
-  console.log('bootstrap: empty DB → seeded')
+const db = await getDriver()
+const { c } = await db.get('SELECT COUNT(*) AS c FROM users')
+if (Number(c) > 0) {
+  console.log(`bootstrap: ${c} users present → skip`)
 } else {
-  console.log(`bootstrap: ${count} tasks present → skip seed`)
+  let migrated = 0
+  try { migrated = await migrateFromSqlite(db) } catch (e) { console.error('bootstrap: sqlite migration failed:', e.message) }
+  if (migrated > 0) console.log(`bootstrap: migrated ${migrated} users (+ their data) from SQLite → Postgres`)
+  else { await seedDb(db); console.log('bootstrap: empty DB → seeded demo data') }
 }
-db.close()
+process.exit(0)

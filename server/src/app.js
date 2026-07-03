@@ -1,7 +1,7 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { config } from './config.js'
-import { getDb } from './db/index.js'
+import { getDriver } from './db/driver.js'
 import { makeRepos } from './repositories/index.js'
 import { makeAuth } from './services/auth.js'
 import healthRoutes from './routes/health.js'
@@ -28,11 +28,11 @@ import eventRoutes from './routes/events.js'
 // Build a Fastify instance. opts.db lets tests inject an isolated in-memory DB;
 // opts.auth === false disables the 401 guard (requests fall back to the
 // default user) — used by unit tests. Production keeps auth on.
-export function buildApp(opts = {}) {
+export async function buildApp(opts = {}) {
   // trustProxy：生产在 nginx 之后，req.ip 需取 X-Forwarded-For 才能按真实来源限流。
   const app = Fastify({ logger: opts.logger ?? true, trustProxy: true })
 
-  const db = opts.db || getDb()
+  const db = opts.db || await getDriver()
   const defaultRepos = makeRepos(db, opts.userId || config.defaultUserId)
   const auth = makeAuth(db)
   const reposCache = new Map()
@@ -70,7 +70,7 @@ export function buildApp(opts = {}) {
     const url = req.url || ''
     if (!url.startsWith('/api')) return
     const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '')
-    const user = m ? auth.resolve(m[1]) : null
+    const user = m ? await auth.resolve(m[1]) : null
     if (user) {
       req.user = user
       req.repos = reposFor(user.id)

@@ -6,8 +6,8 @@ import { visibleFilter } from '../services/privacy.js'
 export default async function planRoutes(app) {
   app.post('/api/plan', async (req) => {
     const repos = req.repos
-    const settings = repos.settings.get()
-    const tasks = visibleFilter(repos.tasks.all(), settings)
+    const settings = await repos.settings.get()
+    const tasks = visibleFilter(await repos.tasks.all(), settings)
     const blockMinutes = Number(req.body?.blockMinutes) || 120
     return planNextBlock(tasks, blockMinutes)
   })
@@ -17,11 +17,11 @@ export default async function planRoutes(app) {
     let cursor = Date.now()
     const updated = []
     for (const it of items) {
-      const t = it && it.id ? req.repos.tasks.get(it.id) : null
+      const t = it && it.id ? await req.repos.tasks.get(it.id) : null
       if (!t || t.status === 'done' || t.status === 'archived') continue
       const minutes = Math.min(Math.max(Number(it.minutes) || 30, 5), 240)
-      const task = req.repos.tasks.update(t.id, { plannedAt: new Date(cursor).toISOString() })
-      req.repos.activity.log(t.id, '加入执行计划')
+      const task = await req.repos.tasks.update(t.id, { plannedAt: new Date(cursor).toISOString() })
+      await req.repos.activity.log(t.id, '加入执行计划')
       cursor += minutes * 60000
       updated.push(task)
     }

@@ -30,9 +30,9 @@ const mask = (cfg) => ({
 export default async function aiRoutes(app) {
   // 生效配置（个人覆盖 > 团队）+ 来源标记；团队配置摘要给成员展示。
   app.get('/api/ai/config', async (req) => {
-    const own = req.repos.aiConfig.getOwn()
-    const eff = own || req.repos.aiConfig.getTeam()
-    return { ...mask(eff), source: own ? 'own' : 'team', team: mask(req.repos.aiConfig.getTeam()) }
+    const [own, team] = await Promise.all([req.repos.aiConfig.getOwn(), req.repos.aiConfig.getTeam()])
+    const eff = own || team
+    return { ...mask(eff), source: own ? 'own' : 'team', team: mask(team) }
   })
 
   // 团队配置（default 行）——只有管理员能改。
@@ -42,23 +42,23 @@ export default async function aiRoutes(app) {
     }
     const bad = baseUrlError(req.body && req.body.baseUrl)
     if (bad) return reply.status(400).send({ error: bad })
-    return mask(req.repos.aiConfig.update(req.body || {}))
+    return mask(await req.repos.aiConfig.update(req.body || {}))
   })
 
   // 个人覆盖配置：任何成员用自己的 Key（只影响自己）。
   app.put('/api/ai/config/own', async (req, reply) => {
     const bad = baseUrlError(req.body && req.body.baseUrl)
     if (bad) return reply.status(400).send({ error: bad })
-    return mask(req.repos.aiConfig.updateOwn(req.body || {}))
+    return mask(await req.repos.aiConfig.updateOwn(req.body || {}))
   })
-  app.delete('/api/ai/config/own', async (req) => { req.repos.aiConfig.clearOwn(); return { ok: true } })
+  app.delete('/api/ai/config/own', async (req) => { await req.repos.aiConfig.clearOwn(); return { ok: true } })
 
   // Test the current (or a posted draft) config against a sample input.
   app.post('/api/ai/test', async (req, reply) => {
     const body = req.body || {}
     const bad = baseUrlError(body.baseUrl)
     if (bad) return reply.status(400).send({ error: bad })
-    const cfg = { ...req.repos.aiConfig.get(), ...body } // allow testing before saving
+    const cfg = { ...(await req.repos.aiConfig.get()), ...body } // allow testing before saving
     const sample = body.sample || '下周三前提交 MVP 文档评审'
     try {
       const result = await triageInput(sample, { aiConfig: cfg })

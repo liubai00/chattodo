@@ -7,7 +7,7 @@ const reg = (app, name, email) =>
 const H = (t) => ({ authorization: `Bearer ${t}` })
 
 test('admin overview: admin sees users with stats; member gets 403', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = await reg(app, '管理员', 'a@x.com') // first → admin
   const b = await reg(app, '成员', 'b@x.com')
   await app.inject({ method: 'POST', url: '/api/capture', headers: H(b.token), payload: { text: '下周三前提交上线报告' } })
@@ -27,7 +27,7 @@ test('admin overview: admin sees users with stats; member gets 403', async () =>
 })
 
 test('AI config: member PUT → 403; admin PUT → 200; member GET still works', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = await reg(app, '管理员', 'a@x.com')
   const b = await reg(app, '成员', 'b@x.com')
   const denied = await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(b.token), payload: { provider: 'openai', model: 'x' } })
@@ -40,7 +40,7 @@ test('AI config: member PUT → 403; admin PUT → 200; member GET still works',
 })
 
 test('change password: wrong old → 400; new password logs in', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = await reg(app, '甲', 'a@x.com')
   const bad = await app.inject({ method: 'POST', url: '/api/auth/password', headers: H(a.token), payload: { oldPassword: 'nope', newPassword: 'newpass66' } })
   assert.equal(bad.statusCode, 400)
@@ -51,7 +51,7 @@ test('change password: wrong old → 400; new password logs in', async () => {
 })
 
 test('export returns the user data; clear wipes it (settings survive)', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = await reg(app, '甲', 'a@x.com')
   await app.inject({ method: 'POST', url: '/api/capture', headers: H(a.token), payload: { text: '下周三前提交上线报告' } })
 
@@ -68,7 +68,7 @@ test('export returns the user data; clear wipes it (settings survive)', async ()
 })
 
 test('settings: notifPrefs + theme persist round-trip', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = await reg(app, '甲', 'a@x.com')
   const upd = (await app.inject({ method: 'PUT', url: '/api/settings', headers: H(a.token), payload: { notifPrefs: { due: false, done: true }, theme: 'dark' } })).json()
   assert.equal(upd.theme, 'dark')

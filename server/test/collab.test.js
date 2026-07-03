@@ -9,7 +9,7 @@ const say = (app, token, message) =>
   app.inject({ method: 'POST', url: '/api/chat', headers: H(token), payload: { message } }).then((r) => r.json())
 
 async function setup() {
-  const { app, db } = makeAuthApp()
+  const { app, db } = await makeAuthApp()
   const a = await reg(app, '李俊', 'a@x.com')
   const b = await reg(app, '张伟', 'b@x.com')
   return { app, db, a, b }

@@ -45,64 +45,59 @@ const seedChat = [
 ]
 
 // Reset all tables and load seed data. Idempotent (safe to re-run).
-export function seedDb(db, userId = config.defaultUserId) {
-  const tables = ['projects', 'tasks', 'todo_ideas', 'non_todo_outputs', 'agent_profile', 'app_settings', 'capture_records', 'corrections', 'ai_errors', 'chat_messages', 'ai_config', 'subtasks', 'comments', 'activity', 'notifications', 'task_collaborators', 'users', 'sessions']
-  const run = db.transaction(() => {
-    for (const t of tables) db.prepare(`DELETE FROM ${t}`).run()
+export async function seedDb(db, userId = config.defaultUserId) {
+  const tables = ['projects', 'tasks', 'todo_ideas', 'non_todo_outputs', 'agent_profile', 'app_settings', 'capture_records', 'corrections', 'ai_errors', 'chat_messages', 'ai_config', 'subtasks', 'comments', 'activity', 'notifications', 'task_collaborators', 'auto_rules', 'users', 'sessions']
+  await db.tx(async (t) => {
+    for (const tb of tables) await t.run(`DELETE FROM ${tb}`)
 
     // Demo account owning the seed data (email demo@linx.team / password linx2026).
-    db.prepare(`INSERT INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)`)
-      .run(userId, '演示用户', 'demo@linx.team', hashPassword('linx2026'), 'admin', daysFromNow(-3))
+    await t.run(`INSERT INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)`,
+      [userId, '演示用户', 'demo@linx.team', hashPassword('linx2026'), 'admin', daysFromNow(-3)])
 
-    const insProj = db.prepare(`INSERT INTO projects (id,user_id,name,description,status,privacy_scope,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`)
-    for (const p of seedProjects) insProj.run(p.id, userId, p.name, p.description, p.status, p.privacyScope, daysFromNow(-3), daysFromNow(-3))
+    for (const p of seedProjects) await t.run(`INSERT INTO projects (id,user_id,name,description,status,privacy_scope,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+      [p.id, userId, p.name, p.description, p.status, p.privacyScope, daysFromNow(-3), daysFromNow(-3)])
 
-    const insTask = db.prepare(`INSERT INTO tasks (id,user_id,title,notes,status,project_id,tags,context,due_at,planned_at,duration_minutes,priority,privacy_scope,source_idea_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    for (const t of seedTasks) insTask.run(t.id, userId, t.title, t.notes, t.status, t.projectId, JSON.stringify(t.tags || []), t.context, t.dueAt, t.plannedAt, t.durationMinutes, t.priority, t.privacyScope, t.sourceIdeaId, t.createdAt, t.createdAt)
+    for (const tk of seedTasks) await t.run(`INSERT INTO tasks (id,user_id,title,notes,status,project_id,tags,context,due_at,planned_at,duration_minutes,priority,privacy_scope,source_idea_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [tk.id, userId, tk.title, tk.notes, tk.status, tk.projectId, JSON.stringify(tk.tags || []), tk.context, tk.dueAt, tk.plannedAt, tk.durationMinutes, tk.priority, tk.privacyScope, tk.sourceIdeaId, tk.createdAt, tk.createdAt])
 
-    const insIdea = db.prepare(`INSERT INTO todo_ideas (id,user_id,title,raw_text,status,suggested_next_action,ai_reason,privacy_scope,source,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
-    for (const i of seedTodoIdeas) insIdea.run(i.id, userId, i.title, i.rawText, i.status, i.suggestedNextAction, i.aiReason, i.privacyScope, i.source, i.createdAt, i.createdAt)
+    for (const i of seedTodoIdeas) await t.run(`INSERT INTO todo_ideas (id,user_id,title,raw_text,status,suggested_next_action,ai_reason,privacy_scope,source,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      [i.id, userId, i.title, i.rawText, i.status, i.suggestedNextAction, i.aiReason, i.privacyScope, i.source, i.createdAt, i.createdAt])
 
-    const insNon = db.prepare(`INSERT INTO non_todo_outputs (id,user_id,title,summary,raw_text,reason,suggested_destination,privacy_scope,source,corrected,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-    for (const n of seedNonTodos) insNon.run(n.id, userId, n.title, n.summary, n.rawText, n.reason, n.suggestedDestination, n.privacyScope, n.source, 0, n.createdAt, n.createdAt)
+    for (const n of seedNonTodos) await t.run(`INSERT INTO non_todo_outputs (id,user_id,title,summary,raw_text,reason,suggested_destination,privacy_scope,source,corrected,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [n.id, userId, n.title, n.summary, n.rawText, n.reason, n.suggestedDestination, n.privacyScope, n.source, 0, n.createdAt, n.createdAt])
 
-    db.prepare(`INSERT INTO agent_profile (user_id,soul,memory,preferences,working_style,privacy_rules,default_followup_strategy,updated_at) VALUES (?,?,?,?,?,?,?,?)`)
-      .run(userId, seedAgentProfile.soul, seedAgentProfile.memory, seedAgentProfile.preferences, seedAgentProfile.workingStyle, seedAgentProfile.privacyRules, seedAgentProfile.defaultFollowupStrategy, seedAgentProfile.updatedAt)
+    await t.run(`INSERT INTO agent_profile (user_id,soul,memory,preferences,working_style,privacy_rules,default_followup_strategy,updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+      [userId, seedAgentProfile.soul, seedAgentProfile.memory, seedAgentProfile.preferences, seedAgentProfile.workingStyle, seedAgentProfile.privacyRules, seedAgentProfile.defaultFollowupStrategy, seedAgentProfile.updatedAt])
 
-    db.prepare(`INSERT INTO app_settings (user_id,workspace_mode,privacy_mode,default_view,ai_visibility,updated_at) VALUES (?,?,?,?,?,?)`)
-      .run(userId, seedAppSettings.workspaceMode, seedAppSettings.privacyMode ? 1 : 0, seedAppSettings.defaultView, seedAppSettings.aiVisibility, seedAppSettings.updatedAt)
+    await t.run(`INSERT INTO app_settings (user_id,workspace_mode,privacy_mode,default_view,ai_visibility,updated_at) VALUES (?,?,?,?,?,?)`,
+      [userId, seedAppSettings.workspaceMode, seedAppSettings.privacyMode ? 1 : 0, seedAppSettings.defaultView, seedAppSettings.aiVisibility, seedAppSettings.updatedAt])
 
-    const insChat = db.prepare(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,?)`)
-    for (const m of seedChat) insChat.run(m.id, userId, m.role, m.text, 0, m.createdAt)
+    for (const m of seedChat) await t.run(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,?)`, [m.id, userId, m.role, m.text, 0, m.createdAt])
 
-    db.prepare(`INSERT INTO ai_config (id,provider,base_url,model,api_key,fallback_to_rule,updated_at) VALUES ('default',?,?,?,?,?,?)`)
-      .run(config.ai.provider, config.ai.baseUrl, config.ai.model, config.ai.apiKey, config.ai.fallbackToRule ? 1 : 0, daysFromNow(-1))
+    await t.run(`INSERT INTO ai_config (id,provider,base_url,model,api_key,fallback_to_rule,updated_at) VALUES ('default',?,?,?,?,?,?)`,
+      [config.ai.provider, config.ai.baseUrl, config.ai.model, config.ai.apiKey, config.ai.fallbackToRule ? 1 : 0, daysFromNow(-1)])
 
-    const insNotif = db.prepare(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,?,?)`)
-    ;[
-      ['nt1', 'due', 'ph-clock', 'var(--idea)', '「整理后端接口清单」今天到期', 0],
-      ['nt2', 'done', 'ph-check-circle', 'var(--accent)', '你完成了「搭建 Web 项目脚手架」', 1],
-    ].forEach((n) => insNotif.run(n[0], userId, n[1], n[2], n[3], n[4], n[5], daysFromNow(0)))
+    for (const n of [['nt1', 'due', 'ph-clock', 'var(--idea)', '「整理后端接口清单」今天到期', 0], ['nt2', 'done', 'ph-check-circle', 'var(--accent)', '你完成了「搭建 Web 项目脚手架」', 1]]) {
+      await t.run(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,?,?)`, [n[0], userId, n[1], n[2], n[3], n[4], n[5], daysFromNow(0)])
+    }
 
-    const insSub = db.prepare(`INSERT INTO subtasks (id,user_id,task_id,text,done,created_at) VALUES (?,?,?,?,?,?)`)
-    ;[['sub1', 'task_doc', '确认评审范围与 reviewer', 1], ['sub2', 'task_doc', '补齐接口清单章节', 0], ['sub3', 'task_doc', '导出 PDF 并发起评审', 0]]
-      .forEach((x) => insSub.run(x[0], userId, x[1], x[2], x[3], daysFromNow(-1)))
+    for (const x of [['sub1', 'task_doc', '确认评审范围与 reviewer', 1], ['sub2', 'task_doc', '补齐接口清单章节', 0], ['sub3', 'task_doc', '导出 PDF 并发起评审', 0]]) {
+      await t.run(`INSERT INTO subtasks (id,user_id,task_id,text,done,created_at) VALUES (?,?,?,?,?,?)`, [x[0], userId, x[1], x[2], x[3], daysFromNow(-1)])
+    }
 
-    db.prepare(`INSERT INTO comments (id,user_id,task_id,author,text,created_at) VALUES (?,?,?,?,?,?)`)
-      .run('cmt1', userId, 'task_doc', '王敏', '评审前同步下最新接口清单~', daysFromNow(0))
+    await t.run(`INSERT INTO comments (id,user_id,task_id,author,text,created_at) VALUES (?,?,?,?,?,?)`, ['cmt1', userId, 'task_doc', '王敏', '评审前同步下最新接口清单~', daysFromNow(0)])
 
-    const insAct = db.prepare(`INSERT INTO activity (id,user_id,task_id,text,created_at) VALUES (?,?,?,?,?)`)
-    ;[['act1', 'task_doc', '任务已创建'], ['act2', 'task_doc', '指派给 李俊']]
-      .forEach((x) => insAct.run(x[0], userId, x[1], x[2], daysFromNow(-1)))
+    for (const x of [['act1', 'task_doc', '任务已创建'], ['act2', 'task_doc', '指派给 李俊']]) {
+      await t.run(`INSERT INTO activity (id,user_id,task_id,text,created_at) VALUES (?,?,?,?,?)`, [x[0], userId, x[1], x[2], daysFromNow(-1)])
+    }
   })
-  run()
 }
 
 // CLI: `npm run seed`
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const db = createDb(config.dbPath)
-  applySchema(db)
-  seedDb(db)
-  console.log(`seeded: ${config.dbPath}`)
-  db.close()
+  const db = await createDb()
+  await applySchema(db)
+  await seedDb(db)
+  console.log('seeded')
+  await db.close()
 }

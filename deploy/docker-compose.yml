@@ -7,11 +7,14 @@ services:
     ports:
       - "127.0.0.1:8788:8787"
     volumes:
-      - chattodo-data:/data
+      - chattodo-data:/data   # 旧 SQLite 库 → 首次启动迁移到 Postgres 的来源
     environment:
       - REDIS_URL=redis://chattodo-redis:6379
+      - DATABASE_URL=postgres://chattodo:chattodo_internal_pw@chattodo-postgres:5432/chattodo
     depends_on:
       chattodo-redis:
+        condition: service_healthy
+      chattodo-postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -19,7 +22,27 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # 主数据库（独立卷，仅 compose 内网可达，不发布端口 → 与你现有 PG / 其它应用零干扰）。
+  chattodo-postgres:
+    image: postgres:16-alpine
+    container_name: chattodo-postgres
+    environment:
+      POSTGRES_USER: chattodo
+      POSTGRES_PASSWORD: chattodo_internal_pw
+      POSTGRES_DB: chattodo
+    volumes:
+      - chattodo-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chattodo -d chattodo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
@@ -41,3 +64,4 @@ services:
 
 volumes:
   chattodo-data:
+  chattodo-pgdata:

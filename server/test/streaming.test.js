@@ -28,7 +28,7 @@ test('makeReplyExtractor: emits reply chars incrementally, handles split escapes
 })
 
 test('POST /api/chat/stream (rule mode): status + done events, entity created', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   const res = await app.inject({ method: 'POST', url: '/api/chat/stream', payload: { message: '下周三前提交上线总结报告' } })
   assert.equal(res.statusCode, 200)
   assert.match(res.headers['content-type'], /text\/event-stream/)
@@ -38,11 +38,11 @@ test('POST /api/chat/stream (rule mode): status + done events, entity created', 
   const done = events.find((e) => e.event === 'done')
   assert.equal(done.data.intent, 'capture')
   assert.equal(done.data.entities[0].type, 'task')
-  assert.ok(db.prepare(`SELECT COUNT(*) c FROM tasks WHERE title LIKE '%上线总结报告%'`).get().c >= 1)
+  assert.ok((await db.prepare(`SELECT COUNT(*) c FROM tasks WHERE title LIKE '%上线总结报告%'`).get()).c >= 1)
 })
 
 test('POST /api/chat/stream (LLM): deltas stream the reply, actions still execute', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k' } })
   // stub upstream: OpenAI-compatible SSE stream of a JSON envelope
   const chunks = [
@@ -74,11 +74,11 @@ test('POST /api/chat/stream (LLM): deltas stream the reply, actions still execut
   const done = events.find((e) => e.event === 'done')
   assert.equal(done.data.reply, '好的，已记为任务。')
   assert.ok(done.data.performed.some((p) => p.type === 'create_task'))
-  assert.equal(db.prepare(`SELECT COUNT(*) c FROM tasks WHERE title='流式测试任务'`).get().c, 1)
+  assert.equal((await db.prepare(`SELECT COUNT(*) c FROM tasks WHERE title='流式测试任务'`).get()).c, 1)
 })
 
 test('streaming plain-prose reply (no JSON) → done carries the full text, no failure', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k', fallbackToRule: false } })
   const parts = ['我是基于大语言模型的', '任务助理，随时可以', '帮你规划和记录。']
   const orig = global.fetch
@@ -105,10 +105,10 @@ test('streaming plain-prose reply (no JSON) → done carries the full text, no f
 })
 
 test('due notifications: generated on /api/state once per task per day', async () => {
-  const { app, db } = makeTestApp()
+  const { app, db } = await makeTestApp()
   // seeded task_api is due tomorrow (+1d); make one due today
   const today = new Date(); today.setHours(15, 0, 0, 0)
-  db.prepare(`UPDATE tasks SET due_at = ? WHERE id = 'task_api'`).run(today.toISOString())
+  await db.prepare(`UPDATE tasks SET due_at = ? WHERE id = 'task_api'`).run(today.toISOString())
   const s1 = (await app.inject({ url: '/api/state' })).json()
   const dueNotifs = s1.notifications.filter((n) => n.text.includes('整理后端接口清单') && n.text.includes('今天到期'))
   assert.equal(dueNotifs.length, 1)

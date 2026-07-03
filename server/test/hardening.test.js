@@ -7,7 +7,7 @@ const reg = (app, name, email, password = 'pass1234') =>
 const H = (t) => ({ authorization: `Bearer ${t}` })
 
 test('password change revokes other sessions but keeps the current one', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = (await reg(app, '甲', 'a@x.com')).json()
   const second = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'a@x.com', password: 'pass1234' } })).json()
   // 两个会话都活着
@@ -21,7 +21,7 @@ test('password change revokes other sessions but keeps the current one', async (
 })
 
 test('SSRF guard: AI base URL cannot point at loopback / private ranges / bare hosts', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = (await reg(app, '管理员', 'a@x.com')).json()
   const bad = ['http://127.0.0.1:8788', 'http://localhost:6379', 'http://10.0.0.5/v1', 'http://192.168.1.10/v1', 'http://172.17.0.1/v1', 'http://169.254.169.254/latest', 'http://chattodo-redis:6379', 'ftp://api.example.com']
   for (const baseUrl of bad) {
@@ -38,7 +38,7 @@ test('SSRF guard: AI base URL cannot point at loopback / private ranges / bare h
 })
 
 test('input limits: name ≤24 chars, password ≥8 chars', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   assert.equal((await reg(app, '这个显示名称实在是太长太长太长太长太长太长太长太长太长了吧', 'n@x.com')).statusCode, 400)
   assert.equal((await reg(app, '甲', 'p@x.com', 'short7c')).statusCode, 400)
   const a = (await reg(app, '甲', 'a@x.com')).json()
@@ -47,12 +47,12 @@ test('input limits: name ≤24 chars, password ≥8 chars', async () => {
 })
 
 test('expired sessions are garbage-collected on next login', async () => {
-  const { app, db } = makeAuthApp()
+  const { app, db } = await makeAuthApp()
   const a = (await reg(app, '甲', 'a@x.com')).json()
-  db.prepare(`INSERT INTO sessions (token,user_id,created_at,expires_at) VALUES ('dead_token', ?, '2020-01-01T00:00:00', '2020-01-31T00:00:00')`).run(a.user.id)
-  assert.equal(db.prepare(`SELECT COUNT(*) c FROM sessions WHERE token='dead_token'`).get().c, 1)
+  await db.prepare(`INSERT INTO sessions (token,user_id,created_at,expires_at) VALUES ('dead_token', ?, '2020-01-01T00:00:00', '2020-01-31T00:00:00')`).run(a.user.id)
+  assert.equal((await db.prepare(`SELECT COUNT(*) c FROM sessions WHERE token='dead_token'`).get()).c, 1)
   await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'a@x.com', password: 'pass1234' } })
-  assert.equal(db.prepare(`SELECT COUNT(*) c FROM sessions WHERE token='dead_token'`).get().c, 0)
+  assert.equal((await db.prepare(`SELECT COUNT(*) c FROM sessions WHERE token='dead_token'`).get()).c, 0)
 })
 
 test('identity question is answered from real config, not the LLM (no token burned)', async () => {
@@ -70,7 +70,7 @@ test('identity question is answered from real config, not the LLM (no token burn
 })
 
 test('chat identity via API answers concretely even with LLM configured (no fetch call)', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = (await reg(app, '甲', 'a@x.com')).json()
   await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(a.token), payload: { provider: 'openai', model: 'deepseek-chat', apiKey: 'k', baseUrl: 'https://api.deepseek.com/v1' } })
   const orig = global.fetch
@@ -83,7 +83,7 @@ test('chat identity via API answers concretely even with LLM configured (no fetc
 })
 
 test('chat rate limit: 41st message in a minute → 429', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = (await reg(app, '甲', 'a@x.com')).json()
   let last
   for (let i = 0; i < 41; i++) {
@@ -93,7 +93,7 @@ test('chat rate limit: 41st message in a minute → 429', async () => {
 })
 
 test('deleting a shared task disarms pending invite notification buttons', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   const a = (await reg(app, '甲', 'a@x.com')).json()
   const b = (await reg(app, '乙', 'b@x.com')).json()
   const task = (await app.inject({ method: 'POST', url: '/api/tasks', headers: H(a.token), payload: { title: '将被删除的任务' } })).json()

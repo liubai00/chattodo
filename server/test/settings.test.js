@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { makeTestApp } from './helpers.js'
 
 test('GET/PUT /api/agent merges patch, preserves other fields', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   const before = (await app.inject({ url: '/api/agent' })).json()
   assert.ok(before.soul)
   const after = (await app.inject({ method: 'PUT', url: '/api/agent', payload: { soul: '新人格' } })).json()
@@ -12,7 +12,7 @@ test('GET/PUT /api/agent merges patch, preserves other fields', async () => {
 })
 
 test('GET/PUT /api/settings toggles workspace + privacy', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   const s = (await app.inject({ url: '/api/settings' })).json()
   assert.equal(s.workspaceMode, 'work')
   assert.equal(s.privacyMode, false)
@@ -22,7 +22,7 @@ test('GET/PUT /api/settings toggles workspace + privacy', async () => {
 })
 
 test('privacy mode filters tasks across state / tasks / plan', async () => {
-  const { app } = makeTestApp()
+  const { app } = await makeTestApp()
   await app.inject({ method: 'PUT', url: '/api/settings', payload: { privacyMode: true, workspaceMode: 'work' } })
 
   const state = (await app.inject({ url: '/api/state' })).json()

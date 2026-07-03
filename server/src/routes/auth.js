@@ -24,22 +24,22 @@ export default async function authRoutes(app) {
     if (cleanName.length > 24) return reply.status(400).send({ error: '显示名称最长 24 字' })
     if (!email || !/.+@.+\..+/.test(String(email))) return reply.status(400).send({ error: '邮箱格式不正确' })
     if (!password || String(password).length < 8) return reply.status(400).send({ error: '密码至少 8 位' })
-    if (auth.findByEmail(email)) return reply.status(409).send({ error: '该邮箱已注册，请直接登录' })
-    const user = auth.register({ name: cleanName, email, password: String(password) })
-    return { token: auth.createSession(user.id), user }
+    if (await auth.findByEmail(email)) return reply.status(409).send({ error: '该邮箱已注册，请直接登录' })
+    const user = await auth.register({ name: cleanName, email, password: String(password) })
+    return { token: await auth.createSession(user.id), user }
   })
 
   app.post('/api/auth/login', async (req, reply) => {
     const { email, password } = req.body || {}
     if (rateLimited(`login:${req.ip}:${String(email || '').toLowerCase()}`)) return reply.status(429).send({ error: '尝试过于频繁，请 10 分钟后再试' })
-    const user = auth.verifyLogin(email, password)
+    const user = await auth.verifyLogin(email, password)
     if (!user) return reply.status(401).send({ error: '邮箱或密码不正确' })
-    return { token: auth.createSession(user.id), user }
+    return { token: await auth.createSession(user.id), user }
   })
 
   app.post('/api/auth/logout', async (req) => {
     const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '')
-    if (m) auth.logout(m[1])
+    if (m) await auth.logout(m[1])
     return { ok: true }
   })
 
@@ -61,7 +61,7 @@ export default async function authRoutes(app) {
     const { oldPassword, newPassword } = req.body || {}
     if (!newPassword || String(newPassword).length < 8) return reply.status(400).send({ error: '新密码至少 8 位' })
     const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '')
-    if (!auth.changePassword(req.user.id, oldPassword, String(newPassword), m ? m[1] : null)) {
+    if (!(await auth.changePassword(req.user.id, oldPassword, String(newPassword), m ? m[1] : null))) {
       return reply.status(400).send({ error: '当前密码不正确' })
     }
     return { ok: true } // 其他设备的会话已全部吊销

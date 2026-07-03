@@ -10,7 +10,7 @@ const say = (app, token, message) =>
   app.inject({ method: 'POST', url: '/api/chat', headers: H(token), payload: { message } }).then((r) => r.json())
 
 async function pair() {
-  const { app, db } = makeAuthApp()
+  const { app, db } = await makeAuthApp()
   const a = await reg(app, '李俊', 'a@x.com')
   const b = await reg(app, '张伟', 'b@x.com')
   return { app, db, a, b }
@@ -37,7 +37,7 @@ test('events bus: publish reaches subscriber, unsubscribe stops it, dead sockets
 })
 
 test('GET /api/events requires auth', async () => {
-  const { app } = makeAuthApp()
+  const { app } = await makeAuthApp()
   assert.equal((await app.inject({ url: '/api/events' })).statusCode, 401)
 })
 
