@@ -14,6 +14,30 @@ function findPendingClarify(repos) {
   return (Date.now() - new Date(idea.createdAt).getTime() < 15 * 60 * 1000) ? idea : null
 }
 
+// 身份/模型提问："你是什么模型 / 你是谁 / 基于什么大模型"。
+// 由后端用真实配置直接回答——模型本身常被系统提示带偏而含糊其辞。
+export function isIdentityQuestion(message) {
+  const m = String(message || '').trim()
+  if (m.length > 16) return false // 身份提问都很短；长句多半是含"模型"二字的普通任务
+  // 必须是对「你/您」的自我指涉，避免把"买个什么模型的手办"这类任务误判
+  if (/^(你|您|你们)/.test(m) && /(什么|啥|哪个|哪家|哪种).{0,3}(模型|大模型|大语言模型|ai|llm)/i.test(m)) return true
+  if (/^(你|您)是谁[?？]?$/.test(m)) return true
+  if (/^(你|您)(叫什么|叫啥|的名字|是什么).{0,5}$/.test(m)) return true
+  if (/(什么|哪个|啥)模型(驱动|支持|在跑|运行|的你)/.test(m)) return true
+  return false
+}
+
+export function identityReply(aiConfig) {
+  if (!aiConfig || aiConfig.provider === 'rule' || !aiConfig.apiKey) {
+    return '我是 LinX 灵信的 todo-first 智能助理，目前运行在离线规则模式（尚未接入大语言模型）。在「设置 · AI 接入」配置模型后，我就能自然对话并代你操作任务。'
+  }
+  const model = aiConfig.model || '（未指定型号）'
+  let host = ''
+  try { host = new URL(/:\/\//.test(aiConfig.baseUrl || '') ? aiConfig.baseUrl : 'https://' + (aiConfig.baseUrl || 'api.anthropic.com')).hostname } catch { /* ignore */ }
+  const via = aiConfig.provider === 'anthropic' ? 'Anthropic 官方接口' : (host || 'OpenAI 兼容接口')
+  return `我是 LinX 灵信的 todo-first 智能助理，当前由模型 ${model} 驱动（接入自 ${via}）。我能把你的想法判断为任务 / 待澄清 / 非 todo，安排计划，并和团队协作。`
+}
+
 // 重复检测：7 天内已有同名（忽略空白/大小写）未归档任务。
 function findDuplicate(repos, text) {
   const norm = (s) => String(s || '').replace(/\s+/g, '').toLowerCase()
@@ -254,6 +278,13 @@ function ruleChat(repos, { message, db, user }) {
 // db/user (optional): enable cross-user effects (协作邀请/响应) — routes pass them in.
 export async function chat(repos, { message, onEvent, db, user }) {
   const aiConfig = repos.aiConfig?.get?.() || null
+
+  // 身份提问：后端按真实配置直接回答，truthful 且不消耗模型额度。
+  if (isIdentityQuestion(message)) {
+    if (onEvent) onEvent({ type: 'status', intent: 'identity' })
+    return finish(repos, { message, intent: 'identity', reply: identityReply(aiConfig) })
+  }
+
   const useLlm = aiConfig && aiConfig.provider !== 'rule' && aiConfig.apiKey
   if (onEvent) onEvent({ type: 'status', intent: useLlm ? 'agent' : detectIntent(message) })
 

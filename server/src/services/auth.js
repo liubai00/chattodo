@@ -67,13 +67,18 @@ export function makeAuth(db) {
       return this.get(id)
     },
     // Verify the old password, then set the new one. Returns false on mismatch.
-    changePassword(id, oldPassword, newPassword) {
+    // 改密后吊销该用户其他所有会话（保留当前这个）——防止被盗 token 在改密后继续存活。
+    changePassword(id, oldPassword, newPassword, keepToken = null) {
       const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
       if (!row || !verifyPassword(oldPassword || '', row.password_hash)) return false
       db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(newPassword), id)
+      if (keepToken) db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').run(id, keepToken)
+      else db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id)
       return true
     },
     createSession(userId) {
+      // 顺手回收全表过期会话，避免 sessions 只增不减
+      db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(nowIso())
       const token = crypto.randomBytes(32).toString('hex')
       db.prepare('INSERT INTO sessions (token,user_id,created_at,expires_at) VALUES (?,?,?,?)')
         .run(token, userId, nowIso(), daysFromNow(SESSION_DAYS))

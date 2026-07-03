@@ -43,7 +43,7 @@ test('POST /api/chat/stream (rule mode): status + done events, entity created', 
 
 test('POST /api/chat/stream (LLM): deltas stream the reply, actions still execute', async () => {
   const { app, db } = makeTestApp()
-  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://x/v1', model: 'm', apiKey: 'k' } })
+  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k' } })
   // stub upstream: OpenAI-compatible SSE stream of a JSON envelope
   const chunks = [
     '{"reply":"好的，',
@@ -75,6 +75,33 @@ test('POST /api/chat/stream (LLM): deltas stream the reply, actions still execut
   assert.equal(done.data.reply, '好的，已记为任务。')
   assert.ok(done.data.performed.some((p) => p.type === 'create_task'))
   assert.equal(db.prepare(`SELECT COUNT(*) c FROM tasks WHERE title='流式测试任务'`).get().c, 1)
+})
+
+test('streaming plain-prose reply (no JSON) → done carries the full text, no failure', async () => {
+  const { app } = makeTestApp()
+  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k', fallbackToRule: false } })
+  const parts = ['我是基于大语言模型的', '任务助理，随时可以', '帮你规划和记录。']
+  const orig = global.fetch
+  global.fetch = async () => ({
+    ok: true, status: 200,
+    body: new ReadableStream({
+      start(c) {
+        const enc = new TextEncoder()
+        for (const p of parts) c.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: p } }] })}\n\n`))
+        c.enqueue(enc.encode('data: [DONE]\n\n'))
+        c.close()
+      },
+    }),
+    async text() { return '' },
+  })
+  let res
+  try {
+    res = await app.inject({ method: 'POST', url: '/api/chat/stream', payload: { message: '讲讲时间管理的技巧' } })
+  } finally { global.fetch = orig }
+  const events = parseSse(res.payload)
+  const done = events.find((e) => e.event === 'done')
+  assert.equal(done.data.reply, parts.join(''))
+  assert.ok(!events.some((e) => e.event === 'error'))
 })
 
 test('due notifications: generated on /api/state once per task per day', async () => {

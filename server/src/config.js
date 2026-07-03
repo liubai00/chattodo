@@ -9,6 +9,9 @@ export const config = {
   // 实时事件总线：设置 REDIS_URL 走 Redis pub/sub（多实例可横向扩展）；
   // 不设置或连接失败 → 自动回退进程内总线（单实例功能等价）。
   redisUrl: process.env.REDIS_URL || '',
+  // CORS 来源：默认 true（反射任意来源，同源部署下无实际暴露）；
+  // 设 CORS_ORIGIN 收紧：'false' 只允许同源，'*' 全放，或逗号分隔白名单。
+  corsOrigin: process.env.CORS_ORIGIN || '',
   ai: {
     provider: process.env.AI_PROVIDER || 'rule', // rule | openai | anthropic
     baseUrl: process.env.AI_BASE_URL || '',

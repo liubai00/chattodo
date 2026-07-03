@@ -11,8 +11,18 @@ services:
     environment:
       - REDIS_URL=redis://chattodo-redis:6379
     depends_on:
-      - chattodo-redis
+      chattodo-redis:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
   # 实时事件总线（pub/sub 专用，不持久化）。仅 compose 内网可达，不发布任何端口。
   chattodo-redis:
@@ -20,6 +30,14 @@ services:
     container_name: chattodo-redis
     command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
 
 volumes:
   chattodo-data:

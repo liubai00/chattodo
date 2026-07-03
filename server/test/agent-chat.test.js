@@ -15,8 +15,29 @@ function stubLlm(obj) {
 }
 
 async function useOpenAI(app) {
-  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://x/v1', model: 'm', apiKey: 'k' } })
+  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k' } })
 }
+
+test('plain-prose LLM reply (no JSON envelope) degrades gracefully — not a failure', async () => {
+  const { app, db } = makeTestApp()
+  await useOpenAI(app)
+  // 关闭兜底，复现线上配置：解析失败曾直接变成「AI 处理失败」
+  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { fallbackToRule: false } })
+  const prose = '我是 DeepSeek 的 todo-first 智能助理，专门帮你管理任务和想法。有什么需要规划或记录的吗？'
+  const orig = global.fetch
+  global.fetch = async () => ({
+    ok: true, status: 200,
+    async json() { return { choices: [{ message: { content: prose } }] } },
+    async text() { return '' },
+  })
+  try {
+    const res = (await app.inject({ method: 'POST', url: '/api/chat', payload: { message: '给我讲讲高效工作的方法' } })).json()
+    assert.equal(res.reply, prose)             // 全文原样作为回复
+    assert.equal(res.entities.length, 0)
+    assert.ok(!res.agentMessage.text.includes('AI 处理失败'))
+  } finally { global.fetch = orig }
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM ai_errors').get().c, 0) // 不再记为错误
+})
 
 test('agent chat: model intent → creates a task in the DB', async () => {
   const { app, db } = makeTestApp()

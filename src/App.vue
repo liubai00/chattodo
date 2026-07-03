@@ -13,7 +13,7 @@
         <div style="background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;">
           <label v-if="vm.isRegister" style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">显示名称</span><input :value="vm.authName" @input="vm.onAuthName" placeholder="你的名字" style="border:1px solid var(--line2);border-radius:10px;padding:11px 13px;background:var(--bg);color:var(--text);font:500 14px/1 var(--font);"/></label>
           <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">邮箱</span><input :value="vm.authEmail" @input="vm.onAuthEmail" @keydown="vm.authKey" type="email" placeholder="you@team.com" style="border:1px solid var(--line2);border-radius:10px;padding:11px 13px;background:var(--bg);color:var(--text);font:500 14px/1 var(--font);"/></label>
-          <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">密码</span><input :value="vm.authPassword" @input="vm.onAuthPassword" @keydown="vm.authKey" type="password" :placeholder="vm.isRegister?'至少 6 位':'输入密码'" style="border:1px solid var(--line2);border-radius:10px;padding:11px 13px;background:var(--bg);color:var(--text);font:500 14px/1 var(--font);"/></label>
+          <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">密码</span><input :value="vm.authPassword" @input="vm.onAuthPassword" @keydown="vm.authKey" type="password" :placeholder="vm.isRegister?'至少 8 位':'输入密码'" style="border:1px solid var(--line2);border-radius:10px;padding:11px 13px;background:var(--bg);color:var(--text);font:500 14px/1 var(--font);"/></label>
           <div v-if="vm.authError" style="font:500 12.5px/1.4 var(--font);color:var(--danger);background:var(--danger-bg);border-radius:9px;padding:9px 12px;">{{ vm.authError }}</div>
           <button @click="vm.submitAuth" :disabled="vm.authBusy" style="margin-top:4px;height:44px;border:0;border-radius:11px;background:var(--accent);color:#fff;font:600 14.5px/1 var(--font);cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:7px;">{{ vm.authBusy ? '请稍候…' : (vm.isRegister ? '注册并进入' : '登录') }} <i class="ph ph-arrow-right"></i></button>
           <div style="text-align:center;font:500 12.5px/1.5 var(--font);color:var(--text3);">{{ vm.isRegister ? '已有账号？' : '还没有账号？' }}<span @click="vm.switchAuthMode" style="color:var(--accent-ink);cursor:pointer;font-weight:600;margin-left:5px;">{{ vm.isRegister ? '去登录' : '注册新账号' }}</span></div>
@@ -447,7 +447,7 @@
                       <template v-if="vm.pwdOpen">
                         <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;background:var(--mid);border-radius:11px;padding:14px;">
                           <input :value="vm.pwdOld" @input="vm.onPwdOld" type="password" placeholder="当前密码" style="border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
-                          <input :value="vm.pwdNew" @input="vm.onPwdNew" type="password" placeholder="新密码（至少 6 位）" style="border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
+                          <input :value="vm.pwdNew" @input="vm.onPwdNew" type="password" placeholder="新密码（至少 8 位，改密后其他设备将退出登录）" style="border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
                           <button @click="vm.submitPwd" :disabled="vm.pwdBusy" style="align-self:flex-start;height:34px;padding:0 16px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:600 12.5px/1 var(--font);cursor:pointer;">{{ vm.pwdBusy ? '提交中…' : '确认修改' }}</button>
                         </div>
                       </template>
@@ -988,7 +988,7 @@ class Component {
 
     // 纯文本 → 后端 /api/chat/stream（SSE 流式：status→意图状态行，delta→逐字渐显，done→实体/动作落地）
     try{
-      let streamId=null;
+      let streamId=null; let gotAnyEvent=false;
       const onDelta=(d)=>{
         if(!d) return;
         if(!streamId){
@@ -1000,10 +1000,12 @@ class Component {
       };
       let res;
       try{
-        res=await api.chatStream(t,{ onStatus:(st)=>{ if(st&&st.intent&&st.intent!=='agent') this.setState({thinkText:this._thinkLabel(st.intent)}); }, onDelta });
+        res=await api.chatStream(t,{ onStatus:(st)=>{ gotAnyEvent=true; if(st&&st.intent&&st.intent!=='agent') this.setState({thinkText:this._thinkLabel(st.intent)}); }, onDelta });
       }catch(streamErr){
-        if(streamId) throw streamErr;      // 已渐显一半再断 → 走错误卡
-        res=await api.chat(t);             // 流式不可用 → 回退一次性请求
+        // 只有「一个事件都没收到」才回退重发——服务端一旦开始处理（status/delta 已到），
+        // 重发会导致动作重复执行（重复建任务/重复邀请），此时走错误卡由用户决定重试。
+        if(streamId||gotAnyEvent) throw streamErr;
+        res=await api.chat(t);
       }
       const newMsgs=[]; let tasks=this.state.tasks.slice(), ideas=this.state.ideas.slice(), nonTodos=this.state.nonTodos.slice(), feedArr=this.state.feed.slice();
       // 1) created entities → cards
@@ -1127,7 +1129,7 @@ class Component {
   updateSetting(field,val){ this.setState(s=>({settings:{...s.settings,[field]:val}})); const map={defaultWs:'workspaceMode',defaultView:'defaultView',aiVisibility:'aiVisibility',privacyDefault:'privacyMode'}; const col=map[field]; if(col) api.updateSettings({[col]: field==='privacyDefault'?!!val:val}).catch(()=>{}); }
   submitPwd(){
     const {pwdOld,pwdNew}=this.state;
-    if(!pwdNew||pwdNew.length<6){ this.flashToast('新密码至少 6 位'); return; }
+    if(!pwdNew||pwdNew.length<8){ this.flashToast('新密码至少 8 位'); return; }
     this.setState({pwdBusy:true});
     api.changePassword(pwdOld,pwdNew).then(()=>{ this.setState({pwdBusy:false,pwdOpen:false,pwdOld:'',pwdNew:''}); this.flashToast('密码已更新'); })
       .catch(e=>{ this.setState({pwdBusy:false}); this.flashToast('修改失败：'+e.message); });

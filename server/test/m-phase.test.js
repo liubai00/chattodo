@@ -142,13 +142,13 @@ test('per-user AI config: own overrides team, delete falls back', async () => {
   const { app } = makeAuthApp()
   const a = await reg(app, '管理员', 'a@x.com')
   const b = await reg(app, '成员', 'b@x.com')
-  await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(a.token), payload: { provider: 'openai', model: 'team-model', baseUrl: 'https://t/v1', apiKey: 'tk' } })
+  await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(a.token), payload: { provider: 'openai', model: 'team-model', baseUrl: 'https://team.example.com/v1', apiKey: 'tk' } })
   // member sees team config as effective
   let got = (await app.inject({ url: '/api/ai/config', headers: H(b.token) })).json()
   assert.equal(got.source, 'team')
   assert.equal(got.model, 'team-model')
   // member sets own
-  await app.inject({ method: 'PUT', url: '/api/ai/config/own', headers: H(b.token), payload: { provider: 'openai', model: 'my-model', baseUrl: 'https://m/v1', apiKey: 'mk' } })
+  await app.inject({ method: 'PUT', url: '/api/ai/config/own', headers: H(b.token), payload: { provider: 'openai', model: 'my-model', baseUrl: 'https://mine.example.com/v1', apiKey: 'mk' } })
   got = (await app.inject({ url: '/api/ai/config', headers: H(b.token) })).json()
   assert.equal(got.source, 'own')
   assert.equal(got.model, 'my-model')

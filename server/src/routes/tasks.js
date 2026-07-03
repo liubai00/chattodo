@@ -97,11 +97,14 @@ export default async function taskRoutes(app) {
     const task = repos.tasks.get(req.params.id)
     if (!task) return reply.status(404).send({ error: 'task not found' })
     if (repos.tasks.access(req.params.id) !== 'owner') return reply.status(403).send({ error: '协作任务只有创建者可以删除，你可以选择「退出协作」' })
-    // 通知协作者任务已删除，并清理协作关系
+    // 通知协作者任务已删除；失效所有相关邀请通知的按钮；清理协作关系
     const collabUserIds = repos.collaborators.acceptedUsersOf(req.params.id)
     for (const uid of collabUserIds) {
       app.db.prepare(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,0,?)`)
         .run(makeId('nt'), uid, 'assign', 'ph-trash', 'var(--danger)', `「${task.title}」已被 ${(req.user && req.user.name) || '创建者'} 删除`, nowIso())
+    }
+    for (const row of app.db.prepare(`SELECT id FROM task_collaborators WHERE task_id = ?`).all(req.params.id)) {
+      app.db.prepare(`UPDATE notifications SET handled = 1, read = 1 WHERE action_ref = ?`).run(row.id)
     }
     repos.collaborators.removeForTask(req.params.id)
     repos.tasks.remove(req.params.id)

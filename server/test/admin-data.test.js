@@ -32,7 +32,7 @@ test('AI config: member PUT → 403; admin PUT → 200; member GET still works',
   const b = await reg(app, '成员', 'b@x.com')
   const denied = await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(b.token), payload: { provider: 'openai', model: 'x' } })
   assert.equal(denied.statusCode, 403)
-  const ok = await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(a.token), payload: { provider: 'openai', model: 'x', baseUrl: 'https://x/v1' } })
+  const ok = await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(a.token), payload: { provider: 'openai', model: 'x', baseUrl: 'https://llm.example.com/v1' } })
   assert.equal(ok.statusCode, 200)
   const got = (await app.inject({ url: '/api/ai/config', headers: H(b.token) })).json()
   assert.equal(got.model, 'x') // members can read (masked), just not write

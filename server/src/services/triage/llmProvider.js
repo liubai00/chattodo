@@ -169,10 +169,16 @@ export async function llmJson(system, user, cfg) {
 
 // Multi-turn variant: full message history (user/assistant), JSON reply. Used by agent chat.
 export async function llmMessagesJson(system, messages, cfg) {
+  return extractJson(await llmMessagesText(system, messages, cfg))
+}
+
+// Raw-text variant: caller parses (lets agent chat degrade gracefully when the
+// model answers in plain prose instead of the JSON envelope).
+export async function llmMessagesText(system, messages, cfg) {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), cfg.timeoutMs || 25000)
   try {
-    return extractJson(await llmComplete(system, messages, cfg, ac.signal))
+    return await llmComplete(system, messages, cfg, ac.signal)
   } finally {
     clearTimeout(timer)
   }

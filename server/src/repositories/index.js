@@ -353,8 +353,9 @@ export function makeRepos(db, userId = config.defaultUserId) {
     // 可操作通知：处理后按钮置灰（按 action_ref 消费，跨用户场景用原始 db 写入方调用）
     markHandledByRef: (ref) => db.prepare(`UPDATE notifications SET handled = 1, read = 1 WHERE user_id = ? AND action_ref = ?`).run(userId, ref),
     // dedupe helper: has this exact notification already been generated today?
+    // 与 created_at 同源用 nowIso()（本地时区格式），避免 UTC/本地跨日错配导致重复生成。
     existsToday: (text) => !!db.prepare(`SELECT 1 FROM notifications WHERE user_id = ? AND text = ? AND substr(created_at,1,10) = ? LIMIT 1`)
-      .get(userId, text, new Date().toISOString().slice(0, 10)),
+      .get(userId, text, nowIso().slice(0, 10)),
   }
 
   return { projects, tasks, ideas, nonTodos, agent, settings, captureRecords, corrections, aiErrors, chat, aiConfig, subtasks, comments, activity, notifications, collaborators, autoRules }

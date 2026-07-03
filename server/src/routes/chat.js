@@ -1,4 +1,12 @@
 import { chat } from '../services/chat.js'
+import { isLimited } from '../lib/rateLimit.js'
+
+// 聊天限流：每登录用户 40 次/分钟，防刷爆第三方模型额度（未登录/测试模式不限）。
+const CHAT_MAX = 40
+const CHAT_WINDOW = 60000
+function chatLimited(req) {
+  return req.user ? isLimited(`chat:${req.user.id}`, CHAT_MAX, CHAT_WINDOW) : false
+}
 
 // POST /api/chat { message } — one chat turn (single JSON response).
 // POST /api/chat/stream — same turn as Server-Sent Events:
@@ -7,12 +15,14 @@ export default async function chatRoutes(app) {
   app.post('/api/chat', async (req, reply) => {
     const { message } = req.body || {}
     if (!message || !String(message).trim()) return reply.status(400).send({ error: 'message is required' })
+    if (chatLimited(req)) return reply.status(429).send({ error: '消息太频繁了，休息一下再发～' })
     return chat(req.repos, { message: String(message), db: app.db, user: req.user })
   })
 
   app.post('/api/chat/stream', async (req, reply) => {
     const { message } = req.body || {}
     if (!message || !String(message).trim()) return reply.status(400).send({ error: 'message is required' })
+    if (chatLimited(req)) return reply.status(429).send({ error: '消息太频繁了，休息一下再发～' })
     reply.hijack()
     reply.raw.writeHead(200, {
       'content-type': 'text/event-stream; charset=utf-8',

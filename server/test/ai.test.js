@@ -34,7 +34,7 @@ test('POST /api/ai/test with rule provider succeeds offline', async () => {
 
 test('capture falls back to rule + logs ai_error when the LLM call fails', async () => {
   const { app, db } = makeTestApp()
-  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://x', model: 'm', apiKey: 'k' } })
+  await app.inject({ method: 'PUT', url: '/api/ai/config', payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k' } })
   const orig = global.fetch
   global.fetch = async () => { throw new Error('network down') }
   try {

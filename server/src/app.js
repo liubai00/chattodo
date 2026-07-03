@@ -29,7 +29,8 @@ import eventRoutes from './routes/events.js'
 // opts.auth === false disables the 401 guard (requests fall back to the
 // default user) — used by unit tests. Production keeps auth on.
 export function buildApp(opts = {}) {
-  const app = Fastify({ logger: opts.logger ?? true })
+  // trustProxy：生产在 nginx 之后，req.ip 需取 X-Forwarded-For 才能按真实来源限流。
+  const app = Fastify({ logger: opts.logger ?? true, trustProxy: true })
 
   const db = opts.db || getDb()
   const defaultRepos = makeRepos(db, opts.userId || config.defaultUserId)
@@ -47,7 +48,10 @@ export function buildApp(opts = {}) {
 
   const requireAuth = opts.auth !== false
 
-  app.register(cors, { origin: true })
+  // CORS 来源：默认反射任意来源（同源部署下无实际暴露面）；CORS_ORIGIN 可收紧。
+  const co = config.corsOrigin
+  const corsOrigin = co === '' ? true : co === 'false' ? false : co === '*' ? true : co.includes(',') ? co.split(',').map((s) => s.trim()) : co
+  app.register(cors, { origin: corsOrigin })
 
   // Tolerate empty JSON bodies (action endpoints like /done, /move-out are
   // often POSTed with no body but a JSON content-type by browsers).
