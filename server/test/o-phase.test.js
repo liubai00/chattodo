@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { makeAuthApp } from './helpers.js'
+import { makeAuthApp, befriend } from './helpers.js'
 import { subscribe, publish, connectionCount } from '../src/services/events.js'
 
 const reg = (app, name, email) =>
@@ -13,6 +13,7 @@ async function pair() {
   const { app, db } = await makeAuthApp()
   const a = await reg(app, '李俊', 'a@x.com')
   const b = await reg(app, '张伟', 'b@x.com')
+  await befriend(db, a.user.id, b.user.id) // 协作前置：好友关系
   return { app, db, a, b }
 }
 

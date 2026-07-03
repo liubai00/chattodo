@@ -6,6 +6,7 @@ import { persistCapture } from './capture.js'
 import { agentChat, appendMemory } from './agentChat.js'
 import { convertIdeaToTask } from './ideas.js'
 import { inviteFx, respondInviteFx, extractMentionedUsers, notifyTaskDoneFx, maybeCreateAutoRule, applyAutoInvitesFx } from './collab.js'
+import { requestFriendByIdFx, requestFriendFx, respondFriendFx, friendsOverview } from './friends.js'
 
 // 澄清闭环：15 分钟内经聊天产生、仍待澄清的想法（用户的下一条补充可直接转正式任务）。
 async function findPendingClarify(repos) {
@@ -111,6 +112,45 @@ async function ruleChat(repos, { message, db, user }) {
     }
   }
 
+  // 好友（对话式）：加好友 xx@yy.com / 同意·拒绝好友请求
+  if (db && user) {
+    const m = message.trim()
+    const em = (m.match(/([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/) || [])[1]
+    // 显式加好友：以「加好友」开头，或消息里带邮箱且提到加好友。
+    // 注意不能松成 /加.{0,2}好友/ ——「参加好友婚礼」这类正常任务会被误吞。
+    const explicitAdd = /^(?:帮我|请)?(?:加|添加|新增)(?:个|一个)?好友/.test(m)
+      || (!!em && /(加|添加|新增).{0,3}好友|好友.{0,3}(加|添加)|加为好友/.test(m))
+    if (explicitAdd && m.length <= 60) {
+      if (!em) {
+        return finish(repos, { message, intent: 'friend', reply: '添加好友需要对方的完整注册邮箱（不提供按名字搜索，保护隐私）。直接发「加好友 对方邮箱」即可。' })
+      }
+      const r = await requestFriendFx(db, user, em)
+      const reply = r.error ? `好友请求未发出：${r.error}`
+        : r.already ? `你和 ${r.target.name} 已经是好友了，可以直接 @${r.target.name} 邀请协作。`
+          : r.pending ? `你已经向 ${r.target.name} 发过好友请求了，等对方处理即可。`
+            : r.autoAccepted ? `🤝 你们互相发过请求——已直接和 ${r.target.name} 成为好友！现在可以互相 @提及与邀请协作。`
+              : `👋 已向 ${r.target.name} 发送好友请求，对方在通知中心接受后即可互相协作。`
+      return finish(repos, {
+        message, intent: 'friend', reply, isError: !!r.error,
+        performed: r.error ? [] : [{ type: 'add_friend', email: em, userName: r.target && r.target.name, auto: !!r.autoAccepted, already: !!r.already }],
+      })
+    }
+    if (/^(同意|接受|通过|拒绝|婉拒|不加).{0,6}好友/.test(m) && m.length <= 20) {
+      const accept = /^(同意|接受|通过)/.test(m)
+      const { incoming } = await friendsOverview(db, user.id)
+      if (!incoming.length) return finish(repos, { message, intent: 'friend', reply: '当前没有待处理的好友请求。' })
+      const req0 = incoming[0]
+      const r = await respondFriendFx(db, user, req0.friendshipId, accept)
+      const rest = incoming.length - 1
+      const tail = rest > 0 ? `（还有 ${rest} 条好友请求待处理）` : ''
+      return finish(repos, {
+        message, intent: 'friend',
+        reply: r ? (accept ? `🤝 已和 ${req0.name} 成为好友，现在可以互相 @提及与邀请协作。${tail}` : `已拒绝 ${req0.name} 的好友请求（不会通知对方）。${tail}`) : '这条好友请求已被处理过了。',
+        performed: r ? [{ type: 'respond_friend', friendshipId: req0.friendshipId, accept }] : [],
+      })
+    }
+  }
+
   const intent = detectIntent(message)
 
   if (intent === 'greeting') {
@@ -185,7 +225,7 @@ async function ruleChat(repos, { message, db, user }) {
     const performed = [{ type: 'remember', note: note.slice(0, 80) }]
     // 记忆里的自动化规则："以后合同类的任务都邀请张伟" → 建立自动邀请规则
     if (db) {
-      const rule = await maybeCreateAutoRule(db, repos, note)
+      const rule = await maybeCreateAutoRule(db, repos, note, user)
       if (rule) { reply += `\n⚙️ 已建立自动规则：新任务包含「${rule.keyword}」→ 自动邀请 ${rule.targetName} 协作。`; performed.push({ type: 'auto_rule', id: rule.id, keyword: rule.keyword, targetName: rule.targetName }) }
     }
     return finish(repos, { message, intent, reply, performed })
@@ -255,10 +295,17 @@ async function ruleChat(repos, { message, db, user }) {
       : result.kind === 'todo_idea' ? `📥 已进入待澄清区：${result.title}\n建议下一步：${result.suggestedNextAction}\n（直接回复补充目标或时间，我就转成正式任务；回复「跳过」保持现状）`
         : `◽️ 非 todo，已隔离输出：${result.title}\n原因：${result.reason}（未进入 todo 主系统）`
 
-  // @成员 → 对刚创建的任务发出协作邀请
+  // @成员 → 对刚创建的任务发出协作邀请；@非好友 → 降级为先发好友请求
   const performed = []
   if (db && created[0].type === 'task') {
-    for (const u of await extractMentionedUsers(db, message)) {
+    for (const u of await extractMentionedUsers(db, message, user)) {
+      if (user && !u.isFriend) {
+        const fr = await requestFriendByIdFx(db, user, u.id)
+        if (fr.friendship && fr.autoAccepted) reply += `\n🤝 你和 ${u.name} 互相发过好友请求——已直接成为好友，可以再 @ 一次发出协作邀请。`
+        else if (fr.friendship || fr.pending) { reply += `\n👋 ${u.name} 还不是你的好友——已自动发送好友请求，对方接受后再 @ 即可邀请协作。`; performed.push({ type: 'friend_request', userId: u.id, userName: u.name }) }
+        else if (fr.already) reply += `\n（你们已是好友，但邀请未发出：${fr.error || '请稍后重试'}）`
+        continue
+      }
       const r = await inviteFx(db, repos, user, created[0].entity.id, u.id)
       if (r.collab) { reply += `\n🤝 已向 ${u.name} 发出协作邀请（待接受）`; performed.push({ type: 'invite', userId: u.id, userName: u.name, collabId: r.collab.id }) }
       else if (r.needConfirm) reply += `\n（未邀请 ${u.name}：${r.error}）`

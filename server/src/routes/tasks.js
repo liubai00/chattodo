@@ -1,16 +1,19 @@
 import { filterTasks, moveOutOfTodo } from '../services/tasks.js'
 import { visibleFilter } from '../services/privacy.js'
 import { notifyTaskDoneFx } from '../services/collab.js'
+import { areFriends } from '../services/friends.js'
 import { makeId, nowIso } from '../lib/ids.js'
 
 const STATUS_LABEL = { todo: '待办', in_progress: '进行中', done: '已完成', archived: '已归档' }
 
 export default async function taskRoutes(app) {
   // 跨用户通知：按显示名找到成员，往对方的通知中心写一条（自己不通知自己）。
+  // 好友圈收口：只通知自己的好友，防止拿任意名字骚扰/探测其他注册用户。
   const notifyUserByName = async (name, actor, text, icon = 'ph-user-switch') => {
     if (!name || (actor && name === actor.name)) return
     const target = await app.db.get(`SELECT id FROM users WHERE name = ?`, [name])
     if (!target || (actor && target.id === actor.id)) return
+    if (actor && !(await areFriends(app.db, actor.id, target.id))) return
     await app.db.run(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,created_at) VALUES (?,?,?,?,?,?,0,?)`,
       [makeId('nt'), target.id, 'assign', icon, 'var(--accent-ink)', text, nowIso()])
   }

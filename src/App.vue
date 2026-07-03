@@ -30,6 +30,7 @@
         <a id="nav-chat" @click="vm.goChat" title="聊天" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-chat-circle"></i></a>
         <a id="nav-database" @click="vm.goDatabase" title="Todo 数据库" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-table"></i></a>
         <a id="nav-projects" @click="vm.goProjects" title="项目" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-folders"></i></a>
+        <a id="nav-friends" @click="vm.goFriends" title="好友" style="position:relative;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-users"></i><template v-if="vm.friendPendingCount>0"><span style="position:absolute;top:6px;right:6px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--danger);color:#fff;font:700 9px/15px var(--font);text-align:center;">{{ vm.friendPendingCount }}</span></template></a>
         <a id="nav-clarify" @click="vm.goClarify" title="待澄清区" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-lightbulb"></i></a>
         <a id="nav-nontodo" @click="vm.goNonTodo" title="非 todo 隔离区" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-tray"></i></a>
         <a id="nav-agent" @click="vm.goAgent" title="Agent 配置" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-sparkle"></i></a>
@@ -45,7 +46,7 @@
         <div style="position:fixed;left:74px;bottom:16px;width:340px;max-width:80vw;background:var(--panel);border:1px solid var(--line2);border-radius:16px;box-shadow:0 16px 50px #2b241a33;z-index:41;overflow:hidden;animation:lx-pop .2s ease;">
           <div style="display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line);"><i class="ph ph-bell" style="color:var(--accent-ink);"></i><span style="font:600 14px/1 var(--display);color:var(--text);">通知</span><div style="flex:1"></div><button @click="vm.markAllRead" style="border:0;background:transparent;color:var(--accent-ink);font:600 11.5px/1 var(--font);cursor:pointer;">全部已读</button></div>
           <div style="max-height:360px;overflow:auto;">
-            <template v-for="(n, __i0) in vm.notifs" :key="__i0"><div style="display:flex;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line);"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div style="flex:1;min-width:0;"><div style="font:500 12.5px/1.5 var(--font);color:var(--text);">{{ n.text }}</div><div style="font:500 11px/1 var(--font);color:var(--text3);margin-top:3px;">{{ n.time }}</div><template v-if="n.isInvite"><div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;"><button @click="n.acceptInvite" style="height:28px;padding:0 12px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:600 11.5px/1 var(--font);cursor:pointer;">接受并提醒我</button><button @click="n.followInvite" title="不进我的任务库，只接收进展通知" style="height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;">仅关注</button><button @click="n.declineInvite" style="height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div style="margin-top:6px;font:600 11px/1 var(--font);color:var(--text3);display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div></template>
+            <template v-for="(n, __i0) in vm.notifs" :key="__i0"><div style="display:flex;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line);"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div style="flex:1;min-width:0;"><div style="font:500 12.5px/1.5 var(--font);color:var(--text);">{{ n.text }}</div><div style="font:500 11px/1 var(--font);color:var(--text3);margin-top:3px;">{{ n.time }}</div><template v-if="n.isInvite"><div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;"><button @click="n.acceptInvite" style="height:28px;padding:0 12px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:600 11.5px/1 var(--font);cursor:pointer;">接受并提醒我</button><button @click="n.followInvite" title="不进我的任务库，只接收进展通知" style="height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;">仅关注</button><button @click="n.declineInvite" style="height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div style="margin-top:6px;font:600 11px/1 var(--font);color:var(--text3);display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq"><div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;"><button @click="n.acceptFriend" style="height:28px;padding:0 12px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:600 11.5px/1 var(--font);cursor:pointer;">接受好友</button><button @click="n.declineFriend" style="height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div style="margin-top:6px;font:600 11px/1 var(--font);color:var(--text3);display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div></template>
             <template v-if="vm.notifs.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:30px 16px;"><i class="ph ph-bell-slash" style="font-size:22px;"></i><div style="font:500 12px/1 var(--font);">暂无通知</div></div></template>
           </div>
         </div>
@@ -176,6 +177,23 @@
             <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:4px;">
               <template v-for="(p, __i10) in vm.projList" :key="__i10"><a @click="p.select" :style="`display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:11px;cursor:pointer;background:${p.bg};`" data-hv="0"><div style="display:flex;align-items:center;gap:8px;"><span :style="`width:9px;height:9px;border-radius:3px;background:${p.color};flex:0 0 auto;`"></span><span style="flex:1;min-width:0;font:600 13.5px/1.3 var(--font);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ p.done }}/{{ p.count }}</span></div><div style="height:5px;border-radius:3px;background:var(--mid);overflow:hidden;"><div :style="`height:100%;width:${p.pct}%;background:${p.color};border-radius:3px;`"></div></div></a></template>
               <template v-if="vm.projList.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:36px 12px;text-align:center;"><i class="ph ph-folders" style="font-size:24px;"></i><div style="font:500 12px/1.6 var(--font);">还没有项目<br/>点右上角 + 创建后，聊天里提到项目名会自动归属</div></div></template>
+            </div>
+          </template>
+          <template v-if="vm.isFriends">
+            <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);"><div style="font:600 16px/1.2 var(--display);color:var(--text);">好友</div><div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;">{{ vm.friendCount }} 位好友 · {{ vm.friendPendingCount }} 条待处理</div></div>
+            <div style="padding:10px 12px;border-bottom:1px solid var(--line);display:flex;gap:7px;">
+              <input :value="vm.addFriendEmail" @input="vm.onAddFriendEmail" @keydown="vm.addFriendKey" placeholder="对方注册邮箱（回车添加）" style="flex:1;min-width:0;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
+              <button @click="vm.submitAddFriend" style="height:34px;padding:0 12px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:600 12.5px/1 var(--font);cursor:pointer;">添加</button>
+            </div>
+            <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:2px;">
+              <span style="font:700 10.5px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;padding:8px 8px 6px;">我的好友</span>
+              <template v-for="(f, __if0) in vm.friendList" :key="__if0">
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;">
+                  <span style="width:30px;height:30px;flex:0 0 auto;border-radius:50%;background:#D9CFC0;color:#5b5348;display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font);">{{ f.initial }}</span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font:600 13px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11px/1.2 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }}</span></span>
+                </div>
+              </template>
+              <template v-if="vm.friendList.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:30px 12px;text-align:center;"><i class="ph ph-users" style="font-size:24px;"></i><div style="font:500 12px/1.6 var(--font);">还没有好友<br/>输入对方邮箱添加，或把你的邮箱发给对方</div></div></template>
             </div>
           </template>
           <template v-if="vm.showAdminDenied">
@@ -393,6 +411,54 @@
                 </div>
               </template>
               <template v-if="vm.noNon"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);padding-top:90px;"><i class="ph ph-tray" style="font-size:30px;"></i><div style="font:500 13px/1 var(--font);">隔离区为空</div></div></template>
+            </div>
+          </template>
+          <template v-if="vm.isFriends">
+            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
+              <i class="ph ph-users" style="font-size:20px;color:var(--accent-ink);"></i>
+              <span style="font:600 16px/1 var(--display);color:var(--text);">好友</span>
+              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">协作从好友开始</span>
+            </div>
+            <div style="flex:1;min-height:0;overflow:auto;padding:24px 24px;">
+              <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:20px;">
+                <template v-if="vm.friendIncoming.length>0">
+                  <div>
+                    <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:9px;">待处理请求 · {{ vm.friendIncoming.length }}</div>
+                    <template v-for="(f, __if1) in vm.friendIncoming" :key="__if1">
+                      <div style="display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);animation:lx-fade .2s ease;">
+                        <span style="width:34px;height:34px;flex:0 0 auto;border-radius:50%;background:#D9CFC0;color:#5b5348;display:flex;align-items:center;justify-content:center;font:600 13px/1 var(--font);">{{ f.initial }}</span>
+                        <span style="flex:1;min-width:0;"><span style="display:block;font:600 13.5px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }} · {{ f.time }}</span></span>
+                        <button @click="f.accept" style="height:30px;padding:0 14px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:600 12px/1 var(--font);cursor:pointer;">接受</button>
+                        <button @click="f.decline" style="height:30px;padding:0 12px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text2);font:600 12px/1 var(--font);cursor:pointer;">拒绝</button>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <template v-if="vm.friendOutgoing.length>0">
+                  <div>
+                    <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:9px;">已发出 · 等待对方接受</div>
+                    <template v-for="(f, __if2) in vm.friendOutgoing" :key="__if2">
+                      <div style="display:flex;align-items:center;gap:12px;background:var(--panel);border:1px dashed var(--line2);border-radius:12px;padding:11px 14px;margin-bottom:8px;">
+                        <span style="width:32px;height:32px;flex:0 0 auto;border-radius:50%;background:var(--mid);color:var(--text2);display:flex;align-items:center;justify-content:center;font:600 12.5px/1 var(--font);">{{ f.initial }}</span>
+                        <span style="flex:1;min-width:0;"><span style="display:block;font:600 13px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }} · {{ f.time }}</span></span>
+                        <button @click="f.withdraw" style="height:28px;padding:0 12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;">撤回</button>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <div>
+                  <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:9px;">我的好友 · {{ vm.friendCount }}</div>
+                  <template v-for="(f, __if3) in vm.friendRows" :key="__if3">
+                    <div style="display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+                      <span style="width:34px;height:34px;flex:0 0 auto;border-radius:50%;background:#D9CFC0;color:#5b5348;display:flex;align-items:center;justify-content:center;font:600 13px/1 var(--font);">{{ f.initial }}</span>
+                      <span style="flex:1;min-width:0;"><span style="display:block;font:600 13.5px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }} · {{ f.since }}起</span></span>
+                      <button @click="f.remove" title="解除好友（不影响已有协作任务）" style="height:28px;padding:0 12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text3);font:600 11.5px/1 var(--font);cursor:pointer;">解除</button>
+                    </div>
+                  </template>
+                  <template v-if="vm.friendRows.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:40px 12px;text-align:center;background:var(--panel);border:1px dashed var(--line2);border-radius:14px;"><i class="ph ph-users" style="font-size:30px;"></i><div style="font:500 13px/1.7 var(--font);">还没有好友<br/>在左侧输入对方的注册邮箱发送请求；也可以在聊天里说「加好友 对方邮箱」</div></div></template>
+                </div>
+                <div style="background:var(--mid);border-radius:12px;padding:12px 15px;font:500 12px/1.7 var(--font);color:var(--text3);">添加好友需要对方的注册邮箱（不提供按名字搜索，保护隐私）。成为好友后，双方可以互相 @提及、指派与邀请协作；解除好友不影响已有协作任务。你的邮箱：{{ vm.sEmail }}</div>
+              </div>
             </div>
           </template>
           <template v-if="vm.isAgent">
@@ -743,6 +809,7 @@ class Component {
     feedQuery: '',
     pwdOpen: false, pwdOld: '', pwdNew: '', pwdBusy: false,
     team: [],
+    friends: { accepted: [], incoming: [], outgoing: [] }, addFriendEmail: '',
     newProjOpen: false, newProjName: '',
     aiSource: 'team', ownAiOpen: false,
     taskCollabs: {}, taskAccess: {}, invitePickerOpen: false,
@@ -766,8 +833,8 @@ class Component {
     dark: {'--bg':'#211E1A','--panel':'#272320','--mid':'#231F1B','--rail':'#1C1915','--elev':'#2C2723','--text':'#ECE7DF','--text2':'#A79F94','--text3':'#7A7368','--line':'#34302A','--line2':'#3E392F','--accent':'#88AB8B','--accent-ink':'#B4D2B7','--accent-bg':'#28312A','--idea':'#D3A85F','--idea-bg':'#332818','--nono':'#9A9389','--nono-bg':'#2A2621','--danger':'#D98A72','--danger-bg':'#382520','--shadow':'0 1px 2px #0000004d,0 12px 34px #00000066'}
   };
   applyTheme() { const m=this.TOK[this.state.theme]; for(const p in m) document.body.style.setProperty(p,m[p]); const ic=document.getElementById('lx-thm'); if(ic) ic.className='ph ph-'+(this.state.theme==='dark'?'sun':'moon'); const ic2=document.getElementById('lx-thm2'); if(ic2) ic2.className='ph ph-'+(this.state.theme==='dark'?'sun':'moon'); }
-  applyNav() { const ids={chat:'nav-chat',database:'nav-database',projects:'nav-projects',clarify:'nav-clarify',nontodo:'nav-nontodo',agent:'nav-agent',settings:'nav-settings',admin:'nav-admin'}; Object.values(ids).forEach(id=>{const e=document.getElementById(id); if(e){e.style.background='transparent';e.style.color='var(--text2)';}}); const a=document.getElementById(ids[this.state.view]); if(a){a.style.background='var(--accent-bg)';a.style.color='var(--accent-ink)';} const na=document.getElementById('nav-admin'); if(na) na.style.opacity=this.state.role==='admin'?'1':'.4'; }
-  componentDidMount() { this.applyTheme(); this.applyNav(); this._onResize=()=>{ const w=window.innerWidth||document.documentElement.clientWidth||1200; const m=w<820; if(m!==this.state.isMobile) this.setState({isMobile:m}); }; this._onResize(); window.addEventListener('resize',this._onResize); requestAnimationFrame(()=>this._onResize()); setTimeout(()=>this._onResize(),0); setTimeout(()=>this._onResize(),250); try{ this._ro=new ResizeObserver(()=>this._onResize()); this._ro.observe(document.documentElement); }catch(e){} this._onKey=(e)=>{ if(!this.state.authed) return; if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); this.setState(s=>({searchOpen:!s.searchOpen,searchQuery:'',paletteIndex:0})); return; } if(e.key==='Escape'){ this.setState({searchOpen:false,notifOpen:false,shortcutsOpen:false}); return; } if(this.state.searchOpen) return; const tag=(e.target&&e.target.tagName)||''; if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return; if(e.key==='/'){ e.preventDefault(); this.setState({searchOpen:true,searchQuery:'',paletteIndex:0}); return; } if(e.key==='?'){ e.preventDefault(); this.setState(s=>({shortcutsOpen:!s.shortcutsOpen})); return; } if(e.key==='n'||e.key==='N'){ e.preventDefault(); this.go('chat'); setTimeout(()=>{const c=document.getElementById('lx-composer'); if(c)c.focus();},60); return; } const k=(e.key||'').toLowerCase(); if(this._gPending){ this._gPending=false; const map={c:'chat',d:'database',p:'projects',s:'settings',l:'clarify',a:'agent',t:'nontodo'}; if(map[k]){ e.preventDefault(); this.go(map[k]); } return; } if(k==='g'){ this._gPending=true; clearTimeout(this._gTimer); this._gTimer=setTimeout(()=>{this._gPending=false;},900); } }; window.addEventListener('keydown',this._onKey); if(window.visualViewport){ this._onVV=()=>{ const root=document.getElementById('lx-root'); if(!root) return; if(this.state.isMobile){ root.style.height=window.visualViewport.height+'px'; this.scrollMsgs(true); } else { root.style.height=''; } }; window.visualViewport.addEventListener('resize',this._onVV); } if(getToken()){ api.me().then(u=>{ this._applyUser(u); return this.loadState(); }).then(()=>this._enterApp()).catch(()=>{ setToken(''); }); } }
+  applyNav() { const ids={chat:'nav-chat',database:'nav-database',projects:'nav-projects',friends:'nav-friends',clarify:'nav-clarify',nontodo:'nav-nontodo',agent:'nav-agent',settings:'nav-settings',admin:'nav-admin'}; Object.values(ids).forEach(id=>{const e=document.getElementById(id); if(e){e.style.background='transparent';e.style.color='var(--text2)';}}); const a=document.getElementById(ids[this.state.view]); if(a){a.style.background='var(--accent-bg)';a.style.color='var(--accent-ink)';} const na=document.getElementById('nav-admin'); if(na) na.style.opacity=this.state.role==='admin'?'1':'.4'; }
+  componentDidMount() { this.applyTheme(); this.applyNav(); this._onResize=()=>{ const w=window.innerWidth||document.documentElement.clientWidth||1200; const m=w<820; if(m!==this.state.isMobile) this.setState({isMobile:m}); }; this._onResize(); window.addEventListener('resize',this._onResize); requestAnimationFrame(()=>this._onResize()); setTimeout(()=>this._onResize(),0); setTimeout(()=>this._onResize(),250); try{ this._ro=new ResizeObserver(()=>this._onResize()); this._ro.observe(document.documentElement); }catch(e){} this._onKey=(e)=>{ if(!this.state.authed) return; if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); this.setState(s=>({searchOpen:!s.searchOpen,searchQuery:'',paletteIndex:0})); return; } if(e.key==='Escape'){ this.setState({searchOpen:false,notifOpen:false,shortcutsOpen:false}); return; } if(this.state.searchOpen) return; const tag=(e.target&&e.target.tagName)||''; if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return; if(e.key==='/'){ e.preventDefault(); this.setState({searchOpen:true,searchQuery:'',paletteIndex:0}); return; } if(e.key==='?'){ e.preventDefault(); this.setState(s=>({shortcutsOpen:!s.shortcutsOpen})); return; } if(e.key==='n'||e.key==='N'){ e.preventDefault(); this.go('chat'); setTimeout(()=>{const c=document.getElementById('lx-composer'); if(c)c.focus();},60); return; } const k=(e.key||'').toLowerCase(); if(this._gPending){ this._gPending=false; const map={c:'chat',d:'database',p:'projects',f:'friends',s:'settings',l:'clarify',a:'agent',t:'nontodo'}; if(map[k]){ e.preventDefault(); this.go(map[k]); } return; } if(k==='g'){ this._gPending=true; clearTimeout(this._gTimer); this._gTimer=setTimeout(()=>{this._gPending=false;},900); } }; window.addEventListener('keydown',this._onKey); if(window.visualViewport){ this._onVV=()=>{ const root=document.getElementById('lx-root'); if(!root) return; if(this.state.isMobile){ root.style.height=window.visualViewport.height+'px'; this.scrollMsgs(true); } else { root.style.height=''; } }; window.visualViewport.addEventListener('resize',this._onVV); } if(getToken()){ api.me().then(u=>{ this._applyUser(u); return this.loadState(); }).then(()=>this._enterApp()).catch(()=>{ setToken(''); }); } }
   componentWillUnmount() { if(this._onResize) window.removeEventListener('resize',this._onResize); if(this._onVV&&window.visualViewport) window.visualViewport.removeEventListener('resize',this._onVV); if(this._ro) try{ this._ro.disconnect(); }catch(e){} }
   componentDidUpdate() { this.applyNav(); }
   _projName(pid){ if(!pid) return '收件箱'; const p=(this.state.projects||[]).find(x=>x.id===pid); return p?p.name:pid; }
@@ -795,6 +862,7 @@ class Component {
         else messages.push({id:m.id,role:'ai',kind:'text',text:m.text,isErr:!!m.isError,time});
       }
       api.team().then(t=>this.setState({team:(t.users||[])})).catch(()=>{});
+      this.loadFriends();
       api.autoRules().then(r=>this.setState({autoRules:(r.rules||[])})).catch(()=>{});
       const np=as.notifPrefs&&typeof as.notifPrefs==='object'?as.notifPrefs:{};
       this.setState(s=>({
@@ -844,11 +912,11 @@ class Component {
       this.flashToast(s.authMode==='register'?'注册成功 · 欢迎使用':'欢迎回来');
     }catch(e){ this.setState({authBusy:false, authError:(e&&e.message)||'请求失败，请稍后再试'}); }
   }
-  doLogout(){ if(this._stopEvents){ this._stopEvents(); this._stopEvents=null; } api.logout().catch(()=>{}); setToken(''); this.setState({authed:false, authMode:'login', authPassword:'', authError:'', view:'chat', dbView:'all', dbSearch:'', dbProject:'all', dbPriority:'all', dbSelected:[], detailId:null, selIdeaId:null, selNonId:null, selProjectId:null, adminSelId:null, messages:[], tasks:[], ideas:[], nonTodos:[], feed:[], notifications:[], team:[], taskCollabs:{}, taskAccess:{}, autoRules:[], setSection:'account'}); }
+  doLogout(){ if(this._stopEvents){ this._stopEvents(); this._stopEvents=null; } api.logout().catch(()=>{}); setToken(''); this.setState({authed:false, authMode:'login', authPassword:'', authError:'', view:'chat', dbView:'all', dbSearch:'', dbProject:'all', dbPriority:'all', dbSelected:[], detailId:null, selIdeaId:null, selNonId:null, selProjectId:null, adminSelId:null, messages:[], tasks:[], ideas:[], nonTodos:[], feed:[], notifications:[], team:[], friends:{accepted:[],incoming:[],outgoing:[]}, addFriendEmail:'', taskCollabs:{}, taskAccess:{}, autoRules:[], setSection:'account'}); }
   pickAiPreset(p){ this.setState(s=>({settings:{...s.settings, aiPreset:p.name, aiProvider:p.provider, aiBaseUrl:p.baseUrl, aiModel:(p.models&&p.models[0])||'', aiTested:false}})); }
   setAiField(field,val){ this.setState(s=>({settings:{...s.settings, [field]:val, aiTested:false, ...(field==='aiBaseUrl'||field==='aiModel'?{aiPreset: s.settings.aiPreset==='规则版（离线）'?s.settings.aiPreset:'自定义'}:{})}})); }
   toggleTheme() { this.setState(s=>({theme:s.theme==='dark'?'light':'dark'}), ()=>{ this.applyTheme(); api.updateSettings({theme:this.state.theme}).catch(()=>{}); }); }
-  go(view) { this.setState({view, detailId:null, mobilePane:(view==='chat'||view==='database')?'main':'list'}, ()=>{ if(view==='chat') this.scrollMsgs(true); }); if(view==='admin') this.fetchAdmin(); }
+  go(view) { this.setState({view, detailId:null, mobilePane:(view==='chat'||view==='database'||view==='friends')?'main':'list'}, ()=>{ if(view==='chat') this.scrollMsgs(true); }); if(view==='admin') this.fetchAdmin(); if(view==='friends') this.loadFriends(); }
   // 智能吸底：只有当用户本就在底部附近（或 force）才滚动，避免翻看历史时被拽回
   scrollMsgs(force) { const b=document.getElementById('lx-msgs'); if(!b) return; if(force || b.scrollHeight-b.scrollTop-b.clientHeight<180) b.scrollTop=b.scrollHeight; }
   // 撤销 AI 的一次判断：删除生成的实体，卡片原地变为灰色回执
@@ -932,6 +1000,31 @@ class Component {
       this.flashToast(mode==='follow'?'已关注 · 进展会通知你':mode?'已加入协作 · 任务已进入你的数据库':'已婉拒邀请');
       return this.loadState();
     }).catch(e=>this.flashToast('操作失败：'+e.message));
+  }
+  loadFriends(){ api.friends().then(f=>this.setState({friends:{accepted:f.friends||[],incoming:f.incoming||[],outgoing:f.outgoing||[]}})).catch(()=>{}); }
+  submitAddFriend(){
+    const email=(this.state.addFriendEmail||'').trim();
+    if(!email){ this.flashToast('请输入对方的注册邮箱'); return; }
+    api.friendRequest(email).then(r=>{
+      this.setState({addFriendEmail:''});
+      this.flashToast(r.autoAccepted?'你们互相发过请求 · 已直接成为好友':r.already?'你们已经是好友了':r.pending?'请求已在等待对方处理':'好友请求已发送');
+      this.loadFriends();
+      if(r.autoAccepted) api.team().then(t=>this.setState({team:(t.users||[])})).catch(()=>{});
+    }).catch(e=>this.flashToast('发送失败：'+e.message));
+  }
+  respondFriendUi(friendshipId,accept){
+    api.friendRespond(friendshipId,accept).then(()=>{
+      this.flashToast(accept?'已成为好友 · 现在可以互相 @ 与邀请协作':'已拒绝（不会通知对方）');
+      this.loadFriends();
+      return this.loadState();
+    }).catch(e=>this.flashToast('操作失败：'+e.message));
+  }
+  removeFriendUi(f){
+    if(!window.confirm('解除与「'+f.name+'」的好友关系？已有协作任务不受影响，但不能再互相邀请。')) return;
+    api.friendRemove(f.friendshipId).then(()=>{ this.flashToast('已解除好友'); this.loadFriends(); api.team().then(t=>this.setState({team:(t.users||[])})).catch(()=>{}); }).catch(e=>this.flashToast('操作失败：'+e.message));
+  }
+  withdrawFriendUi(f){
+    api.friendRemove(f.friendshipId).then(()=>{ this.flashToast('已撤回好友请求'); this.loadFriends(); }).catch(e=>this.flashToast('操作失败：'+e.message));
   }
   submitNewProject(){
     const name=(this.state.newProjName||'').trim();
@@ -1032,6 +1125,7 @@ class Component {
         else if(p.type==='invite'){ newMsgs.push({id:'m'+(++this._seq),role:'ai',kind:'text',text: p.auto ? ('⚙️ 按你的规则「'+(p.rule||'')+'」，已自动邀请 '+(p.userName||'成员')+' 协作（待接受）') : ('🤝 已向 '+(p.userName||'成员')+' 发出协作邀请，对方接受后你们将同步进度。')}); }
         else if(p.type==='auto_rule'){ api.autoRules().then(r=>this.setState({autoRules:(r.rules||[])})).catch(()=>{}); }
         else if(p.type==='respond_invite'&&p.accept){ /* 任务实体已随 entities 渲染 */ }
+        else if(p.type==='friend_request'||p.type==='add_friend'||p.type==='respond_friend'){ this.loadFriends(); api.team().then(tt=>this.setState({team:(tt.users||[])})).catch(()=>{}); }
       }
       // 3) plan card（携带任务 id/分钟数，支持「开始执行」落地）
       if(res.plan&&res.plan.length){
@@ -1213,8 +1307,8 @@ class Component {
     const st=this.state;
     const view=st.view;
     const isChat=view==='chat', isDatabase=view==='database';
-    const isClarify=view==='clarify', isNonTodo=view==='nontodo', isAgent=view==='agent', isSettings=view==='settings', isAdmin=view==='admin';
-    const implemented=['chat','database','clarify','nontodo','agent','settings','admin','projects'];
+    const isClarify=view==='clarify', isNonTodo=view==='nontodo', isAgent=view==='agent', isSettings=view==='settings', isAdmin=view==='admin', isFriends=view==='friends';
+    const implemented=['chat','database','clarify','nontodo','agent','settings','admin','projects','friends'];
     const isStub=!implemented.includes(view);
     const stubMeta={clarify:['待澄清区','ph-lightbulb'],nontodo:['非 todo 隔离区','ph-tray'],agent:['Agent 配置','ph-sparkle'],settings:['设置','ph-gear'],admin:['内部只读后台','ph-chart-bar']}[view]||['',''];
     const segBase='border:0;padding:5px 12px;border-radius:7px;font:600 12.5px/1 var(--font);cursor:pointer;';
@@ -1288,7 +1382,12 @@ class Component {
     const activity=dt?((st.taskActivity[dt.id]&&st.taskActivity[dt.id].length)?st.taskActivity[dt.id]:[{text:'任务已创建',time:dt.gen}]):[];
     const visNotifs=st.notifications.filter(n=>st.settings.notifPrefs[n.type]!==false);
     const unread=visNotifs.filter(n=>!n.read).length;
-    const notifs=visNotifs.map(n=>({icon:n.icon,color:n.color,text:n.text,time:n.time,dot:n.read?'transparent':n.color,isInvite:n.actionType==='invite'&&!n.handled,wasInvite:n.actionType==='invite'&&n.handled,acceptInvite:()=>this.respondInviteUi(n,true),followInvite:()=>this.respondInviteUi(n,'follow'),declineInvite:()=>this.respondInviteUi(n,false)}));
+    const notifs=visNotifs.map(n=>({icon:n.icon,color:n.color,text:n.text,time:n.time,dot:n.read?'transparent':n.color,isInvite:n.actionType==='invite'&&!n.handled,wasInvite:n.actionType==='invite'&&n.handled,acceptInvite:()=>this.respondInviteUi(n,true),followInvite:()=>this.respondInviteUi(n,'follow'),declineInvite:()=>this.respondInviteUi(n,false),isFriendReq:n.actionType==='friend_request'&&!n.handled,wasFriendReq:n.actionType==='friend_request'&&n.handled,acceptFriend:()=>this.respondFriendUi(n.actionRef,true),declineFriend:()=>this.respondFriendUi(n.actionRef,false)}));
+    // 好友视图数据
+    const fr=st.friends||{accepted:[],incoming:[],outgoing:[]};
+    const friendRows=fr.accepted.map(f=>({name:f.name,email:f.email,initial:(f.name||'?').slice(-1),since:lxFmtDue(f.since),remove:()=>this.removeFriendUi(f)}));
+    const friendIncoming=fr.incoming.map(f=>({name:f.name,email:f.email,initial:(f.name||'?').slice(-1),time:lxFmtDue(f.at),accept:()=>this.respondFriendUi(f.friendshipId,true),decline:()=>this.respondFriendUi(f.friendshipId,false)}));
+    const friendOutgoing=fr.outgoing.map(f=>({name:f.name,email:f.email,initial:(f.name||'?').slice(-1),time:lxFmtDue(f.at),withdraw:()=>this.withdrawFriendUi(f)}));
     const pal=this.buildPalette(); const paletteGroups=pal.groups.map(g=>({name:g.name,items:g.items.map(it=>({icon:it.icon,label:it.label,run:it.run,bg:it.flatIdx===(st.paletteIndex||0)?'var(--mid)':'transparent'}))}));
     const isProjects=view==='projects';
     const projList=st.projects.map(p=>{ const ts=st.tasks.filter(t=>t.project===p.name&&this.visible(t.scope)); const done=ts.filter(t=>t.status==='done').length; return {name:p.name,desc:p.desc,color:p.color,count:ts.length,done,pct:ts.length?Math.round(done/ts.length*100):0,bg:st.selProjectId===p.id?'var(--accent-bg)':'transparent',select:()=>this.setState({selProjectId:p.id,mobilePane:'main'})}; });
@@ -1340,7 +1439,7 @@ class Component {
       bottomNavStyle='display:flex;flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel);padding:6px 2px;';
       showBack=!showList;
     }
-    const navDefs2=[['chat','ph-chat-circle'],['database','ph-table'],['projects','ph-folders'],['clarify','ph-lightbulb'],['nontodo','ph-tray'],['settings','ph-gear']];
+    const navDefs2=[['chat','ph-chat-circle'],['database','ph-table'],['projects','ph-folders'],['friends','ph-users'],['nontodo','ph-tray'],['settings','ph-gear']];
     const mobileNav=navDefs2.map(d=>({icon:d[1],color:view===d[0]?'var(--accent-ink)':'var(--text3)',bg:view===d[0]?'var(--accent-bg)':'transparent',go:()=>this.go(d[0])}));
     const mentionItems=this.mentionCandidates().map((x,idx)=>({label:x.label,icon:x.type==='project'?'ph-folder':x.type==='member'?'ph-user-plus':'ph-check-square',typeLabel:x.type==='project'?'项目':x.type==='member'?'成员 · 邀请协作':'任务',bg:idx===(st.mentionIndex||0)?'var(--mid)':'transparent',pick:()=>this.pickMention(x)}));
     const pendingRefsView=st.pendingRefs.map(r=>({label:r.label,remove:()=>this.removeRef(r.id)}));
@@ -1353,7 +1452,9 @@ class Component {
       switchAuthMode:()=>this.setState(s=>({authMode:s.authMode==='login'?'register':'login', authError:''})),
       submitAuth:()=>this.submitAuth(), authKey:(e)=>{ if(e.key==='Enter'){ e.preventDefault(); this.submitAuth(); } },
       toggleTheme:()=>this.toggleTheme(),
-      goChat:()=>this.go('chat'), goDatabase:()=>this.go('database'), goClarify:()=>this.go('clarify'), goNonTodo:()=>this.go('nontodo'), goAgent:()=>this.go('agent'), goSettings:()=>this.go('settings'), goAdmin:()=>this.go('admin'),
+      goChat:()=>this.go('chat'), goDatabase:()=>this.go('database'), goClarify:()=>this.go('clarify'), goNonTodo:()=>this.go('nontodo'), goAgent:()=>this.go('agent'), goSettings:()=>this.go('settings'), goAdmin:()=>this.go('admin'), goFriends:()=>this.go('friends'),
+      isFriends, friendRows, friendList:friendRows, friendIncoming, friendOutgoing, friendCount:friendRows.length, friendPendingCount:friendIncoming.length,
+      addFriendEmail:st.addFriendEmail, onAddFriendEmail:(e)=>this.setState({addFriendEmail:e.target.value}), submitAddFriend:()=>this.submitAddFriend(), addFriendKey:(e)=>{ if(e.key==='Enter'){ e.preventDefault(); this.submitAddFriend(); } },
       isChat, isDatabase, isStub, stubName:stubMeta[0], stubIcon:stubMeta[1],
       view,
       workspace:st.workspace, privacy:st.privacy,

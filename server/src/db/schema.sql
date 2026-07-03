@@ -202,6 +202,20 @@ CREATE TABLE IF NOT EXISTS task_collaborators (
 CREATE INDEX IF NOT EXISTS idx_collab_task ON task_collaborators(task_id);
 CREATE INDEX IF NOT EXISTS idx_collab_user ON task_collaborators(user_id);
 
+-- 好友关系（每对用户全局唯一一行）：requester 发起、addressee 响应。
+-- 只有已接受的好友之间才能 @提及 / 指派 / 协作邀请（服务端强制）。
+CREATE TABLE IF NOT EXISTS friendships (
+  id           TEXT PRIMARY KEY,
+  requester_id TEXT NOT NULL,
+  addressee_id TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'pending',  -- pending | accepted | declined
+  created_at   TEXT NOT NULL,
+  responded_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_friend_pair ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+CREATE INDEX IF NOT EXISTS idx_friend_addressee ON friendships(addressee_id, status);
+CREATE INDEX IF NOT EXISTS idx_friend_requester ON friendships(requester_id, status);
+
 -- 记忆驱动的自动化规则（"以后合同类任务都邀请张伟"）。
 CREATE TABLE IF NOT EXISTS auto_rules (
   id          TEXT PRIMARY KEY,

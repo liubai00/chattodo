@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { makeAuthApp } from './helpers.js'
+import { makeAuthApp, befriend } from './helpers.js'
 
 const reg = (app, name, email, password = 'pass1234') =>
   app.inject({ method: 'POST', url: '/api/auth/register', payload: { name, email, password } })
@@ -93,9 +93,10 @@ test('chat rate limit: 41st message in a minute → 429', async () => {
 })
 
 test('deleting a shared task disarms pending invite notification buttons', async () => {
-  const { app } = await makeAuthApp()
+  const { app, db } = await makeAuthApp()
   const a = (await reg(app, '甲', 'a@x.com')).json()
   const b = (await reg(app, '乙', 'b@x.com')).json()
+  await befriend(db, a.user.id, b.user.id)
   const task = (await app.inject({ method: 'POST', url: '/api/tasks', headers: H(a.token), payload: { title: '将被删除的任务' } })).json()
   await app.inject({ method: 'POST', url: `/api/tasks/${task.id}/invite`, headers: H(a.token), payload: { userId: b.user.id } })
   await app.inject({ method: 'DELETE', url: `/api/tasks/${task.id}`, headers: H(a.token) })

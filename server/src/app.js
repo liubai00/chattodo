@@ -23,6 +23,7 @@ import adminRoutes from './routes/admin.js'
 import projectRoutes from './routes/projects.js'
 import teamRoutes from './routes/team.js'
 import collabRoutes from './routes/collab.js'
+import friendRoutes from './routes/friends.js'
 import eventRoutes from './routes/events.js'
 
 // Build a Fastify instance. opts.db lets tests inject an isolated in-memory DB;
@@ -102,6 +103,7 @@ export async function buildApp(opts = {}) {
   app.register(projectRoutes)
   app.register(teamRoutes)
   app.register(collabRoutes)
+  app.register(friendRoutes)
   app.register(eventRoutes)
 
   app.setErrorHandler((err, req, reply) => {

@@ -3,14 +3,17 @@ export default async function dataRoutes(app) {
   // GET /api/export — full JSON dump of the current user's data.
   app.get('/api/export', async (req) => {
     const repos = req.repos
-    const [projects, tasks, todoIdeas, nonTodoOutputs, captureRecords, corrections, chat, agentProfile, appSettings] = await Promise.all([
+    const userId = req.user ? req.user.id : null
+    const [projects, tasks, todoIdeas, nonTodoOutputs, captureRecords, corrections, chat, agentProfile, appSettings, friendRows] = await Promise.all([
       repos.projects.all(), repos.tasks.all(), repos.ideas.all(), repos.nonTodos.all(),
       repos.captureRecords.all(), repos.corrections.all(), repos.chat.all(), repos.agent.get(), repos.settings.get(),
+      userId ? app.db.all(`SELECT * FROM friendships WHERE requester_id = ? OR addressee_id = ?`, [userId, userId]) : Promise.resolve([]),
     ])
+    const friendships = friendRows.map((f) => ({ id: f.id, requesterId: f.requester_id, addresseeId: f.addressee_id, status: f.status, createdAt: f.created_at, respondedAt: f.responded_at }))
     return {
       exportedAt: new Date().toISOString(),
       user: req.user ? { id: req.user.id, name: req.user.name, email: req.user.email } : null,
-      projects, tasks, todoIdeas, nonTodoOutputs, captureRecords, corrections, chat, agentProfile, appSettings,
+      projects, tasks, todoIdeas, nonTodoOutputs, captureRecords, corrections, chat, agentProfile, appSettings, friendships,
     }
   })
 

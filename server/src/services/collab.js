@@ -1,5 +1,6 @@
 import { makeId, nowIso } from '../lib/ids.js'
 import { publish, publishMany } from './events.js'
+import { areFriends } from './friends.js'
 
 const fmtDue = (iso) => {
   if (!iso) return '待定'
@@ -7,12 +8,12 @@ const fmtDue = (iso) => {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-const pushNotification = async (db, targetUserId, data) => {
+export const pushNotification = async (db, targetUserId, data) => {
   await db.run(`INSERT INTO notifications (id,user_id,type,icon,color,text,read,action_type,action_ref,handled,created_at) VALUES (?,?,?,?,?,?,0,?,?,0,?)`,
     [makeId('nt'), targetUserId, data.type || 'assign', data.icon || 'ph-user-switch', data.color || 'var(--accent-ink)', data.text, data.actionType || null, data.actionRef || null, nowIso()])
   publish(targetUserId, { kind: 'notify', text: data.text, actionType: data.actionType || null })
 }
-const pushChat = async (db, targetUserId, text) => {
+export const pushChat = async (db, targetUserId, text) => {
   await db.run(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,0,?)`,
     [makeId('msg'), targetUserId, 'agent', text, nowIso()])
   publish(targetUserId, { kind: 'chat' })
@@ -28,6 +29,10 @@ export async function inviteFx(db, repos, user, taskId, targetUserId, { force = 
   const target = await db.get(`SELECT id, name FROM users WHERE id = ?`, [targetUserId])
   if (!target) return { error: '成员不存在' }
   if (user && target.id === user.id) return { error: '不能邀请自己', bad: true }
+  // 好友圈收口：协作邀请只能发给已接受的好友（服务端强制；user 缺省 = 单用户/测试模式，跳过）
+  if (user && !(await areFriends(db, user.id, target.id))) {
+    return { error: `你和 ${target.name} 还不是好友，先添加好友后才能邀请协作`, notFriend: true, targetId: target.id, targetName: target.name }
+  }
   if (task.privacyScope === 'personal' && !force) return { error: '这是「个人」范围的任务，确认要邀请他人协作吗？', needConfirm: true }
   const r = await repos.collaborators.invite(taskId, target.id)
   if (!r) return { error: '对方 24 小时内拒绝过该邀请，先线下沟通一下吧', cooldown: true }
@@ -87,12 +92,14 @@ export async function notifyTaskDoneFx(db, repos, user, taskId) {
 }
 
 // 记忆里的自动化规则："以后合同类的任务都邀请张伟" → 建 auto_rule
-export async function maybeCreateAutoRule(db, repos, note) {
+// user 传入时，规则对象必须是自己的好友（与邀请同一收口）。
+export async function maybeCreateAutoRule(db, repos, note, user) {
   const m = String(note || '').match(/(?:以后|今后|之后)[，,]?(.{1,16}?)(?:相关|类|方面)?的?任务[，,]?(?:都|一律|自动|记得)?(?:邀请|带上|抄送|叫上)\s*@?([^\s@，。,、!！?？]{1,20})/)
   if (!m) return null
   const keyword = m[1].trim().replace(/^(所有|全部)/, '')
   const target = await findUserByName(db, m[2])
   if (!keyword || !target) return null
+  if (user && !(await areFriends(db, user.id, target.id))) return null
   const exists = (await repos.autoRules.all()).some((r) => r.keyword === keyword && r.targetId === target.id)
   if (exists) return null
   return repos.autoRules.create(keyword, target.id, target.name)
@@ -113,12 +120,16 @@ export async function applyAutoInvitesFx(db, repos, user, task, rawText) {
 }
 
 // 从文本里提取 @成员（精确匹配注册用户名）。
-export async function extractMentionedUsers(db, text) {
+// forUser 传入时给每个命中的用户标注 isFriend，调用方据此决定：好友 → 直接邀请；
+// 非好友 → 降级为先发好友请求（不暴露邮箱等信息）。
+export async function extractMentionedUsers(db, text, forUser) {
   const names = [...new Set([...String(text || '').matchAll(/@([^\s@，。,、.!！?？:：]{1,20})/g)].map((m) => m[1]))]
   const users = []
   for (const n of names) {
     const u = await findUserByName(db, n)
-    if (u) users.push(u)
+    if (!u) continue
+    if (forUser && u.id === forUser.id) continue
+    users.push({ ...u, isFriend: forUser ? await areFriends(db, forUser.id, u.id) : true })
   }
   return users
 }

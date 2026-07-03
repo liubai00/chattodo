@@ -99,6 +99,28 @@ import { fileURLToPath } from 'node:url'
 const SCHEMA_PATH = join(dirname(fileURLToPath(import.meta.url)), 'schema.sql')
 
 export async function applySchema(driver) {
+  // friendships 表首次引入时：存量用户此前默认全员互见，回填为互相已接受的好友，
+  // 避免升级后他们的选人列表突然清空。新库（表和用户一起创建）时 users 为空，自然跳过。
+  const had = await driver.get(`SELECT to_regclass('friendships') AS t`)
   await driver.exec(readFileSync(SCHEMA_PATH, 'utf8'))
+  if (!had || !had.t) await backfillFriendMesh(driver)
   return driver
+}
+
+async function backfillFriendMesh(db) {
+  const users = await db.all(`SELECT id FROM users ORDER BY created_at`)
+  if (users.length < 2) return 0
+  const now = new Date().toISOString()
+  let n = 0
+  for (let i = 0; i < users.length; i++) {
+    for (let j = i + 1; j < users.length; j++) {
+      await db.run(
+        `INSERT INTO friendships (id,requester_id,addressee_id,status,created_at,responded_at) VALUES (?,?,?,'accepted',?,?)`,
+        ['fr_bf_' + i + '_' + j + '_' + Math.random().toString(36).slice(2, 8), users[i].id, users[j].id, now, now],
+      )
+      n++
+    }
+  }
+  if (n) console.log(`friendships: backfilled ${n} pre-existing user pair(s) as accepted friends`)
+  return n
 }

@@ -8,7 +8,7 @@ import { inviteFx, respondInviteFx } from '../services/collab.js'
 export default async function collabRoutes(app) {
   app.post('/api/tasks/:id/invite', async (req, reply) => {
     const r = await inviteFx(app.db, req.repos, req.user, req.params.id, String((req.body && req.body.userId) || ''), { force: !!(req.body && req.body.force) })
-    if (r.error) return reply.status(r.needConfirm ? 409 : r.cooldown ? 429 : r.bad ? 400 : 404).send({ error: r.error, needConfirm: !!r.needConfirm })
+    if (r.error) return reply.status(r.needConfirm ? 409 : r.cooldown ? 429 : r.notFriend ? 403 : r.bad ? 400 : 404).send({ error: r.error, needConfirm: !!r.needConfirm, notFriend: !!r.notFriend })
     return r
   })
 

@@ -93,6 +93,11 @@ export const api = {
   team: () => req('GET', '/team'),
   commitPlan: (items) => req('POST', '/plan/commit', { items }),
 
+  friends: () => req('GET', '/friends'),
+  friendRequest: (email) => req('POST', '/friends/request', { email }),
+  friendRespond: (id, accept) => req('POST', `/friends/${id}/respond`, { accept }),
+  friendRemove: (id) => req('DELETE', `/friends/${id}`),
+
   inviteCollab: (taskId, userId, force) => req('POST', `/tasks/${taskId}/invite`, force ? { userId, force: true } : { userId }),
   myInvites: () => req('GET', '/invites'),
   // mode: true/'accept' | false/'decline' | 'follow'（仅关注）

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { makeTestApp, makeAuthApp } from './helpers.js'
+import { makeTestApp, makeAuthApp, befriend } from './helpers.js'
 
 const say = (app, message) => app.inject({ method: 'POST', url: '/api/chat', payload: { message } }).then((r) => r.json())
 const reg = (app, name, email) =>
@@ -103,9 +103,10 @@ test('state: user chat messages carry refType/refId of generated entity', async 
 
 // ---- M7 团队 ----
 test('team: directory + assign notification + comment @mention', async () => {
-  const { app } = await makeAuthApp()
+  const { app, db } = await makeAuthApp()
   const a = await reg(app, '张三', 'a@x.com')
   const b = await reg(app, '李四', 'b@x.com')
+  await befriend(db, a.user.id, b.user.id) // 指派/@ 只在好友间生效
   const team = (await app.inject({ url: '/api/team', headers: H(a.token) })).json()
   assert.equal(team.users.length, 2)
   // A creates a task, assigns to 李四 → B gets a notification
