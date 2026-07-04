@@ -1,6 +1,6 @@
 import { makeId, nowIso } from '../lib/ids.js'
 import { publish, publishMany } from './events.js'
-import { areFriends } from './friends.js'
+import { areFriends, requestFriendByIdFx } from './friends.js'
 
 const fmtDue = (iso) => {
   if (!iso) return '待定'
@@ -117,6 +117,93 @@ export async function applyAutoInvitesFx(db, repos, user, task, rawText) {
     if (r.collab && !r.reused) performed.push({ type: 'invite', auto: true, rule: rule.keyword, userId: rule.targetId, userName: rule.targetName, collabId: r.collab.id })
   }
   return performed
+}
+
+// 把结构化 @提及（人/时间/文档）汇总成给 LLM 的分类清单，帮助模型区分意图。
+export function summarizeMentions(mentions) {
+  if (!Array.isArray(mentions) || !mentions.length) return ''
+  const persons = mentions.filter((m) => m.type === 'person').map((m) => m.label).filter(Boolean)
+  const times = mentions.filter((m) => m.type === 'time')
+  const docs = mentions.filter((m) => m.type === 'doc')
+  const lines = []
+  if (persons.length) lines.push(`- 人（成员，需要协作时邀请，不是任务内容）：${persons.join('、')}`)
+  if (times.length) lines.push(`- 时间（作为任务截止时间）：${times.map((t) => t.label || t.iso).join('、')}`)
+  if (docs.length) lines.push(`- 文档/引用（已存在的内容，供参考）：${docs.map((d) => `${d.entityType === 'project' ? '项目' : d.entityType === 'note' ? '笔记' : '任务'}《${d.label}》`).join('、')}`)
+  return lines.join('\n')
+}
+
+// 消息里的原始 @名字（可能匹配不到用户；用于识别"未知成员"）。
+export function rawMentionNames(text) {
+  return [...new Set([...String(text || '').matchAll(/@([^\s@，。,、.!！?？:：]{1,20})/g)].map((m) => m[1]))]
+}
+
+// 去掉 LLM 回复里关于"已邀请/已通知"的断言小句——这些常与真实结果不符，
+// 统一改由 settleMentionedCollab 生成的权威状态行覆盖，杜绝自相矛盾。
+// 按标点分句后剔除含断言关键词的句子，保留任务确认等其它内容。
+export function stripInviteClaims(reply) {
+  const claim = /(已邀请|邀请了|已通知|会通知|已叫上|已拉上|已抄送|已让.{0,8}协作|已安排.{0,6}(协作|参与)|已为你邀请|已帮你邀请)/
+  return String(reply || '')
+    .split('\n')
+    .map((line) => {
+      if (!claim.test(line)) return line
+      const kept = line.split(/(?<=[，,。；;、])/).filter((seg) => !claim.test(seg)).join('')
+      return kept.replace(/[，,、；;]\s*$/g, '。')
+    })
+    .join('\n')
+    .replace(/。{2,}/g, '。')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+// 统一结算「@成员协作」意图：真实执行 + 生成与结果一致的状态行。
+// 输出行只有三种口径：已邀请（好友）/ 待确认（非好友→已发好友请求）/ 无法邀请（未知成员）。
+// structured：可选的结构化人 mention（[{type:'person',userId,label}]，来自前端选择器）。
+export async function settleMentionedCollab({ db, repos, user, message, taskEntity, performed, structured = [] }) {
+  const lines = []
+  if (!db || !user) return { lines }
+
+  const targets = new Map()          // userId → 展示名（称呼）
+  const unknown = new Set()
+  for (const m of Array.isArray(structured) ? structured : []) {
+    if (!m || m.type !== 'person') continue
+    if (m.userId) {
+      const u = await db.get(`SELECT id, name FROM users WHERE id = ?`, [m.userId])
+      if (u && u.id !== user.id) targets.set(u.id, u.name)
+      else if (!u && m.label) unknown.add(m.label)
+    } else if (m.label) unknown.add(m.label)
+  }
+  for (const nm of rawMentionNames(message)) {
+    const u = await findUserByName(db, nm)
+    if (u && u.id !== user.id) targets.set(u.id, u.name)
+    else if (!u) unknown.add(nm)
+  }
+  if (!targets.size && !unknown.size) return { lines }
+
+  const invitedIds = new Set(performed.filter((p) => p.type === 'invite').map((p) => p.userId))
+  const friendReqIds = new Set(performed.filter((p) => p.type === 'friend_request').map((p) => p.userId))
+
+  for (const [uid, name] of targets) {
+    if (invitedIds.has(uid)) { lines.push(`🤝 已向 ${name} 发出协作邀请（待对方接受）`); continue }
+    if (friendReqIds.has(uid)) { lines.push(`👋 ${name} 还不是你的好友——已发送好友请求，成为好友后即可邀请协作`); continue }
+    if (await areFriends(db, user.id, uid)) {
+      if (!taskEntity) { lines.push(`ℹ️ 已识别成员 ${name}，但本轮没有可邀请的任务`); continue }
+      const r = await inviteFx(db, repos, user, taskEntity.entity.id, uid)
+      if (r.collab) { performed.push({ type: 'invite', userId: uid, userName: name, collabId: r.collab.id, recovered: true }); lines.push(`🤝 已向 ${name} 发出协作邀请（待对方接受）`) }
+      else if (r.needConfirm) lines.push(`⚠️ 「${taskEntity.entity.title}」是个人任务，未自动邀请 ${name}；如需协作请在任务详情里确认`)
+      else if (r.reused) lines.push(`ℹ️ ${name} 已在该任务的协作名单里`)
+      else lines.push(`⚠️ 未能邀请 ${name}：${r.error || '请稍后重试'}`)
+    } else {
+      const fr = await requestFriendByIdFx(db, user, uid)
+      if (fr.autoAccepted) { performed.push({ type: 'friend_request', userId: uid, userName: name, auto: true }); lines.push(`🤝 你和 ${name} 互相请求过，已成为好友；再说一次即可邀请其协作`) }
+      else if (fr.friendship || fr.pending) { performed.push({ type: 'friend_request', userId: uid, userName: name }); lines.push(`👋 ${name} 还不是你的好友——已发送好友请求，成为好友后即可邀请协作`) }
+      else lines.push(`⚠️ 未能向 ${name} 发送好友请求：${fr.error || '请稍后重试'}`)
+    }
+  }
+  for (const nm of unknown) {
+    if ([...targets.values()].includes(nm)) continue
+    lines.push(`⚠️ 没找到成员「${nm}」，未发出邀请——确认对方已注册、并且在你的好友列表里`)
+  }
+  return { lines }
 }
 
 // 从文本里提取 @成员（精确匹配注册用户名）。

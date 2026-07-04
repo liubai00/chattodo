@@ -51,8 +51,8 @@ export async function seedDb(db, userId = config.defaultUserId) {
     for (const tb of tables) await t.run(`DELETE FROM ${tb}`)
 
     // Demo account owning the seed data (email demo@linx.team / password linx2026).
-    await t.run(`INSERT INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)`,
-      [userId, '演示用户', 'demo@linx.team', hashPassword('linx2026'), 'admin', daysFromNow(-3)])
+    await t.run(`INSERT INTO users (id,name,account_name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?,?)`,
+      [userId, '演示用户', 'demo', 'demo@linx.team', hashPassword('linx2026'), 'admin', daysFromNow(-3)])
 
     for (const p of seedProjects) await t.run(`INSERT INTO projects (id,user_id,name,description,status,privacy_scope,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`,
       [p.id, userId, p.name, p.description, p.status, p.privacyScope, daysFromNow(-3), daysFromNow(-3)])

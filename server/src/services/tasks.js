@@ -6,7 +6,7 @@ export function filterTasks(tasks, { view = 'all', scope = 'all', search = '' } 
   if (scope && scope !== 'all') out = out.filter((t) => t.privacyScope === scope)
   if (view === 'open') out = out.filter((t) => t.status === 'todo' || t.status === 'in_progress')
   else if (view === 'done') out = out.filter((t) => t.status === 'done')
-  else if (view === 'today') out = out.filter((t) => isToday(t.dueAt))
+  else if (view === 'today') out = out.filter((t) => isToday(t.dueAt) || isToday(t.plannedAt))
   const q = (search || '').trim().toLowerCase()
   if (q) {
     out = out.filter((t) =>

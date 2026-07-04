@@ -132,14 +132,20 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 -- Accounts + sessions (registration / login).
+-- name         = 称呼（display / salutation）：聊天、问候、通知、@提及都用它。
+-- account_name = 账户名（identity）：唯一标识 / 系统账号展示（登录仍用 email）。
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   name          TEXT NOT NULL,
+  account_name  TEXT NOT NULL DEFAULT '',
   email         TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role          TEXT NOT NULL DEFAULT 'member',   -- admin | member | viewer
   created_at    TEXT NOT NULL
 );
+-- 老库补列 + 回填：存量用户账户名默认等于其称呼。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name TEXT NOT NULL DEFAULT '';
+UPDATE users SET account_name = name WHERE account_name = '' OR account_name IS NULL;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token      TEXT PRIMARY KEY,

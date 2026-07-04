@@ -50,10 +50,20 @@ export default async function authRoutes(app) {
 
   app.patch('/api/auth/me', async (req, reply) => {
     if (!req.user) return reply.status(401).send({ error: 'unauthorized' })
-    const name = String((req.body && req.body.name) || '').trim()
-    if (name.length > 24) return reply.status(400).send({ error: '显示名称最长 24 字' })
-    if (name) return auth.updateName(req.user.id, name)
-    return req.user
+    const b = req.body || {}
+    const name = 'name' in b ? String(b.name || '').trim() : undefined            // 称呼
+    const accountName = 'accountName' in b ? String(b.accountName || '').trim() : undefined // 账户名
+    if (name !== undefined) {
+      if (!name) return reply.status(400).send({ error: '称呼不能为空' })
+      if (name.length > 24) return reply.status(400).send({ error: '称呼最长 24 字' })
+    }
+    if (accountName !== undefined) {
+      if (!accountName) return reply.status(400).send({ error: '账户名不能为空' })
+      if (accountName.length > 24) return reply.status(400).send({ error: '账户名最长 24 字' })
+      if (!/^[\w.\-一-龥]+$/.test(accountName)) return reply.status(400).send({ error: '账户名只能含中英文、数字、_ . -' })
+    }
+    if (name === undefined && accountName === undefined) return req.user
+    return auth.updateProfile(req.user.id, { name, accountName })
   })
 
   app.post('/api/auth/password', async (req, reply) => {

@@ -35,7 +35,7 @@
         <a id="nav-nontodo" @click="vm.goNonTodo" title="非 todo 隔离区" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-tray"></i></a>
         <a id="nav-agent" @click="vm.goAgent" title="Agent 配置" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-sparkle"></i></a>
         <div style="flex:1"></div>
-        <a id="nav-admin" @click="vm.goAdmin" title="内部后台" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-chart-bar"></i></a>
+        <template v-if="vm.canAdmin"><a id="nav-admin" :href="vm.adminUrl" title="监控后台（独立应用）" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;text-decoration:none;" data-hv="0"><i class="ph ph-chart-line-up"></i></a></template>
         <a id="nav-settings" @click="vm.goSettings" title="设置" style="width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);background:transparent;font-size:22px;cursor:pointer;" data-hv="0"><i class="ph ph-gear"></i></a>
         <button @click="vm.toggleNotif" title="通知" style="position:relative;width:38px;height:38px;border:0;border-radius:11px;background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer;margin-top:4px;" data-hv="0"><i class="ph ph-bell"></i><template v-if="vm.hasUnread"><span style="position:absolute;top:5px;right:5px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--danger);color:#fff;font:700 9px/15px var(--font);text-align:center;">{{ vm.unread }}</span></template></button>
         <button @click="vm.toggleTheme" title="切换明/暗" style="width:38px;height:38px;border:0;border-radius:11px;background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;margin-top:4px;" data-hv="0"><i id="lx-thm" class="ph ph-moon"></i></button>
@@ -205,13 +205,46 @@
         </aside>
         <main :style="vm.mainStyle"><template v-if="vm.isViewer"><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--idea-bg);border-bottom:1px solid var(--line);font:600 12px/1.4 var(--font);color:var(--idea);"><i class="ph ph-lock-simple"></i>只读模式 · 你当前是「只读」角色，无法创建或编辑内容</div></template>
           <template v-if="vm.isChat">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
+            <div style="position:relative;height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);z-index:12;">
               <i class="ph ph-chat-circle" style="font-size:20px;color:var(--accent-ink);"></i>
               <span style="font:600 16px/1 var(--display);color:var(--text);">聊天</span>
               <span style="font:500 12.5px/1 var(--font);color:var(--text3);">收集与判断</span>
               <div style="flex:1"></div>
+              <button @click="vm.toggleTodayPanel" :style="vm.todayPillStyle" title="今日待办">
+                <i class="ph ph-sun-horizon" style="font-size:14px;"></i>今日待办<template v-if="vm.todayCount>0"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent);color:#fff;font:700 10px/16px var(--font);">{{ vm.todayCount }}</span></template>
+                <i :class="`ph ${vm.todayOpen?'ph-caret-up':'ph-caret-down'}`" style="font-size:11px;opacity:.6;"></i>
+              </button>
               <span :style="vm.modeChipStyle"><i :class="`ph ${vm.modeIcon}`" style="font-size:13px;"></i>{{ vm.modeLabel }}</span>
             </div>
+            <template v-if="vm.todayOpen">
+              <div @click="vm.closeTodayPanel" style="position:absolute;inset:57px 0 0 0;z-index:13;"></div>
+              <div style="position:absolute;top:62px;right:16px;width:340px;max-width:calc(100% - 32px);max-height:62%;background:var(--panel);border:1px solid var(--line2);border-radius:14px;box-shadow:0 16px 50px #2b241a33;z-index:14;display:flex;flex-direction:column;overflow:hidden;animation:lx-pop .18s ease;">
+                <div style="display:flex;align-items:center;gap:8px;padding:13px 15px;border-bottom:1px solid var(--line);flex:0 0 auto;">
+                  <i class="ph ph-sun-horizon" style="color:var(--accent-ink);font-size:17px;"></i>
+                  <span style="font:600 14px/1 var(--display);color:var(--text);">今日待办</span>
+                  <span style="font:600 11.5px/1 var(--font);color:var(--text3);">{{ vm.todaySubtitle }}</span>
+                  <div style="flex:1"></div>
+                  <button @click="vm.refreshToday" :disabled="vm.todayLoading" title="刷新" style="width:28px;height:28px;border:0;border-radius:8px;background:var(--mid);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;"><i :class="`ph ph-arrows-clockwise ${vm.todayLoading?'lx-spin':''}`" style="font-size:14px;"></i></button>
+                </div>
+                <div style="flex:1;min-height:0;overflow:auto;padding:6px;">
+                  <template v-if="vm.todayLoading && !vm.todayItems.length"><div style="display:flex;flex-direction:column;align-items:center;gap:9px;color:var(--text3);padding:34px 12px;"><i class="ph ph-circle-notch lx-spin" style="font-size:22px;"></i><div style="font:500 12px/1 var(--font);">正在加载今日待办…</div></div></template>
+                  <template v-else-if="vm.todayError"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:30px 14px;text-align:center;"><i class="ph ph-warning-circle" style="font-size:24px;color:var(--danger);"></i><div style="font:500 12.5px/1.5 var(--font);color:var(--danger);">{{ vm.todayError }}</div><button @click="vm.refreshToday" style="height:32px;padding:0 15px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">重试</button></div></template>
+                  <template v-else-if="vm.todayItems.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:34px 14px;text-align:center;"><i class="ph ph-confetti" style="font-size:26px;color:var(--accent-ink);"></i><div style="font:500 13px/1.6 var(--font);">今天没有到期或计划的待办<br/>享受专注的一天 🎉</div></div></template>
+                  <template v-else>
+                    <template v-for="(t, __itd) in vm.todayItems" :key="__itd">
+                      <a @click="t.open" style="display:flex;gap:10px;padding:10px 11px;border-radius:10px;cursor:pointer;" data-hv="0">
+                        <span :style="`width:9px;height:9px;border-radius:50%;margin-top:5px;flex:0 0 auto;background:${t.dot};`"></span>
+                        <span style="flex:1;min-width:0;">
+                          <span :style="`display:block;font:600 13px/1.4 var(--font);color:${t.done?'var(--text3)':'var(--text)'};${t.done?'text-decoration:line-through;':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ t.title }}</span>
+                          <span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);margin-top:2px;">{{ t.progress }}</span>
+                        </span>
+                        <i class="ph ph-caret-right" style="font-size:13px;color:var(--text3);align-self:center;flex:0 0 auto;"></i>
+                      </a>
+                    </template>
+                  </template>
+                </div>
+              </div>
+            </template>
             <div id="lx-msgs" style="flex:1;min-height:0;overflow:auto;padding:26px 26px;display:flex;flex-direction:column;gap:17px;">
               <template v-for="(m, __i11) in vm.messages" :key="__i11">
                 <template v-if="m.isSys"><div style="align-self:center;font:500 12px/1.5 var(--font);color:var(--text3);background:var(--mid);padding:6px 13px;border-radius:20px;">{{ m.text }}</div></template>
@@ -271,9 +304,12 @@
             <div style="padding:14px 18px 18px;border-top:1px solid var(--line);background:var(--panel);position:relative;">
               <template v-if="vm.mentionOpen">
                 <div style="position:absolute;left:18px;right:18px;bottom:calc(100% - 8px);background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 -8px 28px #2b241a22;overflow:hidden;max-height:236px;overflow-y:auto;z-index:6;">
-                  <div style="padding:9px 13px 6px;font:700 10.5px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;">引用任务 / 项目</div>
-                  <template v-for="(mi, __i15) in vm.mentionItems" :key="__i15"><a @click="mi.pick" :style="`display:flex;align-items:center;gap:10px;padding:9px 13px;cursor:pointer;background:${mi.bg};`" data-hv="0"><i :class="`ph ${mi.icon}`" style="font-size:16px;color:var(--accent-ink);"></i><span style="flex:1;min-width:0;font:600 13px/1.3 var(--font);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ mi.label }}</span><span style="font:600 10.5px/1 var(--font);color:var(--text3);padding:3px 7px;border-radius:6px;background:var(--mid);">{{ mi.typeLabel }}</span></a></template>
-                  <template v-if="vm.noMention"><div style="padding:12px 13px;font:500 12.5px/1 var(--font);color:var(--text3);">没有匹配的任务 / 项目</div></template>
+                  <div style="padding:9px 13px 6px;font:700 10.5px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;">提及 · 人 / 时间 / 文档</div>
+                  <template v-for="(mi, __i15) in vm.mentionItems" :key="__i15">
+                    <template v-if="mi.groupHead"><div style="padding:8px 13px 4px;font:600 10px/1 var(--font);letter-spacing:.06em;color:var(--text3);">{{ mi.groupHead }}</div></template>
+                    <a @click="mi.pick" :style="`display:flex;align-items:center;gap:10px;padding:9px 13px;cursor:pointer;background:${mi.bg};`" data-hv="0"><i :class="`ph ${mi.icon}`" style="font-size:16px;color:var(--accent-ink);"></i><span style="flex:1;min-width:0;font:600 13px/1.3 var(--font);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ mi.label }}</span><span style="font:600 10.5px/1 var(--font);color:var(--text3);padding:3px 7px;border-radius:6px;background:var(--mid);">{{ mi.typeLabel }}</span></a>
+                  </template>
+                  <template v-if="vm.noMention"><div style="padding:12px 13px;font:500 12.5px/1 var(--font);color:var(--text3);">没有匹配的人 / 时间 / 文档</div></template>
                 </div>
               </template>
               <template v-if="vm.showQuickPrompts">
@@ -283,7 +319,7 @@
               </template>
               <div style="border:1px solid var(--line2);border-radius:var(--r);background:var(--bg);padding:11px 12px;display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow);">
                 <template v-if="vm.hasPendingRefs"><div style="display:flex;flex-wrap:wrap;gap:6px;"><template v-for="(r, __i16) in vm.pendingRefs" :key="__i16"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 5px 4px 10px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 12px/1 var(--font);"><i class="ph ph-at" style="font-size:12px;"></i>{{ r.label }}<button @click="r.remove" style="border:0;background:transparent;color:var(--accent-ink);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:2px;border-radius:50%;font-size:12px;">&times;</button></span></template></div></template>
-                <textarea id="lx-composer" rows="1" @input="vm.onComposerInput" @keydown="vm.sendKey" placeholder="输入想法、任务，或用 @ 引用任务 / 项目…（Shift+Enter 换行）" style="border:0;background:transparent;color:var(--text);font:500 14px/1.5 var(--font);resize:none;max-height:120px;overflow-y:auto;"></textarea>
+                <textarea id="lx-composer" rows="1" @input="vm.onComposerInput" @keydown="vm.sendKey" @compositionstart="vm.onCompStart" @compositionend="vm.onCompEnd" placeholder="输入想法、任务，或用 @ 提及人 / 时间 / 文档…（Shift+Enter 换行）" style="border:0;background:transparent;color:var(--text);font:500 14px/1.5 var(--font);resize:none;max-height:120px;overflow-y:auto;"></textarea>
                 <div style="display:flex;align-items:center;gap:9px;">
                   <button @click="vm.atButton" title="引用任务 / 项目" style="width:30px;height:30px;border:0;border-radius:8px;background:var(--mid);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;"><i class="ph ph-at"></i></button>
                   <span style="font:500 11.5px/1 var(--font);color:var(--text3);">@ 引用 · Enter 发送</span>
@@ -501,11 +537,12 @@
                 <template v-if="vm.isSetAccount">
                   <div style="display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);">
                     <span style="width:52px;height:52px;border-radius:16px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font:600 24px/1 var(--display);flex:0 0 auto;">{{ vm.meBig }}</span>
-                    <div style="flex:1;min-width:0;"><div style="font:600 16px/1.3 var(--display);color:var(--text);">{{ vm.sName }}</div><div style="font:500 12.5px/1 var(--font);color:var(--text3);margin-top:4px;">{{ vm.sEmail }}</div></div>
+                    <div style="flex:1;min-width:0;"><div style="font:600 16px/1.3 var(--display);color:var(--text);">{{ vm.sName }}</div><div style="font:500 12.5px/1 var(--font);color:var(--text3);margin-top:4px;">@{{ vm.sAccountName }} · {{ vm.sEmail }}</div></div>
                     <span style="padding:5px 11px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 11.5px/1 var(--font);">{{ vm.roleLabel }}</span>
                   </div>
                   <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 18px;box-shadow:var(--shadow);">
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">显示名称</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">用于任务负责人、评论与协作显示</div></div><input :value="vm.sName" @change="vm.onName" style="width:150px;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></div>
+                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">账户名</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">你的唯一账号标识，用于系统展示（登录仍用邮箱）</div></div><input :value="vm.sAccountName" @change="vm.onAccountName" maxlength="24" placeholder="账户名" style="width:150px;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></div>
+                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">称呼</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">聊天、问候与协作里对你的称谓，可随时修改</div></div><input :value="vm.sName" @change="vm.onName" maxlength="24" placeholder="称呼" style="width:150px;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></div>
                     <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">邮箱</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">登录账号，不可修改</div></div><span style="font:500 13.5px/1 var(--font);color:var(--text2);">{{ vm.sEmail }}</span></div>
                     <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">角色</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">首个注册账号为管理员，决定后台访问权限</div></div><span style="padding:5px 12px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 12px/1 var(--font);">{{ vm.roleLabel }}</span></div>
                     <div style="display:flex;flex-direction:column;gap:0;padding:15px 0;">
@@ -754,6 +791,7 @@
 <script>
 import { reactive, computed, onMounted, onUpdated, onBeforeUnmount, nextTick } from 'vue';
 import { api, setToken, getToken } from './lib/api.js';
+import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 
 // ---- backend <-> frontend display helpers ----
 function lxPad(n){ return String(n).padStart(2,'0'); }
@@ -811,6 +849,7 @@ class Component {
     pwdOpen: false, pwdOld: '', pwdNew: '', pwdBusy: false,
     team: [],
     friends: { accepted: [], incoming: [], outgoing: [] }, addFriendEmail: '',
+    todayOpen: false, todayLoading: false, todayError: '', todayItems: [],
     newProjOpen: false, newProjName: '',
     aiSource: 'team', ownAiOpen: false,
     taskCollabs: {}, taskAccess: {}, invitePickerOpen: false,
@@ -819,10 +858,10 @@ class Component {
     thinking: false, thinkText: '',
     toast: null,
     isMobile: false, mobilePane: 'main',
-    mentionOpen: false, mentionQuery: '', mentionAt: -1, mentionIndex: 0, pendingRefs: [],
+    mentionOpen: false, mentionQuery: '', mentionAt: -1, mentionIndex: 0, pendingRefs: [], mentions: [],
     selIdeaId: null, selNonId: null, agentSection: 'soul', setSection: 'account',
     agent: {soul:'', memory:'', preferences:'', workingStyle:'', privacyRules:'', followup:''},
-    settings: {name:'', email:'', apiKey:'', aiTested:false, defaultWs:'work', defaultView:'chat', aiVisibility:'visible_scope_only', privacyDefault:false, friendPolicy:'open', notifPrefs:{assign:true,due:true,fail:true,done:true}, aiPreset:'规则版（离线）', aiProvider:'rule', aiBaseUrl:'', aiModel:'', aiHasKey:false, aiFallback:true},
+    settings: {name:'', accountName:'', email:'', apiKey:'', aiTested:false, defaultWs:'work', defaultView:'chat', aiVisibility:'visible_scope_only', privacyDefault:false, friendPolicy:'open', notifPrefs:{assign:true,due:true,fail:true,done:true}, aiPreset:'规则版（离线）', aiProvider:'rule', aiBaseUrl:'', aiModel:'', aiHasKey:false, aiFallback:true},
     tasks: [],
     ideas: [],
     nonTodos: [],
@@ -884,7 +923,7 @@ class Component {
       }), ()=>{ this.applyTheme(); this.scrollMsgs(true); });
     }catch(e){ if(e&&e.status===401){ setToken(''); this.setState({authed:false}); } else { this.flashToast('数据加载失败，请刷新重试'); } }
   }
-  _applyUser(u){ if(!u) return; this.setState(s=>({role:u.role||'member', settings:{...s.settings, name:u.name||s.settings.name, email:u.email||s.settings.email}})); }
+  _applyUser(u){ if(!u) return; this.setState(s=>({role:u.role||'member', settings:{...s.settings, name:u.name||s.settings.name, accountName:u.accountName||u.name||s.settings.accountName, email:u.email||s.settings.email}})); }
   _enterApp(){ const ok=['chat','database','projects','clarify','nontodo','agent','settings']; this.setState(s=>({authed:true, view:ok.includes(s.settings.defaultView)?s.settings.defaultView:'chat', workspace:s.settings.defaultWs||'work', privacy:!!s.settings.privacyDefault, authPassword:'', authError:''}), ()=>{ this.applyTheme(); this.applyNav(); this.scrollMsgs(true); }); this._startEvents(); }
   // 实时事件：收到推送 → 即时提示 + 节流刷新（2.5s 合并窗口）
   _startEvents(){
@@ -1003,6 +1042,26 @@ class Component {
     }).catch(e=>this.flashToast('操作失败：'+e.message));
   }
   loadFriends(){ api.friends().then(f=>this.setState({friends:{accepted:f.friends||[],incoming:f.incoming||[],outgoing:f.outgoing||[]}})).catch(()=>{}); }
+  // 今日待办浮层：点击胶囊呼出，拉取 view=today，四态（加载/错误/空/列表）+ 刷新
+  toggleTodayPanel(){ const open=!this.state.todayOpen; this.setState({todayOpen:open}); if(open) this.loadToday(); }
+  closeTodayPanel(){ this.setState({todayOpen:false}); }
+  refreshToday(){ this.loadToday(); }
+  loadToday(){
+    this.setState({todayLoading:true,todayError:''});
+    const rank=(t)=>({in_progress:0,todo:1,done:2}[t.status]!=null?{in_progress:0,todo:1,done:2}[t.status]:1);
+    api.listTasks({view:'today'}).then(list=>{
+      const arr=Array.isArray(list)?list:(list.tasks||[]);
+      const items=arr.filter(t=>t.status!=='archived').sort((a,b)=>rank(a)-rank(b)||String(a.dueAt||a.plannedAt||'9999')<String(b.dueAt||b.plannedAt||'9999')?-1:1);
+      this.setState({todayItems:items,todayLoading:false});
+    }).catch(e=>this.setState({todayLoading:false,todayError:(e&&e.message)||'加载失败，请重试'}));
+  }
+  _todayProgress(t){
+    const sl={todo:'待办',in_progress:'进行中',done:'已完成'}[t.status]||'待办';
+    const when=t.dueAt?('截止 '+lxFmtDue(t.dueAt)):t.plannedAt?('计划 '+lxFmtDue(t.plannedAt)):'未排期';
+    const parts=[sl,when,'P'+(t.priority||3)];
+    if(t.collabFrom) parts.unshift('协作·来自'+t.collabFrom);
+    return parts.join(' · ');
+  }
   submitAddFriend(){
     const email=(this.state.addFriendEmail||'').trim();
     if(!email){ this.flashToast('请输入对方的注册邮箱'); return; }
@@ -1057,13 +1116,14 @@ class Component {
     const el=document.getElementById('lx-composer'); if(!el) return;
     const t=(el.value||'').trim(); const refs=this.state.pendingRefs.slice();
     if(!t && !refs.length) return; el.value=''; el.style.height='auto';
+    const mentions=this._collectMentions(t);
     const uid='m'+(++this._seq);
     const userMsg={id:uid,role:'user',text:t||'（就引用内容继续）',refs:refs.map(r=>r.label)};
-    this.setState(s=>({messages:[...s.messages,userMsg],pendingRefs:[],mentionOpen:false,mentionQuery:''}), ()=>this.scrollMsgs(true));
-    this._startThinking(refs.length?'帮我规划':t);
+    this.setState(s=>({messages:[...s.messages,userMsg],pendingRefs:[],mentions:[],mentionOpen:false,mentionQuery:''}), ()=>this.scrollMsgs(true));
+    this._startThinking((refs.length&&!t)?'帮我规划':t);
 
-    // @引用 → 计划 / 拆解（暂为本地建议，不落库）
-    if(refs.length){
+    // 纯 @文档引用（无正文）→ 本地快速计划 / 拆解（不落库）；有正文时走后端并携带结构化提及
+    if(refs.length && !t){
       const parent=refs[0].label, isProj=refs[0].type==='project';
       let plan, planTitle, planSub, planNote;
       if(isProj){
@@ -1094,12 +1154,12 @@ class Component {
       };
       let res;
       try{
-        res=await api.chatStream(t,{ onStatus:(st)=>{ gotAnyEvent=true; if(st&&st.intent&&st.intent!=='agent') this.setState({thinkText:this._thinkLabel(st.intent)}); }, onDelta });
+        res=await api.chatStream(t,{ onStatus:(st)=>{ gotAnyEvent=true; if(st&&st.intent&&st.intent!=='agent') this.setState({thinkText:this._thinkLabel(st.intent)}); }, onDelta }, mentions);
       }catch(streamErr){
         // 只有「一个事件都没收到」才回退重发——服务端一旦开始处理（status/delta 已到），
         // 重发会导致动作重复执行（重复建任务/重复邀请），此时走错误卡由用户决定重试。
         if(streamId||gotAnyEvent) throw streamErr;
-        res=await api.chat(t);
+        res=await api.chat(t,mentions);
       }
       const newMsgs=[]; let tasks=this.state.tasks.slice(), ideas=this.state.ideas.slice(), nonTodos=this.state.nonTodos.slice(), feedArr=this.state.feed.slice();
       // 1) created entities → cards
@@ -1147,19 +1207,50 @@ class Component {
     }
   }
   onComposerInput(e){ const el=e.target; el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; const val=el.value; const caret=(el.selectionStart!=null)?el.selectionStart:val.length; const upto=val.slice(0,caret); const at=upto.lastIndexOf('@'); if(at>=0){ const q=upto.slice(at+1); if(!/\s/.test(q)){ this.setState({mentionOpen:true,mentionQuery:q,mentionAt:at,mentionIndex:0}); return; } } if(this.state.mentionOpen) this.setState({mentionOpen:false,mentionQuery:''}); }
-  mentionCandidates(){ const mq=(this.state.mentionQuery||'').toLowerCase(); const f=(arr)=>mq?arr.filter(x=>x.label.toLowerCase().includes(mq)):arr; const me=this.state.settings.name; const M=f((this.state.team||[]).filter(u=>u.name!==me).map(u=>({type:'member',id:u.id,label:u.name}))).slice(0,3); const T=f(this.state.tasks.filter(t=>this.visible(t.scope)).map(t=>({type:'task',id:t.id,label:t.title}))).slice(0,4); const P=f([...new Set(this.state.tasks.map(t=>t.project))].map(p=>({type:'project',id:'p:'+p,label:p}))).slice(0,3); return [...M,...T,...P]; }
+  // 时间提及预设：既有可读文案（供 detectDue 解析），又带精确 ISO（供后端权威落库）
+  _timePresets(){
+    const base=new Date(); base.setSeconds(0,0);
+    const at=(offset,h,label)=>{ const d=new Date(base); d.setDate(d.getDate()+offset); d.setHours(h,0,0,0); return {type:'time',entityType:'time',iso:d.toISOString(),label,insert:label.replace(/\s+/,'').replace(':00','点').replace('：00','点')}; };
+    const dow=(target,h,label)=>{ const d=new Date(base); let diff=(target-d.getDay()+7)%7; if(diff===0) diff=7; d.setDate(d.getDate()+diff); d.setHours(h,0,0,0); return {type:'time',entityType:'time',iso:d.toISOString(),label,insert:label.replace(/\s+/,'').replace(':00','点')}; };
+    return [ at(0,18,'今天 18:00'), at(1,10,'明天 10:00'), at(1,18,'明天 18:00'), at(2,10,'后天 10:00'), dow(5,18,'本周五 18:00'), dow(1,10,'下周一 10:00') ];
+  }
+  // 三类提及候选：人（好友）/ 时间（预设）/ 文档（任务·项目·笔记）
+  mentionCandidates(){
+    const mq=(this.state.mentionQuery||'').toLowerCase();
+    const f=(arr)=>mq?arr.filter(x=>String(x.label).toLowerCase().includes(mq)):arr;
+    const me=this.state.settings.name;
+    const persons=f((this.state.team||[]).filter(u=>u.name!==me).map(u=>({kind:'person',type:'person',userId:u.id,label:u.name}))).slice(0,4);
+    const times=f(this._timePresets().map(t=>({kind:'time',type:'time',iso:t.iso,label:t.label,insert:t.insert}))).slice(0,5);
+    const tasks=f(this.state.tasks.filter(t=>this.visible(t.scope)).map(t=>({kind:'doc',type:'doc',entityType:'task',id:t.id,label:t.title}))).slice(0,4);
+    const projs=f([...new Set(this.state.tasks.map(t=>t.project).filter(p=>p&&p!=='收件箱'&&p!=='协作'))].map(p=>({kind:'doc',type:'doc',entityType:'project',id:'p:'+p,label:p}))).slice(0,3);
+    const notes=f((this.state.nonTodos||[]).filter(n=>this.visible(n.scope)).map(n=>({kind:'doc',type:'doc',entityType:'note',id:n.id,label:n.title}))).slice(0,2);
+    return [...persons,...times,...tasks,...projs,...notes];
+  }
+  _replaceAtToken(insert){ const el=document.getElementById('lx-composer'); const at=this.state.mentionAt; if(el&&at>=0){ const val=el.value; const caret=(el.selectionStart!=null)?el.selectionStart:val.length; el.value=val.slice(0,at)+insert+val.slice(caret); el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; } }
   pickMention(item){
-    const el=document.getElementById('lx-composer'); const at=this.state.mentionAt;
-    if(item.type==='member'){
-      // 成员：以 @名字 字面量留在输入框里 → 发送后由后端识别并发出协作邀请
-      if(el&&at>=0){ const val=el.value; const caret=(el.selectionStart!=null)?el.selectionStart:val.length; el.value=val.slice(0,at)+'@'+item.label+' '+val.slice(caret); }
-      this.setState({mentionOpen:false,mentionQuery:''},()=>{const e2=document.getElementById('lx-composer'); if(e2)e2.focus();});
+    if(item.kind==='person'){
+      // 人：@名字 留在输入框（可读）+ 记录结构化 person（含 userId）→ 后端精确匹配、发协作邀请
+      this._replaceAtToken('@'+item.label+' ');
+      this.setState(s=>({ mentions:s.mentions.some(m=>m.type==='person'&&m.userId===item.userId)?s.mentions:[...s.mentions,{type:'person',userId:item.userId,label:item.label}], mentionOpen:false,mentionQuery:'' }),()=>{const e2=document.getElementById('lx-composer'); if(e2)e2.focus();});
       return;
     }
-    if(el&&at>=0){ const val=el.value; const caret=(el.selectionStart!=null)?el.selectionStart:val.length; el.value=val.slice(0,at)+val.slice(caret); }
-    this.setState(s=>({pendingRefs:s.pendingRefs.some(r=>r.id===item.id)?s.pendingRefs:[...s.pendingRefs,{type:item.type,id:item.id,label:item.label}],mentionOpen:false,mentionQuery:''}),()=>{const e2=document.getElementById('lx-composer'); if(e2)e2.focus();});
+    if(item.kind==='time'){
+      // 时间：插入可读文案（供 detectDue）+ 记录结构化 ISO（供后端权威落库）
+      this._replaceAtToken((item.insert||item.label)+' ');
+      this.setState(s=>({ mentions:[...s.mentions.filter(m=>m.type!=='time'),{type:'time',iso:item.iso,label:item.label}], mentionOpen:false,mentionQuery:'' }),()=>{const e2=document.getElementById('lx-composer'); if(e2)e2.focus();});
+      return;
+    }
+    // 文档：以标签芯片展示（可读）+ 结构化 doc metadata；不写进正文，避免被当成 @成员
+    this._replaceAtToken('');
+    this.setState(s=>({pendingRefs:s.pendingRefs.some(r=>r.id===item.id)?s.pendingRefs:[...s.pendingRefs,{type:item.entityType,id:item.id,label:item.label}],mentionOpen:false,mentionQuery:''}),()=>{const e2=document.getElementById('lx-composer'); if(e2)e2.focus();});
   }
   removeRef(id){ this.setState(s=>({pendingRefs:s.pendingRefs.filter(r=>r.id!==id)})); }
+  // 组装本轮结构化提及：人/时间保留（且其可读文本仍在正文里）+ 文档芯片 → doc
+  _collectMentions(text){
+    const inline=(this.state.mentions||[]).filter(m=>m.type==='time'||(m.type==='person'&&text.includes('@'+m.label)));
+    const docs=(this.state.pendingRefs||[]).map(r=>({type:'doc',entityType:r.type,id:String(r.id).replace(/^p:/,''),label:r.label}));
+    return [...inline,...docs];
+  }
   atButton(){ const el=document.getElementById('lx-composer'); if(!el) return; el.focus(); const v=el.value; const sep=(v===''||v.endsWith(' '))?'':' '; el.value=v+sep+'@'; this.setState({mentionOpen:true,mentionQuery:'',mentionAt:el.value.length-1,mentionIndex:0}); }
   mentionEnterOrSend(){ if(this.state.mentionOpen){ const items=this.mentionCandidates(); const it=items[this.state.mentionIndex||0]||items[0]; if(it){ this.pickMention(it); return; } this.setState({mentionOpen:false}); return; } this.send(); }
   openTask(id){ this.setState({detailId:id,invitePickerOpen:false}); const t=this.state.tasks.find(x=>x.id===id); if(t) this.pushRecent({type:'task',id,label:t.title}); api.getTaskDetail(id).then(d=>{ if(!d||!d.task) return; const gr=d.generationRecord; this.setState(s=>({ taskSubs:{...s.taskSubs,[id]:(d.subtasks||[]).map(x=>({id:x.id,text:x.text,done:x.done}))}, taskComments:{...s.taskComments,[id]:(d.comments||[]).map(c=>({author:c.author,text:c.text,time:c.createdAt||''}))}, taskActivity:{...s.taskActivity,[id]:(d.activity||[]).map(a=>({text:a.text,time:a.createdAt||''}))}, taskCollabs:{...s.taskCollabs,[id]:(d.collaborators||[])}, taskAccess:{...s.taskAccess,[id]:d.access||'owner'}, tasks: gr? s.tasks.map(x=>x.id===id?{...x,raw:gr.rawInput||x.raw,reason:gr.aiReason||x.reason,conf:gr.confidence!=null?String(gr.confidence):x.conf,gen:gr.createdAt||x.gen}:x):s.tasks })); }).catch(()=>{}); }
@@ -1442,7 +1533,12 @@ class Component {
     }
     const navDefs2=[['chat','ph-chat-circle'],['database','ph-table'],['projects','ph-folders'],['friends','ph-users'],['nontodo','ph-tray'],['settings','ph-gear']];
     const mobileNav=navDefs2.map(d=>({icon:d[1],color:view===d[0]?'var(--accent-ink)':'var(--text3)',bg:view===d[0]?'var(--accent-bg)':'transparent',go:()=>this.go(d[0])}));
-    const mentionItems=this.mentionCandidates().map((x,idx)=>({label:x.label,icon:x.type==='project'?'ph-folder':x.type==='member'?'ph-user-plus':'ph-check-square',typeLabel:x.type==='project'?'项目':x.type==='member'?'成员 · 邀请协作':'任务',bg:idx===(st.mentionIndex||0)?'var(--mid)':'transparent',pick:()=>this.pickMention(x)}));
+    const _mkIcon=(x)=> x.kind==='person'?'ph-user-plus':x.kind==='time'?'ph-clock':x.entityType==='project'?'ph-folder':x.entityType==='note'?'ph-note-blank':'ph-check-square';
+    const _mkType=(x)=> x.kind==='person'?'人 · 邀请协作':x.kind==='time'?'时间':x.entityType==='project'?'项目':x.entityType==='note'?'笔记':'任务';
+    const _grpName={person:'人',time:'时间',doc:'文档'};
+    const _cands=this.mentionCandidates();
+    let _lastGrp=null;
+    const mentionItems=_cands.map((x,idx)=>{ const g=x.kind==='doc'?'doc':x.kind; const head=g!==_lastGrp?_grpName[g]:null; _lastGrp=g; return {label:x.label,icon:_mkIcon(x),typeLabel:_mkType(x),groupHead:head,bg:idx===(st.mentionIndex||0)?'var(--mid)':'transparent',pick:()=>this.pickMention(x)}; });
     const pendingRefsView=st.pendingRefs.map(r=>({label:r.label,remove:()=>this.removeRef(r.id)}));
     return {
       showLogin:!st.authed, authed:st.authed,
@@ -1474,7 +1570,14 @@ class Component {
         {icon:'ph-brain',label:'记住：我习惯上午做深度工作'},
       ].map(q=>({...q,run:()=>{ const c=document.getElementById('lx-composer'); if(c){ c.value=q.label; } this.send(); }})),
       messages, thinking:st.thinking, thinkText:st.thinkText||'正在分析意图…',
-      send:()=>this.send(), sendKey:(e)=>{ if(this.state.mentionOpen){ const n=this.mentionCandidates().length; if(e.key==='ArrowDown'){e.preventDefault();this.setState(s=>({mentionIndex:Math.min((s.mentionIndex||0)+1,Math.max(0,n-1))}));return;} if(e.key==='ArrowUp'){e.preventDefault();this.setState(s=>({mentionIndex:Math.max((s.mentionIndex||0)-1,0)}));return;} if(e.key==='Escape'){e.preventDefault();this.setState({mentionOpen:false});return;} } if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();this.mentionEnterOrSend();} },
+      todayOpen:st.todayOpen, todayLoading:st.todayLoading, todayError:st.todayError,
+      todayCount:(st.tasks||[]).filter(t=>t.today && t.status!=='done').length,
+      todayItems:(st.todayItems||[]).map(t=>({ title:t.title, progress:this._todayProgress(t), done:t.status==='done', dot:t.status==='done'?'var(--text3)':t.status==='in_progress'?'var(--idea)':'var(--accent)', open:()=>{ this.setState({todayOpen:false}); this.go('chat'); this.openTask(t.id); } })),
+      todaySubtitle: st.todayLoading?'加载中…':(st.todayError?'加载失败':`${(st.todayItems||[]).filter(t=>t.status!=='done').length} 条未完成`),
+      todayPillStyle:'display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:16px;font:600 12px/1 var(--font);cursor:pointer;'+(st.todayOpen?'border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent-ink);':'border:1px solid var(--line2);background:var(--panel);color:var(--text2);'),
+      toggleTodayPanel:()=>this.toggleTodayPanel(), closeTodayPanel:()=>this.closeTodayPanel(), refreshToday:()=>this.refreshToday(),
+      send:()=>this.send(), onCompStart:()=>{ this._composing=true; }, onCompEnd:()=>{ this._composing=false; },
+      sendKey:(e)=>{ if(isComposingEvent(e,this._composing)) return; if(this.state.mentionOpen){ const n=this.mentionCandidates().length; if(e.key==='ArrowDown'){e.preventDefault();this.setState(s=>({mentionIndex:Math.min((s.mentionIndex||0)+1,Math.max(0,n-1))}));return;} if(e.key==='ArrowUp'){e.preventDefault();this.setState(s=>({mentionIndex:Math.max((s.mentionIndex||0)-1,0)}));return;} if(e.key==='Escape'){e.preventDefault();this.setState({mentionOpen:false});return;} } if(shouldSendOnEnter(e,this._composing)){e.preventDefault();this.mentionEnterOrSend();} },
       taskTotal:visTasks.length,
       dbViews, dbViewName, filteredCount:filteredTasks.length, filteredTasks, tableEmpty:filteredTasks.length===0,
       newCapture:()=>{ this.go('chat'); setTimeout(()=>{const c=document.getElementById('lx-composer'); if(c)c.focus();},80); },
@@ -1508,7 +1611,9 @@ class Component {
       isMemorySection:st.agentSection==='memory', autoRules:st.autoRules.map(r=>({keyword:r.keyword,targetName:r.targetName,remove:()=>this.deleteRule(r.id)})),
       setSections, setName,
       isSetAccount:st.setSection==='account', isSetGeneral:st.setSection==='general', isSetAi:st.setSection==='ai', isSetNotif:st.setSection==='notifications', isSetPrivacy:st.setSection==='privacy', isSetData:st.setSection==='data',
-      sName:st.settings.name, sEmail:st.settings.email, meBig:(st.settings.name||'我').slice(-1), onName:(e)=>{ const v=e.target.value; this.setState(s=>({settings:{...s.settings,name:v}})); if(v.trim()) api.updateMe({name:v.trim()}).catch(()=>{}); },
+      sName:st.settings.name, sAccountName:st.settings.accountName||st.settings.name, sEmail:st.settings.email, meBig:(st.settings.name||'我').slice(-1),
+      onName:(e)=>{ const v=e.target.value.trim(); if(!v){ this.flashToast('称呼不能为空'); return; } this.setState(s=>({settings:{...s.settings,name:v}})); api.updateMe({name:v}).then(u=>this._applyUser(u)).catch(err=>this.flashToast('保存失败：'+err.message)); },
+      onAccountName:(e)=>{ const v=e.target.value.trim(); const old=st.settings.accountName; if(!v){ this.flashToast('账户名不能为空'); return; } this.setState(s=>({settings:{...s.settings,accountName:v}})); api.updateMe({accountName:v}).then(u=>{ this._applyUser(u); this.flashToast('账户名已更新'); }).catch(err=>{ this.setState(s=>({settings:{...s.settings,accountName:old}})); this.flashToast('保存失败：'+err.message); }); },
       changePwd:()=>this.setState(s=>({pwdOpen:!s.pwdOpen,pwdOld:'',pwdNew:''})),
       pwdOpen:st.pwdOpen, pwdOld:st.pwdOld, pwdNew:st.pwdNew, pwdBusy:st.pwdBusy,
       onPwdOld:(e)=>this.setState({pwdOld:e.target.value}), onPwdNew:(e)=>this.setState({pwdNew:e.target.value}), submitPwd:()=>this.submitPwd(),
@@ -1533,7 +1638,7 @@ class Component {
       saveSettings:()=>{ api.updateAiConfig(this._aiCfg()).then(()=>{ this.setState(s=>({settings:{...s.settings,apiKey:''}})); this.flashToast('AI 接入配置已保存'); }).catch(e=>this.flashToast('保存失败：'+e.message)); }, exportData:()=>this.doExport(), clearData:()=>this.doClearData(), logout:()=>this.doLogout(),
       userList, hasAdminUser:!!selUser, adminLoading:st.adminLoading, auName:selUser?selUser.name:'—', auEmail:selUser?selUser.email:'', auStatus:selUser?(selUser.errorCount>0?(selUser.errorCount+' 失败'):'正常'):'', auRole:selUser?({admin:'管理员',member:'成员'}[selUser.role]||selUser.role):'', auTasks:selUser?selUser.taskCount:0, auIdeas:selUser?selUser.ideaCount:0, auNon:selUser?selUser.nonCount:0, auErr:!!(selUser&&selUser.errorCount>0), adminLog, hasAdminLog:adminLog.length>0,
       adminErrors, hasAdminErrors:adminErrors.length>0, hasErrors:errorCount>0, errorCount,
-      canEdit, isViewer, canAdmin, roleLabel, showAdminContent, showAdminDenied,
+      canEdit, isViewer, canAdmin, adminUrl:(import.meta.env.BASE_URL||'/')+'admin/', roleLabel, showAdminContent, showAdminDenied,
       detailMembers, dAssignee, dAssigneeInitial:dAssignee.slice(-1), dAssigneeColor:this._memberColor(dAssignee),
       isDetailTab:dtab==='detail', isCommentTab:dtab==='comments', isActivityTab:dtab==='activity', tabDetail:()=>this.setState({detailTab:'detail'}), tabComments:()=>this.setState({detailTab:'comments'}), tabActivity:()=>this.setState({detailTab:'activity'}),
       dTabDetailStyle:dtab==='detail'?segOn:segOff, dTabCommentStyle:dtab==='comments'?segOn:segOff, dTabActStyle:dtab==='activity'?segOn:segOff,

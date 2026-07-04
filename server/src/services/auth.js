@@ -27,7 +27,7 @@ const DEFAULT_AGENT = {
   followup: '任务不清楚时，只问一个最关键的问题：目标或完成标准。',
 }
 
-const toUser = (r) => r && { id: r.id, name: r.name, email: r.email, role: r.role, createdAt: r.created_at }
+const toUser = (r) => r && { id: r.id, name: r.name, accountName: r.account_name || r.name, email: r.email, role: r.role, createdAt: r.created_at }
 
 // db 为异步驱动（driver.js）。所有方法均 async。
 export function makeAuth(db) {
@@ -45,8 +45,8 @@ export function makeAuth(db) {
       const id = makeId('u')
       const ts = nowIso()
       await db.tx(async (t) => {
-        await t.run('INSERT INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)',
-          [id, name, normEmail, hashPassword(password), first ? 'admin' : 'member', ts])
+        await t.run('INSERT INTO users (id,name,account_name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?,?)',
+          [id, name, name, normEmail, hashPassword(password), first ? 'admin' : 'member', ts])
         await t.run(`INSERT INTO agent_profile (user_id,soul,memory,preferences,working_style,privacy_rules,default_followup_strategy,updated_at) VALUES (?,?,?,?,?,?,?,?)`,
           [id, DEFAULT_AGENT.soul, DEFAULT_AGENT.memory, DEFAULT_AGENT.preferences, DEFAULT_AGENT.workingStyle, DEFAULT_AGENT.privacyRules, DEFAULT_AGENT.followup, ts])
         await t.run(`INSERT INTO app_settings (user_id,workspace_mode,privacy_mode,default_view,ai_visibility,updated_at) VALUES (?,?,?,?,?,?)`,
@@ -63,6 +63,14 @@ export function makeAuth(db) {
     },
     async updateName(id, name) {
       await db.run('UPDATE users SET name = ? WHERE id = ?', [name, id])
+      return this.get(id)
+    },
+    // 分别更新称呼(name)与账户名(account_name)——设置页两字段独立编辑。
+    async updateProfile(id, { name, accountName } = {}) {
+      const sets = []; const vals = []
+      if (typeof name === 'string' && name.trim()) { sets.push('name = ?'); vals.push(name.trim()) }
+      if (typeof accountName === 'string' && accountName.trim()) { sets.push('account_name = ?'); vals.push(accountName.trim()) }
+      if (sets.length) { vals.push(id); await db.run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, vals) }
       return this.get(id)
     },
     // 改密后吊销该用户其他所有会话（保留当前这个）——防止被盗 token 在改密后继续存活。

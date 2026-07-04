@@ -48,7 +48,7 @@ export const api = {
 
   getState: () => req('GET', '/state'),
   capture: (text, source = 'chat') => req('POST', '/capture', { text, source }),
-  chat: (message) => req('POST', '/chat', { message }),
+  chat: (message, mentions) => req('POST', '/chat', mentions && mentions.length ? { message, mentions } : { message }),
   chatStream,
   plan: (blockMinutes) => req('POST', '/plan', blockMinutes ? { blockMinutes } : {}),
 
@@ -111,10 +111,11 @@ export const api = {
 // Streaming chat turn over SSE. handlers: {onStatus({intent}), onDelta(text)}.
 // Resolves with the final full payload (same shape as api.chat); throws if the
 // stream is unavailable or breaks before `done` — caller falls back to api.chat.
-async function chatStream(message, handlers = {}) {
+async function chatStream(message, handlers = {}, mentions = []) {
   const headers = { 'content-type': 'application/json' }
   if (TOKEN) headers.authorization = 'Bearer ' + TOKEN
-  const res = await fetch(BASE + '/chat/stream', { method: 'POST', headers, body: JSON.stringify({ message }) })
+  const body = mentions && mentions.length ? { message, mentions } : { message }
+  const res = await fetch(BASE + '/chat/stream', { method: 'POST', headers, body: JSON.stringify(body) })
   if (!res.ok || !res.body || !res.body.getReader) {
     const err = new Error('stream unavailable'); err.status = res.status; throw err
   }

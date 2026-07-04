@@ -5,7 +5,7 @@ import { visibleFilter } from './privacy.js'
 import { persistCapture } from './capture.js'
 import { agentChat, appendMemory } from './agentChat.js'
 import { convertIdeaToTask } from './ideas.js'
-import { inviteFx, respondInviteFx, extractMentionedUsers, notifyTaskDoneFx, maybeCreateAutoRule, applyAutoInvitesFx } from './collab.js'
+import { inviteFx, respondInviteFx, extractMentionedUsers, notifyTaskDoneFx, maybeCreateAutoRule, applyAutoInvitesFx, settleMentionedCollab } from './collab.js'
 import { requestFriendByIdFx, requestFriendFx, respondFriendFx, friendsOverview } from './friends.js'
 
 // 澄清闭环：15 分钟内经聊天产生、仍待澄清的想法（用户的下一条补充可直接转正式任务）。
@@ -86,7 +86,7 @@ const listLines = (tasks) => tasks.map((t, i) => `${i + 1}. ${t.title}（${fmtDu
 
 // Rule-based chat (offline): understands direct commands / questions and only
 // captures real content — the "everything becomes a todo" behavior is gone.
-async function ruleChat(repos, { message, db, user }) {
+async function ruleChat(repos, { message, db, user, mentions = [] }) {
   // 协作邀请响应：有待处理邀请时，「接受 / 拒绝」直接生效（对话式确认）
   if (db) {
     const pending = await repos.collaborators.myPending()
@@ -154,7 +154,8 @@ async function ruleChat(repos, { message, db, user }) {
   const intent = detectIntent(message)
 
   if (intent === 'greeting') {
-    return finish(repos, { message, intent, reply: '你好，我在。把想法、任务直接丢给我，我来判断与整理；也可以问我「接下来做什么」，或说「把 XX 标记完成」。' })
+    const hi = user && user.name ? `你好，${user.name}，我在。` : '你好，我在。'
+    return finish(repos, { message, intent, reply: `${hi}把想法、任务直接丢给我，我来判断与整理；也可以问我「接下来做什么」，或说「把 XX 标记完成」。` })
   }
 
   if (intent === 'help') {
@@ -295,21 +296,15 @@ async function ruleChat(repos, { message, db, user }) {
       : result.kind === 'todo_idea' ? `📥 已进入待澄清区：${result.title}\n建议下一步：${result.suggestedNextAction}\n（直接回复补充目标或时间，我就转成正式任务；回复「跳过」保持现状）`
         : `◽️ 非 todo，已隔离输出：${result.title}\n原因：${result.reason}（未进入 todo 主系统）`
 
-  // @成员 → 对刚创建的任务发出协作邀请；@非好友 → 降级为先发好友请求
+  // 结构化时间提及 → 为本轮新建、且未识别到截止时间的任务补上精确 dueAt
+  const tIso = (mentions || []).find((m) => m.type === 'time' && m.iso)
+  if (tIso) for (const c of created) { if (c.type === 'task' && c.entity && !c.entity.dueAt) c.entity = await repos.tasks.update(c.entity.id, { dueAt: tIso.iso }) }
+
+  // @成员 → 对刚创建的任务发协作邀请（好友直接邀请 / 非好友降级好友请求 / 未知成员如实告知）
   const performed = []
   if (db && created[0].type === 'task') {
-    for (const u of await extractMentionedUsers(db, message, user)) {
-      if (user && !u.isFriend) {
-        const fr = await requestFriendByIdFx(db, user, u.id)
-        if (fr.friendship && fr.autoAccepted) reply += `\n🤝 你和 ${u.name} 互相发过好友请求——已直接成为好友，可以再 @ 一次发出协作邀请。`
-        else if (fr.friendship || fr.pending) { reply += `\n👋 ${u.name} 还不是你的好友——已自动发送好友请求，对方接受后再 @ 即可邀请协作。`; performed.push({ type: 'friend_request', userId: u.id, userName: u.name }) }
-        else if (fr.error) reply += `\n（未能向 ${u.name} 发出好友请求：${fr.error}）`
-        continue
-      }
-      const r = await inviteFx(db, repos, user, created[0].entity.id, u.id)
-      if (r.collab) { reply += `\n🤝 已向 ${u.name} 发出协作邀请（待接受）`; performed.push({ type: 'invite', userId: u.id, userName: u.name, collabId: r.collab.id }) }
-      else if (r.needConfirm) reply += `\n（未邀请 ${u.name}：${r.error}）`
-    }
+    const settled = await settleMentionedCollab({ db, repos, user, message, taskEntity: created[0], performed, structured: mentions })
+    if (settled.lines.length) reply += '\n' + settled.lines.join('\n')
     // 自动化规则：任务命中关键词 → 自动邀请
     for (const p of await applyAutoInvitesFx(db, repos, user, created[0].entity, message)) {
       reply += `\n⚙️ 按你的规则「${p.rule}」，已自动邀请 ${p.userName} 协作（待接受）`
@@ -323,7 +318,7 @@ async function ruleChat(repos, { message, db, user }) {
 // (or as a fallback when the LLM call fails and fallbackToRule is on).
 // onEvent (optional): streaming hook — {type:'status',intent} early, then {type:'delta',text}…
 // db/user (optional): enable cross-user effects (协作邀请/响应) — routes pass them in.
-export async function chat(repos, { message, onEvent, db, user }) {
+export async function chat(repos, { message, onEvent, db, user, mentions = [] }) {
   const aiConfig = await (repos.aiConfig?.get?.() || null)
 
   // 身份提问：后端按真实配置直接回答，truthful 且不消耗模型额度。
@@ -337,7 +332,7 @@ export async function chat(repos, { message, onEvent, db, user }) {
 
   if (useLlm) {
     try {
-      return await agentChat(repos, { message, aiConfig, onEvent, db, user })
+      return await agentChat(repos, { message, aiConfig, onEvent, db, user, mentions })
     } catch (err) {
       repos.aiErrors.create({ rawInput: message, message: err.message })
       if (aiConfig.fallbackToRule === false) {
@@ -346,5 +341,5 @@ export async function chat(repos, { message, onEvent, db, user }) {
       // fall through to rule chat
     }
   }
-  return ruleChat(repos, { message, db, user })
+  return ruleChat(repos, { message, db, user, mentions })
 }

@@ -4,7 +4,7 @@ import { visibleFilter } from './privacy.js'
 import { detectDue, extractCommandTarget, triageInputSync } from './triage/ruleProvider.js'
 import { persistCapture, matchProjectId } from './capture.js'
 import { convertIdeaToTask } from './ideas.js'
-import { inviteFx, respondInviteFx, findUserByName, extractMentionedUsers, notifyTaskDoneFx, maybeCreateAutoRule, applyAutoInvitesFx } from './collab.js'
+import { inviteFx, respondInviteFx, findUserByName, extractMentionedUsers, notifyTaskDoneFx, maybeCreateAutoRule, applyAutoInvitesFx, settleMentionedCollab, stripInviteClaims, summarizeMentions } from './collab.js'
 import { areFriends, friendIdsOf, requestFriendByIdFx, requestFriendFx } from './friends.js'
 import { nowIso } from '../lib/ids.js'
 
@@ -100,7 +100,7 @@ export function normalizeAction(a) {
 // Model-driven chat: the LLM reads intent → returns {reply, actions}; we execute
 // the actions against the todo DB (with generation records) and reply naturally.
 // Returns the same unified shape as the rule chat.
-export async function agentChat(repos, { message, aiConfig, onEvent, db, user }) {
+export async function agentChat(repos, { message, aiConfig, onEvent, db, user, mentions = [] }) {
   const settings = await repos.settings.get()
   const visibleTasks = visibleFilter(await repos.tasks.all(), settings)
   const profile = await repos.agent.get()
@@ -139,7 +139,9 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
     .filter((m) => !m.isError)
     .slice(-12)
     .map((m) => ({ role: m.role === 'agent' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 600) }))
-  const userContent = `上下文(JSON)：\n${JSON.stringify(context)}\n\n用户消息：${message}`
+  // 结构化 @提及（人/时间/文档）：给模型一份清晰的分类清单，便于区分意图。
+  const mentionBrief = summarizeMentions(mentions)
+  const userContent = `上下文(JSON)：\n${JSON.stringify(context)}${mentionBrief ? `\n\n本轮结构化提及：\n${mentionBrief}` : ''}\n\n用户消息：${message}`
   const turns = [...history, { role: 'user', content: userContent }]
   let raw
   if (onEvent) {
@@ -287,37 +289,21 @@ export async function agentChat(repos, { message, aiConfig, onEvent, db, user })
     } catch { /* skip malformed action */ }
   }
 
+  // 结构化时间提及 → 为本轮新建、且未识别到截止时间的任务补上精确 dueAt（@时间 权威落库）
+  const tIso = (mentions || []).find((m) => m.type === 'time' && m.iso)
+  if (tIso) {
+    for (const e of entities.filter((e) => e.type === 'task')) {
+      if (!e.entity.dueAt) e.entity = await repos.tasks.update(e.entity.id, { dueAt: tIso.iso })
+    }
+  }
+
   let reply = (out.reply || '好的。').trim()
 
-  // 守卫（协作）：声称"已邀请/已通知 X"但没有 invite 动作 → 尝试按 @成员兜底真邀请；
-  // @到的非好友 → 降级为发好友请求。
-  if (db && /(已邀请|已通知|会通知|邀请了)/.test(reply) && !performed.some((p) => p.type === 'invite')) {
-    const taskEntity = entities.find((e) => e.type === 'task')
-    const mentioned = await extractMentionedUsers(db, message, user)
-    if (taskEntity && mentioned.length) {
-      for (const u of mentioned) {
-        if (user && !u.isFriend) {
-          const fr = await requestFriendByIdFx(db, user, u.id)
-          if ((fr.friendship || fr.pending) && !performed.some((p) => p.type === 'friend_request' && p.userId === u.id)) {
-            performed.push({ type: 'friend_request', userId: u.id, userName: u.name })
-          } else if (fr.error && !fr.friendship && !fr.pending) {
-            performed.push({ type: 'add_friend_failed', userName: u.name, error: fr.error })
-          }
-          continue
-        }
-        const r = await inviteFx(db, repos, user, taskEntity.entity.id, u.id)
-        if (r.collab) performed.push({ type: 'invite', userId: u.id, userName: u.name, collabId: r.collab.id, recovered: true })
-      }
-    }
-    if (!performed.some((p) => p.type === 'invite' || p.type === 'friend_request')) reply += '\n（提示：本次没有实际发出协作邀请——@成员名 或说清楚要邀请谁。）'
-  }
-
-  // 好友动作的回复修正：降级/失败必须如实告知，不让 AI 的说法与事实不符。
-  for (const p of performed.filter((x) => x.type === 'friend_request')) {
-    if (!reply.includes('好友请求')) reply += `\n👋 ${p.userName} 还不是你的好友——已自动发送好友请求，对方接受后再 @ 即可邀请协作。`
-  }
-  for (const p of performed.filter((x) => x.type === 'add_friend_failed')) {
-    reply += `\n（好友请求未发出：${p.error}）`
+  // 协作口径统一（修复"已邀请"与"未实际发出"自相矛盾）：
+  // 结算 @成员 的真实结果，剥掉 LLM 可能说错的"已邀请"断言，用权威状态行覆盖。
+  if (db && user) {
+    const settled = await settleMentionedCollab({ db, repos, user, message, taskEntity: entities.find((e) => e.type === 'task'), performed, structured: mentions })
+    if (settled.lines.length) reply = (stripInviteClaims(reply) + '\n' + settled.lines.join('\n')).trim()
   }
 
   // 诚实守卫：reply 声称已执行，但实际什么都没做 → 服务端兜底真执行，绝不让 AI 空口说白话。
