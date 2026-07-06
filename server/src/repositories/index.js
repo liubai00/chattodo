@@ -1,4 +1,4 @@
-import { makeId, nowIso } from '../lib/ids.js'
+import { makeId, nowIso, nowIsoMs } from '../lib/ids.js'
 import { config } from '../config.js'
 
 // ---- row -> domain mappers (snake_case -> camelCase, matching the frontend shape) ----
@@ -37,7 +37,8 @@ const toSettings = (r) => {
     aiVisibility: r.ai_visibility, notifPrefs, theme: r.theme || 'light', friendPolicy: r.friend_policy === 'closed' ? 'closed' : 'open', updatedAt: r.updated_at,
   }
 }
-const toChat = (r) => r && { id: r.id, role: r.role, text: r.text, isError: !!r.is_error, createdAt: r.created_at }
+const toChat = (r) => r && { id: r.id, role: r.role, text: r.text, isError: !!r.is_error, conversationId: r.conversation_id || '', createdAt: r.created_at }
+const toConv = (r) => r && { id: r.id, title: r.title, createdAt: r.created_at, updatedAt: r.updated_at, lastText: r.last_text || '', messageCount: Number(r.msg_count || 0) }
 const toRecord = (r) => r && {
   id: r.id, rawInput: r.raw_input, source: r.source, aiKind: r.ai_kind, confidence: r.confidence,
   aiReason: r.ai_reason, resultEntityType: r.result_entity_type, resultEntityId: r.result_entity_id,
@@ -232,13 +233,54 @@ export function makeRepos(db, userId = config.defaultUserId) {
     all: () => db.all(`SELECT * FROM ai_errors WHERE user_id = ? ORDER BY created_at DESC`, [userId]),
   }
 
+  const defaultConvId = 'conv_' + userId
   const chat = {
-    all: async () => (await db.all(`SELECT * FROM chat_messages WHERE user_id = ? ORDER BY created_at`, [userId])).map(toChat),
+    // conversationId 省略时回退到用户默认会话（保持旧调用点可用）
+    all: async (conversationId) => (await db.all(
+      `SELECT * FROM chat_messages WHERE user_id = ? AND conversation_id = ? ORDER BY created_at`,
+      [userId, conversationId || defaultConvId])).map(toChat),
     async create(data) {
       const id = data.id || makeId('msg')
-      await db.run(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,?)`,
-        [id, userId, data.role, data.text, data.isError ? 1 : 0, nowIso()])
+      const convId = data.conversationId || defaultConvId
+      await db.run(`INSERT INTO chat_messages (id,user_id,conversation_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,?,?)`,
+        [id, userId, convId, data.role, data.text, data.isError ? 1 : 0, nowIso()])
+      await db.run(`UPDATE conversations SET updated_at = ? WHERE id = ? AND user_id = ?`, [nowIsoMs(), convId, userId])
       return toChat(await db.get(`SELECT * FROM chat_messages WHERE id = ?`, [id]))
+    },
+  }
+
+  const conversations = {
+    list: async () => (await db.all(
+      `SELECT c.*,
+              (SELECT text FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_text,
+              (SELECT COUNT(*) FROM chat_messages m WHERE m.conversation_id = c.id) AS msg_count
+         FROM conversations c WHERE c.user_id = ? ORDER BY c.updated_at DESC`, [userId])).map(toConv),
+    get: async (id) => toConv(await db.get(`SELECT * FROM conversations WHERE id = ? AND user_id = ?`, [id, userId])),
+    latestId: async () => { const r = await db.get(`SELECT id FROM conversations WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1`, [userId]); return r ? r.id : null },
+    async ensureDefault() {
+      const ex = await db.get(`SELECT id FROM conversations WHERE id = ?`, [defaultConvId])
+      if (!ex) { const ts = nowIsoMs(); await db.run(`INSERT INTO conversations (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)`, [defaultConvId, userId, '默认对话', ts, ts]) }
+      return defaultConvId
+    },
+    async create(title) {
+      const id = makeId('conv'); const ts = nowIsoMs()
+      await db.run(`INSERT INTO conversations (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)`, [id, userId, String(title || '新对话').slice(0, 40), ts, ts])
+      return toConv(await db.get(`SELECT * FROM conversations WHERE id = ?`, [id]))
+    },
+    async rename(id, title) {
+      await db.run(`UPDATE conversations SET title = ?, updated_at = ? WHERE id = ? AND user_id = ?`, [String(title || '').slice(0, 40), nowIsoMs(), id, userId])
+      return this.get(id)
+    },
+    // 首条消息自动命名（仅当标题仍是默认占位时）+ 置顶
+    async touch(id, maybeTitle) {
+      if (maybeTitle) await db.run(`UPDATE conversations SET updated_at = ?, title = CASE WHEN title IN ('新对话','默认对话') THEN ? ELSE title END WHERE id = ? AND user_id = ?`, [nowIsoMs(), String(maybeTitle).replace(/\s+/g, ' ').trim().slice(0, 24) || '新对话', id, userId])
+      else await db.run(`UPDATE conversations SET updated_at = ? WHERE id = ? AND user_id = ?`, [nowIsoMs(), id, userId])
+    },
+    async remove(id) {
+      await db.tx(async (t) => {
+        await t.run(`DELETE FROM chat_messages WHERE conversation_id = ? AND user_id = ?`, [id, userId])
+        await t.run(`DELETE FROM conversations WHERE id = ? AND user_id = ?`, [id, userId])
+      })
     },
   }
 
@@ -374,5 +416,5 @@ export function makeRepos(db, userId = config.defaultUserId) {
     existsToday: async (text) => !!(await db.get(`SELECT 1 AS ok FROM notifications WHERE user_id = ? AND text = ? AND substr(created_at,1,10) = ? LIMIT 1`, [userId, text, nowIso().slice(0, 10)])),
   }
 
-  return { projects, tasks, ideas, nonTodos, agent, settings, captureRecords, corrections, aiErrors, chat, aiConfig, subtasks, comments, activity, notifications, collaborators, autoRules }
+  return { projects, tasks, ideas, nonTodos, agent, settings, captureRecords, corrections, aiErrors, chat, conversations, aiConfig, subtasks, comments, activity, notifications, collaborators, autoRules }
 }

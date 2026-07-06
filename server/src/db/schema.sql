@@ -123,13 +123,27 @@ CREATE TABLE IF NOT EXISTS ai_errors (
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (
-  id         TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL DEFAULT 'u_default',
-  role       TEXT NOT NULL,                              -- user | agent
-  text       TEXT NOT NULL,
-  is_error   INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL
+  id              TEXT PRIMARY KEY,
+  user_id         TEXT NOT NULL DEFAULT 'u_default',
+  conversation_id TEXT NOT NULL DEFAULT '',
+  role            TEXT NOT NULL,                          -- user | agent
+  text            TEXT NOT NULL,
+  is_error        INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL
 );
+
+-- 多对话：每个用户可有多个会话线程；消息归属某个会话。
+-- （回填放在 users 表创建之后，见下方）
+CREATE TABLE IF NOT EXISTS conversations (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  title      TEXT NOT NULL DEFAULT '新对话',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id, updated_at);
+ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS conversation_id TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_chat_conv ON chat_messages(conversation_id, created_at);
 
 -- Accounts + sessions (registration / login).
 -- name         = 称呼（display / salutation）：聊天、问候、通知、@提及都用它。
@@ -146,6 +160,12 @@ CREATE TABLE IF NOT EXISTS users (
 -- 老库补列 + 回填：存量用户账户名默认等于其称呼。
 ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name TEXT NOT NULL DEFAULT '';
 UPDATE users SET account_name = name WHERE account_name = '' OR account_name IS NULL;
+
+-- 多对话回填（依赖 users 已存在）：每个用户一个默认会话 conv_<userId>，历史消息归入其中。
+INSERT INTO conversations (id, user_id, title, created_at, updated_at)
+  SELECT 'conv_' || id, id, '默认对话', created_at, created_at FROM users
+  WHERE NOT EXISTS (SELECT 1 FROM conversations c WHERE c.user_id = users.id);
+UPDATE chat_messages SET conversation_id = 'conv_' || user_id WHERE conversation_id = '' OR conversation_id IS NULL;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token      TEXT PRIMARY KEY,

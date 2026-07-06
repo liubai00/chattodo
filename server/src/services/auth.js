@@ -51,8 +51,11 @@ export function makeAuth(db) {
           [id, DEFAULT_AGENT.soul, DEFAULT_AGENT.memory, DEFAULT_AGENT.preferences, DEFAULT_AGENT.workingStyle, DEFAULT_AGENT.privacyRules, DEFAULT_AGENT.followup, ts])
         await t.run(`INSERT INTO app_settings (user_id,workspace_mode,privacy_mode,default_view,ai_visibility,updated_at) VALUES (?,?,?,?,?,?)`,
           [id, 'work', 0, 'chat', 'visible_scope_only', ts])
-        await t.run(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,0,?)`,
-          [makeId('msg'), id, 'agent', '欢迎使用 LinX 灵信。把任何想法丢给我，我会判断它是任务、待澄清想法，还是非 todo 信息。', ts])
+        // 默认会话 + 欢迎语归入其中
+        await t.run(`INSERT INTO conversations (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)`,
+          ['conv_' + id, id, '默认对话', ts, ts])
+        await t.run(`INSERT INTO chat_messages (id,user_id,conversation_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,0,?)`,
+          [makeId('msg'), id, 'conv_' + id, 'agent', '欢迎使用 LinX 灵信。把任何想法丢给我，我会判断它是任务、待澄清想法，还是非 todo 信息。', ts])
       })
       return this.get(id)
     },

@@ -27,7 +27,8 @@ async function generateDueNotifications(repos, tasks, collabMap) {
 export default async function stateRoutes(app) {
   app.get('/api/state', async (req) => {
     const repos = req.repos
-    const [settings, collabMap, rawTasks, todoIdeas, nonTodoOutputs, projects, records, chatRows, invites, agentProfile] = await Promise.all([
+    const activeConversationId = (await repos.conversations.latestId()) || (await repos.conversations.ensureDefault())
+    const [settings, collabMap, rawTasks, todoIdeas, nonTodoOutputs, projects, records, chatRows, invites, agentProfile, conversations] = await Promise.all([
       repos.settings.get(),
       repos.collaborators.myAcceptedMap(),
       repos.tasks.all(),
@@ -35,9 +36,10 @@ export default async function stateRoutes(app) {
       repos.nonTodos.all(),
       repos.projects.all(),
       repos.captureRecords.all(),
-      repos.chat.all(),
+      repos.chat.all(activeConversationId),
       repos.collaborators.myPending(),
       repos.agent.get(),
+      repos.conversations.list(),
     ])
     // 协作任务带来源标记（from = owner 名字）
     const tasks = rawTasks.map((t) => {
@@ -68,6 +70,8 @@ export default async function stateRoutes(app) {
       notifications: await repos.notifications.all(),
       invites,
       chat,
+      conversations,
+      activeConversationId,
       visible: {
         tasks: visibleFilter(tasks, settings),
         todoIdeas: visibleFilter(todoIdeas, settings),

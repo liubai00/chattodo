@@ -30,7 +30,7 @@ export default async function chatRoutes(app) {
     const { message } = req.body || {}
     if (!message || !String(message).trim()) return reply.status(400).send({ error: 'message is required' })
     if (chatLimited(req)) return reply.status(429).send({ error: '消息太频繁了，休息一下再发～' })
-    return chat(req.repos, { message: String(message), db: app.db, user: req.user, mentions: cleanMentions((req.body || {}).mentions) })
+    return chat(req.repos, { message: String(message), db: app.db, user: req.user, mentions: cleanMentions((req.body || {}).mentions), conversationId: (req.body || {}).conversationId })
   })
 
   app.post('/api/chat/stream', async (req, reply) => {
@@ -51,6 +51,7 @@ export default async function chatRoutes(app) {
         db: app.db,
         user: req.user,
         mentions: cleanMentions((req.body || {}).mentions),
+        conversationId: (req.body || {}).conversationId,
         onEvent: (e) => {
           if (e.type === 'delta') send('delta', { text: e.text })
           else if (e.type === 'status') send('status', { intent: e.intent })

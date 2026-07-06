@@ -318,13 +318,24 @@ async function ruleChat(repos, { message, db, user, mentions = [] }) {
 // (or as a fallback when the LLM call fails and fallbackToRule is on).
 // onEvent (optional): streaming hook — {type:'status',intent} early, then {type:'delta',text}…
 // db/user (optional): enable cross-user effects (协作邀请/响应) — routes pass them in.
-export async function chat(repos, { message, onEvent, db, user, mentions = [] }) {
+export async function chat(repos, { message, onEvent, db, user, mentions = [], conversationId }) {
   const aiConfig = await (repos.aiConfig?.get?.() || null)
+
+  // 解析活动会话：指定且存在则用之，否则回退到最近/默认会话。
+  let convId = null
+  if (repos.conversations) {
+    if (conversationId && (await repos.conversations.get(conversationId))) convId = conversationId
+    else convId = (await repos.conversations.latestId()) || (await repos.conversations.ensureDefault())
+    await repos.conversations.touch(convId, message) // 置顶 + 首条消息自动命名
+  }
+  // 本轮把所有 chat 读写绑定到该会话（不影响 repos 的其它仓库）。
+  const cr = convId ? { ...repos, chat: { all: () => repos.chat.all(convId), create: (d) => repos.chat.create({ ...d, conversationId: convId }) } } : repos
+  const withConv = (r) => { if (r && typeof r === 'object') r.conversationId = convId; return r }
 
   // 身份提问：后端按真实配置直接回答，truthful 且不消耗模型额度。
   if (isIdentityQuestion(message)) {
     if (onEvent) onEvent({ type: 'status', intent: 'identity' })
-    return finish(repos, { message, intent: 'identity', reply: identityReply(aiConfig) })
+    return withConv(await finish(cr, { message, intent: 'identity', reply: identityReply(aiConfig) }))
   }
 
   const useLlm = aiConfig && aiConfig.provider !== 'rule' && aiConfig.apiKey
@@ -332,14 +343,14 @@ export async function chat(repos, { message, onEvent, db, user, mentions = [] })
 
   if (useLlm) {
     try {
-      return await agentChat(repos, { message, aiConfig, onEvent, db, user, mentions })
+      return withConv(await agentChat(cr, { message, aiConfig, onEvent, db, user, mentions }))
     } catch (err) {
       repos.aiErrors.create({ rawInput: message, message: err.message })
       if (aiConfig.fallbackToRule === false) {
-        return finish(repos, { message, intent: 'agent', reply: 'AI 处理失败，请点重试。', isError: true })
+        return withConv(await finish(cr, { message, intent: 'agent', reply: 'AI 处理失败，请点重试。', isError: true }))
       }
       // fall through to rule chat
     }
   }
-  return ruleChat(repos, { message, db, user, mentions })
+  return withConv(await ruleChat(cr, { message, db, user, mentions }))
 }

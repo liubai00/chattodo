@@ -46,7 +46,7 @@ const seedChat = [
 
 // Reset all tables and load seed data. Idempotent (safe to re-run).
 export async function seedDb(db, userId = config.defaultUserId) {
-  const tables = ['projects', 'tasks', 'todo_ideas', 'non_todo_outputs', 'agent_profile', 'app_settings', 'capture_records', 'corrections', 'ai_errors', 'chat_messages', 'ai_config', 'subtasks', 'comments', 'activity', 'notifications', 'task_collaborators', 'auto_rules', 'friendships', 'users', 'sessions']
+  const tables = ['projects', 'tasks', 'todo_ideas', 'non_todo_outputs', 'agent_profile', 'app_settings', 'capture_records', 'corrections', 'ai_errors', 'chat_messages', 'conversations', 'ai_config', 'subtasks', 'comments', 'activity', 'notifications', 'task_collaborators', 'auto_rules', 'friendships', 'users', 'sessions']
   await db.tx(async (t) => {
     for (const tb of tables) await t.run(`DELETE FROM ${tb}`)
 
@@ -72,7 +72,8 @@ export async function seedDb(db, userId = config.defaultUserId) {
     await t.run(`INSERT INTO app_settings (user_id,workspace_mode,privacy_mode,default_view,ai_visibility,updated_at) VALUES (?,?,?,?,?,?)`,
       [userId, seedAppSettings.workspaceMode, seedAppSettings.privacyMode ? 1 : 0, seedAppSettings.defaultView, seedAppSettings.aiVisibility, seedAppSettings.updatedAt])
 
-    for (const m of seedChat) await t.run(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,?)`, [m.id, userId, m.role, m.text, 0, m.createdAt])
+    await t.run(`INSERT INTO conversations (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)`, ['conv_' + userId, userId, '默认对话', daysFromNow(-1), daysFromNow(-1)])
+    for (const m of seedChat) await t.run(`INSERT INTO chat_messages (id,user_id,conversation_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,?,?)`, [m.id, userId, 'conv_' + userId, m.role, m.text, 0, m.createdAt])
 
     await t.run(`INSERT INTO ai_config (id,provider,base_url,model,api_key,fallback_to_rule,updated_at) VALUES ('default',?,?,?,?,?,?)`,
       [config.ai.provider, config.ai.baseUrl, config.ai.model, config.ai.apiKey, config.ai.fallbackToRule ? 1 : 0, daysFromNow(-1)])

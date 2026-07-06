@@ -1,4 +1,4 @@
-import { makeId, nowIso } from '../lib/ids.js'
+import { makeId, nowIso, nowIsoMs } from '../lib/ids.js'
 import { publish, publishMany } from './events.js'
 import { areFriends, requestFriendByIdFx } from './friends.js'
 
@@ -14,8 +14,10 @@ export const pushNotification = async (db, targetUserId, data) => {
   publish(targetUserId, { kind: 'notify', text: data.text, actionType: data.actionType || null })
 }
 export const pushChat = async (db, targetUserId, text) => {
-  await db.run(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,0,?)`,
-    [makeId('msg'), targetUserId, 'agent', text, nowIso()])
+  const conv = 'conv_' + targetUserId // 注入对方默认会话
+  await db.run(`INSERT INTO chat_messages (id,user_id,conversation_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,0,?)`,
+    [makeId('msg'), targetUserId, conv, 'agent', text, nowIso()])
+  await db.run(`UPDATE conversations SET updated_at = ? WHERE id = ?`, [nowIsoMs(), conv])
   publish(targetUserId, { kind: 'chat' })
 }
 

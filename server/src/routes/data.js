@@ -27,8 +27,12 @@ export default async function dataRoutes(app) {
     await db.tx(async (t) => {
       for (const table of tables) await t.run(`DELETE FROM ${table} WHERE user_id = ?`, [userId])
       await t.run(`DELETE FROM task_collaborators WHERE owner_id = ? OR user_id = ?`, [userId, userId])
-      await t.run(`INSERT INTO chat_messages (id,user_id,role,text,is_error,created_at) VALUES (?,?,?,?,0,?)`,
-        ['msg_' + Date.now().toString(36), userId, 'agent', '数据已清空。把任何想法丢给我，重新开始。', new Date().toISOString()])
+      // 清空业务数据后，保留会话骨架并往默认会话写一条重启语（其余会话消息已随 chat_messages 清掉）
+      await t.run(`DELETE FROM conversations WHERE user_id = ? AND id <> ?`, [userId, 'conv_' + userId])
+      await t.run(`INSERT INTO conversations (id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET updated_at = EXCLUDED.updated_at`,
+        ['conv_' + userId, userId, '默认对话', new Date().toISOString(), new Date().toISOString()])
+      await t.run(`INSERT INTO chat_messages (id,user_id,conversation_id,role,text,is_error,created_at) VALUES (?,?,?,?,?,0,?)`,
+        ['msg_' + Date.now().toString(36), userId, 'conv_' + userId, 'agent', '数据已清空。把任何想法丢给我，重新开始。', new Date().toISOString()])
     })
     return { ok: true }
   })

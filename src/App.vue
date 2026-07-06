@@ -104,7 +104,26 @@
                 <input :value="vm.feedQuery" @input="vm.onFeedQuery" placeholder="搜索收集内容" style="border:0;background:transparent;flex:1;min-width:0;color:var(--text);font:500 13px/1 var(--font);"/>
               </div>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 17px 7px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 17px 7px;">
+              <span style="font:700 11px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;">对话</span>
+              <button @click="vm.newConversation" title="新建对话" style="display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--accent-ink);font:600 11.5px/1 var(--font);cursor:pointer;"><i class="ph ph-plus" style="font-size:13px;"></i>新建</button>
+            </div>
+            <div style="flex:0 1 auto;max-height:38%;overflow:auto;padding:2px 9px 6px;display:flex;flex-direction:column;gap:2px;">
+              <template v-for="(c, __ic) in vm.conversationList" :key="c.id">
+                <a @click="c.open" :style="`display:flex;gap:9px;padding:9px 10px;border-radius:10px;cursor:pointer;background:${c.active?'var(--accent-bg)':'transparent'};`" data-hv="0">
+                  <i class="ph ph-chat-teardrop-text" :style="`font-size:16px;margin-top:1px;flex:0 0 auto;color:${c.active?'var(--accent-ink)':'var(--text3)'};`"></i>
+                  <span style="flex:1;min-width:0;">
+                    <span :style="`display:block;font:600 12.5px/1.3 var(--font);color:${c.active?'var(--accent-ink)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ c.title }}</span>
+                    <span style="display:block;font:500 11px/1.3 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.preview }}</span>
+                  </span>
+                  <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:0 0 auto;">
+                    <span style="font:500 10px/1 var(--font);color:var(--text3);">{{ c.time }}</span>
+                    <button @click.stop="c.remove" title="删除对话" style="border:0;background:transparent;color:var(--text3);cursor:pointer;font-size:12px;padding:1px;line-height:1;">&times;</button>
+                  </span>
+                </a>
+              </template>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 17px 7px;border-top:1px solid var(--line);">
               <span style="font:700 11px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;">收集箱</span>
               <span style="font:600 11px/1 var(--font);color:var(--text3);">{{ vm.feedCount }}</span>
             </div>
@@ -792,6 +811,7 @@
 import { reactive, computed, onMounted, onUpdated, onBeforeUnmount, nextTick } from 'vue';
 import { api, setToken, getToken } from './lib/api.js';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
+import { expandTimeTokens } from './lib/timeTokens.js';
 
 // ---- backend <-> frontend display helpers ----
 function lxPad(n){ return String(n).padStart(2,'0'); }
@@ -849,6 +869,7 @@ class Component {
     pwdOpen: false, pwdOld: '', pwdNew: '', pwdBusy: false,
     team: [],
     friends: { accepted: [], incoming: [], outgoing: [] }, addFriendEmail: '',
+    conversations: [], activeConversationId: null,
     todayOpen: false, todayLoading: false, todayError: '', todayItems: [],
     newProjOpen: false, newProjName: '',
     aiSource: 'team', ownAiOpen: false,
@@ -881,6 +902,18 @@ class Component {
   _mapTask(t){ return { id:t.id, title:t.title, status:t.status, project:t.collabFrom?'协作':this._projName(t.projectId), due:lxFmtDue(t.dueAt), today:lxIsToday(t.dueAt)||lxIsToday(t.plannedAt), priority:t.priority||3, scope:t.privacyScope||'work', notes:t.notes||'', raw:t.notes||'', reason:'', conf:t.confidence!=null?String(t.confidence):'', gen:t.createdAt||'', edited:false, assignee:t.assignee||null, collabFrom:t.collabFrom||null, _projectId:t.projectId||null, _dueAt:t.dueAt||null }; }
   _mapIdea(i){ return { id:i.id, title:i.title, raw:i.rawText, status:i.status, suggest:i.suggestedNextAction, reason:i.aiReason, scope:i.privacyScope||'work', gen:i.createdAt||'' }; }
   _mapNon(n){ return { id:n.id, title:n.title, text:n.summary||n.rawText, raw:n.rawText, reason:n.reason, dest:n.suggestedDestination||'archive', scope:n.privacyScope||'work', gen:n.createdAt||'', corrected:!!n.corrected }; }
+  // 会话消息 → 气泡（日期分隔线 + 时间悬浮 + 用户消息回链实体），供 loadState 与切换对话复用
+  _buildMessages(chatRows){
+    const messages=[]; let lastDay='';
+    for(const m of (chatRows||[]).slice(-60)){
+      const d=m.createdAt?new Date(m.createdAt):null;
+      if(d){ const day=`${d.getMonth()+1}月${d.getDate()}日`; if(day!==lastDay){ lastDay=day; const t0=new Date(); const isToday=d.getFullYear()===t0.getFullYear()&&d.getMonth()===t0.getMonth()&&d.getDate()===t0.getDate(); messages.push({id:'day_'+m.id,role:'sys',text:isToday?'今天':day}); } }
+      const time=d?`${d.getMonth()+1}/${d.getDate()} ${lxPad(d.getHours())}:${lxPad(d.getMinutes())}`:'';
+      if(m.role==='user') messages.push({id:m.id,role:'user',text:m.text,time,refType:m.refType||null,refId:m.refId||null});
+      else messages.push({id:m.id,role:'ai',kind:'text',text:m.text,isErr:!!m.isError,time});
+    }
+    return messages;
+  }
   async loadState(){
     try{
       const [st, ai] = await Promise.all([ api.getState(), api.getAiConfig().catch(()=>null) ]);
@@ -893,14 +926,7 @@ class Component {
       (st.nonTodoOutputs||[]).slice(0,3).forEach(n=>feed.push({id:n.id,kind:'nono',title:n.title,time:lxFmtDue(n.createdAt),refId:n.id}));
       const presetName = ai ? ((this._aiPresets.find(p=>p.provider===ai.provider && (p.baseUrl||'')===(ai.baseUrl||''))||{}).name || (ai.provider==='rule'?'规则版（离线）':'自定义')) : '规则版（离线）';
       // server chat history → message bubbles（含日期分隔线、时间悬浮、生成实体回链）
-      const messages=[]; let lastDay='';
-      for(const m of (st.chat||[]).slice(-60)){
-        const d=m.createdAt?new Date(m.createdAt):null;
-        if(d){ const day=`${d.getMonth()+1}月${d.getDate()}日`; if(day!==lastDay){ lastDay=day; const t0=new Date(); const isToday=d.getFullYear()===t0.getFullYear()&&d.getMonth()===t0.getMonth()&&d.getDate()===t0.getDate(); messages.push({id:'day_'+m.id,role:'sys',text:isToday?'今天':day}); } }
-        const time=d?`${d.getMonth()+1}/${d.getDate()} ${lxPad(d.getHours())}:${lxPad(d.getMinutes())}`:'';
-        if(m.role==='user') messages.push({id:m.id,role:'user',text:m.text,time,refType:m.refType||null,refId:m.refId||null});
-        else messages.push({id:m.id,role:'ai',kind:'text',text:m.text,isErr:!!m.isError,time});
-      }
+      const messages=this._buildMessages(st.chat);
       api.team().then(t=>this.setState({team:(t.users||[])})).catch(()=>{});
       this.loadFriends();
       api.autoRules().then(r=>this.setState({autoRules:(r.rules||[])})).catch(()=>{});
@@ -912,6 +938,8 @@ class Component {
         notifications:(st.notifications||[]).map(n=>({id:n.id,type:n.type,icon:n.icon||'ph-bell',color:n.color||'var(--accent-ink)',text:n.text,time:lxFmtDue(n.createdAt),read:!!n.read,actionType:n.actionType||null,actionRef:n.actionRef||null,handled:!!n.handled})),
         feed,
         messages,
+        conversations:(st.conversations||[]),
+        activeConversationId: st.activeConversationId||s.activeConversationId,
         theme: as.theme==='dark'?'dark':'light',
         agent:{ soul:ap.soul||'', memory:ap.memory||'', preferences:ap.preferences||'', workingStyle:ap.workingStyle||'', privacyRules:ap.privacyRules||'', followup:ap.defaultFollowupStrategy||'' },
         workspace: as.workspaceMode||s.workspace,
@@ -952,7 +980,7 @@ class Component {
       this.flashToast(s.authMode==='register'?'注册成功 · 欢迎使用':'欢迎回来');
     }catch(e){ this.setState({authBusy:false, authError:(e&&e.message)||'请求失败，请稍后再试'}); }
   }
-  doLogout(){ if(this._stopEvents){ this._stopEvents(); this._stopEvents=null; } api.logout().catch(()=>{}); setToken(''); this.setState({authed:false, authMode:'login', authPassword:'', authError:'', view:'chat', dbView:'all', dbSearch:'', dbProject:'all', dbPriority:'all', dbSelected:[], detailId:null, selIdeaId:null, selNonId:null, selProjectId:null, adminSelId:null, messages:[], tasks:[], ideas:[], nonTodos:[], feed:[], notifications:[], team:[], friends:{accepted:[],incoming:[],outgoing:[]}, addFriendEmail:'', taskCollabs:{}, taskAccess:{}, autoRules:[], setSection:'account'}); }
+  doLogout(){ if(this._stopEvents){ this._stopEvents(); this._stopEvents=null; } api.logout().catch(()=>{}); setToken(''); this.setState({authed:false, authMode:'login', authPassword:'', authError:'', view:'chat', dbView:'all', dbSearch:'', dbProject:'all', dbPriority:'all', dbSelected:[], detailId:null, selIdeaId:null, selNonId:null, selProjectId:null, adminSelId:null, messages:[], tasks:[], ideas:[], nonTodos:[], feed:[], notifications:[], team:[], friends:{accepted:[],incoming:[],outgoing:[]}, addFriendEmail:'', conversations:[], activeConversationId:null, taskCollabs:{}, taskAccess:{}, autoRules:[], setSection:'account'}); }
   pickAiPreset(p){ this.setState(s=>({settings:{...s.settings, aiPreset:p.name, aiProvider:p.provider, aiBaseUrl:p.baseUrl, aiModel:(p.models&&p.models[0])||'', aiTested:false}})); }
   setAiField(field,val){ this.setState(s=>({settings:{...s.settings, [field]:val, aiTested:false, ...(field==='aiBaseUrl'||field==='aiModel'?{aiPreset: s.settings.aiPreset==='规则版（离线）'?s.settings.aiPreset:'自定义'}:{})}})); }
   toggleTheme() { this.setState(s=>({theme:s.theme==='dark'?'light':'dark'}), ()=>{ this.applyTheme(); api.updateSettings({theme:this.state.theme}).catch(()=>{}); }); }
@@ -1042,6 +1070,30 @@ class Component {
     }).catch(e=>this.flashToast('操作失败：'+e.message));
   }
   loadFriends(){ api.friends().then(f=>this.setState({friends:{accepted:f.friends||[],incoming:f.incoming||[],outgoing:f.outgoing||[]}})).catch(()=>{}); }
+  // ---- 多对话 ----
+  loadConversations(){ api.conversations().then(r=>this.setState({conversations:(r.conversations||[])})).catch(()=>{}); }
+  newConversation(){
+    api.createConversation().then(c=>{
+      this.setState(s=>({conversations:[c,...s.conversations],activeConversationId:c.id,messages:[{id:'welcome_'+c.id,role:'ai',kind:'text',text:'新的对话已开启。把想法、任务丢给我，或问我「接下来做什么」。'}],view:'chat',mobilePane:'main'}), ()=>{ this.scrollMsgs(true); const el=document.getElementById('lx-composer'); if(el)el.focus(); });
+    }).catch(e=>this.flashToast('新建失败：'+e.message));
+  }
+  switchConversation(id){
+    if(id===this.state.activeConversationId) { this.setState({mobilePane:'main'}); return; }
+    this.setState({activeConversationId:id,mobilePane:'main'});
+    api.conversationMessages(id).then(r=>{
+      this.setState({messages:this._buildMessages(r.chat)}, ()=>this.scrollMsgs(true));
+    }).catch(e=>this.flashToast('加载对话失败：'+e.message));
+  }
+  deleteConversationUi(id){
+    if(!window.confirm('删除这个对话及其消息？此操作不可恢复。')) return;
+    api.deleteConversation(id).then(()=>{
+      const rest=this.state.conversations.filter(c=>c.id!==id);
+      const wasActive=this.state.activeConversationId===id;
+      this.setState({conversations:rest});
+      if(wasActive){ if(rest.length) this.switchConversation(rest[0].id); else this.loadState(); }
+      this.flashToast('已删除对话');
+    }).catch(e=>this.flashToast('删除失败：'+e.message));
+  }
   // 今日待办浮层：点击胶囊呼出，拉取 view=today，四态（加载/错误/空/列表）+ 刷新
   toggleTodayPanel(){ const open=!this.state.todayOpen; this.setState({todayOpen:open}); if(open) this.loadToday(); }
   closeTodayPanel(){ this.setState({todayOpen:false}); }
@@ -1114,9 +1166,10 @@ class Component {
   async send() {
     if(this.state.role==='viewer'){ this.flashToast('只读模式 · 无法创建内容'); return; }
     const el=document.getElementById('lx-composer'); if(!el) return;
-    const t=(el.value||'').trim(); const refs=this.state.pendingRefs.slice();
-    if(!t && !refs.length) return; el.value=''; el.style.height='auto';
-    const mentions=this._collectMentions(t);
+    const rawT=(el.value||'').trim(); const refs=this.state.pendingRefs.slice();
+    if(!rawT && !refs.length) return; el.value=''; el.style.height='auto';
+    const mentions=this._collectMentions(rawT);      // 结构化提及从原文采集（含 @人名）
+    const t=expandTimeTokens(rawT);                   // 时间快捷词就地展开：展示与保存一致
     const uid='m'+(++this._seq);
     const userMsg={id:uid,role:'user',text:t||'（就引用内容继续）',refs:refs.map(r=>r.label)};
     this.setState(s=>({messages:[...s.messages,userMsg],pendingRefs:[],mentions:[],mentionOpen:false,mentionQuery:''}), ()=>this.scrollMsgs(true));
@@ -1154,12 +1207,12 @@ class Component {
       };
       let res;
       try{
-        res=await api.chatStream(t,{ onStatus:(st)=>{ gotAnyEvent=true; if(st&&st.intent&&st.intent!=='agent') this.setState({thinkText:this._thinkLabel(st.intent)}); }, onDelta }, mentions);
+        res=await api.chatStream(t,{ onStatus:(st)=>{ gotAnyEvent=true; if(st&&st.intent&&st.intent!=='agent') this.setState({thinkText:this._thinkLabel(st.intent)}); }, onDelta }, mentions, this.state.activeConversationId);
       }catch(streamErr){
         // 只有「一个事件都没收到」才回退重发——服务端一旦开始处理（status/delta 已到），
         // 重发会导致动作重复执行（重复建任务/重复邀请），此时走错误卡由用户决定重试。
         if(streamId||gotAnyEvent) throw streamErr;
-        res=await api.chat(t,mentions);
+        res=await api.chat(t,mentions,this.state.activeConversationId);
       }
       const newMsgs=[]; let tasks=this.state.tasks.slice(), ideas=this.state.ideas.slice(), nonTodos=this.state.nonTodos.slice(), feedArr=this.state.feed.slice();
       // 1) created entities → cards
@@ -1199,8 +1252,9 @@ class Component {
         if(!newMsgs.length&&res.reply) newMsgs.push({id:'m'+(++this._seq),role:'ai',kind:'text',text:res.reply});
       }
       this.setState(s=>({tasks,ideas,nonTodos,feed:feedArr,thinking:false,
+        activeConversationId: res.conversationId||s.activeConversationId,
         messages:[...s.messages.map(m=>m.id===streamId?{...m,streaming:false,text:(res.reply||m.text)}:m),...newMsgs]}),
-        ()=>{ this.scrollMsgs(); const c=document.getElementById('lx-composer'); if(c)c.focus(); });
+        ()=>{ this.scrollMsgs(); const c=document.getElementById('lx-composer'); if(c)c.focus(); this.loadConversations(); });
     }catch(e){
       const aiMsg={id:'m'+(++this._seq),role:'ai',kind:'error',errType:(e&&e.message)||'请求失败',retryText:t};
       this.setState(s=>({thinking:false,messages:[...s.messages,aiMsg],aiErrors:[{id:'e'+(++this._seq),user:s.settings.name,raw:t,errType:(e&&e.message)||'请求失败',time:'刚刚',status:'failed'},...s.aiErrors]}), ()=>this.scrollMsgs());
@@ -1304,7 +1358,7 @@ class Component {
   }
   paletteKey(e){ const flat=this.buildPalette().flat; const n=flat.length; if(e.key==='ArrowDown'){e.preventDefault();this.setState(s=>({paletteIndex:Math.min((s.paletteIndex||0)+1,Math.max(0,n-1))}));} else if(e.key==='ArrowUp'){e.preventDefault();this.setState(s=>({paletteIndex:Math.max((s.paletteIndex||0)-1,0)}));} else if(e.key==='Enter'){e.preventDefault();const it=flat[this.state.paletteIndex||0]||flat[0]; if(it)it.run();} else if(e.key==='Escape'){this.setState({searchOpen:false});} }
   openFeed(f){ if(f.kind==='task') this.setState({view:'chat',detailId:f.refId}); else if(f.kind==='idea') this.setState({view:'clarify',mobilePane:'main'}); else this.setState({view:'nontodo',mobilePane:'main'}); }
-  patchTask(id,patch){ this.setState(s=>({tasks:s.tasks.map(t=>t.id===id?{...t,...patch,edited:true}:t)})); const body={}; ['title','notes','status','priority','assignee'].forEach(k=>{ if(k in patch) body[k]=patch[k]; }); if('scope' in patch) body.privacyScope=patch.scope; if(Object.keys(body).length) api.updateTask(id,body).catch(()=>{}); }
+  patchTask(id,patch){ const ep={...patch}; if(typeof ep.title==='string') ep.title=expandTimeTokens(ep.title); if(typeof ep.notes==='string') ep.notes=expandTimeTokens(ep.notes); this.setState(s=>({tasks:s.tasks.map(t=>t.id===id?{...t,...ep,edited:true}:t)})); const body={}; ['title','notes','status','priority','assignee'].forEach(k=>{ if(k in ep) body[k]=ep[k]; }); if('scope' in ep) body.privacyScope=ep.scope; if(Object.keys(body).length) api.updateTask(id,body).catch(()=>{}); }
   moveOut(id){ const t=this.state.tasks.find(x=>x.id===id); this.setState(s=>({tasks:s.tasks.filter(x=>x.id!==id),detailId:null})); api.taskMoveOut(id).then(r=>{ if(r&&r.nonTodo) this.setState(s=>({nonTodos:[this._mapNon(r.nonTodo),...s.nonTodos]})); this.flashToast('已移出 todo · 保留来源与生成记录'); }).catch(e=>{ if(t) this.setState(s=>({tasks:[t,...s.tasks]})); this.flashToast('移出失败：'+e.message); }); }
   flashToast(msg){ this.setState({toast:msg}); this._toastTimer&&clearTimeout(this._toastTimer); this._toastTimer=setTimeout(()=>this.setState({toast:null}),2600); }
   convertIdea(id){ const it=this.state.ideas.find(x=>x.id===id); const ideas=this.state.ideas.filter(x=>x.id!==id); this.setState({ideas, selIdeaId:ideas[0]?ideas[0].id:null}); api.ideaConvert(id).then(r=>{ if(r&&r.task) this.setState(s=>({tasks:[this._mapTask(r.task),...s.tasks]})); this.flashToast('已转为正式任务 · 进入 Todo 数据库'); }).catch(e=>{ if(it) this.setState(s=>({ideas:[it,...s.ideas]})); this.flashToast('转换失败：'+e.message); }); }
@@ -1562,6 +1616,8 @@ class Component {
       privBtnStyle:'width:30px;height:30px;border:0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;'+(st.privacy?'background:var(--accent-bg);color:var(--accent-ink);':'background:var(--mid);color:var(--text3);'),
       modeLabel, modeChipStyle, modeIcon: st.privacy?'ph-lock-simple':'ph-briefcase',
       feed, feedCount:feed.length, feedEmpty:feed.length===0, feedQuery:st.feedQuery, onFeedQuery:(e)=>this.setState({feedQuery:e.target.value}),
+      conversationList:(st.conversations||[]).map(c=>({ id:c.id, title:c.title||'新对话', preview:(c.lastText||'还没有消息').replace(/\s+/g,' ').slice(0,30), time:lxFmtDue(c.updatedAt), active:c.id===st.activeConversationId, open:()=>this.switchConversation(c.id), remove:()=>this.deleteConversationUi(c.id) })),
+      newConversation:()=>this.newConversation(),
       showQuickPrompts: st.messages.length<=2 && !st.thinking,
       quickPrompts: [
         {icon:'ph-calendar-plus',label:'明天上午十点和客户开会'},

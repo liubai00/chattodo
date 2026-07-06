@@ -48,7 +48,7 @@ export const api = {
 
   getState: () => req('GET', '/state'),
   capture: (text, source = 'chat') => req('POST', '/capture', { text, source }),
-  chat: (message, mentions) => req('POST', '/chat', mentions && mentions.length ? { message, mentions } : { message }),
+  chat: (message, mentions, conversationId) => req('POST', '/chat', { message, ...(mentions && mentions.length ? { mentions } : {}), ...(conversationId ? { conversationId } : {}) }),
   chatStream,
   plan: (blockMinutes) => req('POST', '/plan', blockMinutes ? { blockMinutes } : {}),
 
@@ -93,6 +93,12 @@ export const api = {
   team: () => req('GET', '/team'),
   commitPlan: (items) => req('POST', '/plan/commit', { items }),
 
+  conversations: () => req('GET', '/conversations'),
+  createConversation: (title) => req('POST', '/conversations', title ? { title } : {}),
+  conversationMessages: (id) => req('GET', `/conversations/${id}/messages`),
+  renameConversation: (id, title) => req('PATCH', `/conversations/${id}`, { title }),
+  deleteConversation: (id) => req('DELETE', `/conversations/${id}`),
+
   friends: () => req('GET', '/friends'),
   friendRequest: (email) => req('POST', '/friends/request', { email }),
   friendRespond: (id, accept) => req('POST', `/friends/${id}/respond`, { accept }),
@@ -111,10 +117,10 @@ export const api = {
 // Streaming chat turn over SSE. handlers: {onStatus({intent}), onDelta(text)}.
 // Resolves with the final full payload (same shape as api.chat); throws if the
 // stream is unavailable or breaks before `done` — caller falls back to api.chat.
-async function chatStream(message, handlers = {}, mentions = []) {
+async function chatStream(message, handlers = {}, mentions = [], conversationId = null) {
   const headers = { 'content-type': 'application/json' }
   if (TOKEN) headers.authorization = 'Bearer ' + TOKEN
-  const body = mentions && mentions.length ? { message, mentions } : { message }
+  const body = { message, ...(mentions && mentions.length ? { mentions } : {}), ...(conversationId ? { conversationId } : {}) }
   const res = await fetch(BASE + '/chat/stream', { method: 'POST', headers, body: JSON.stringify(body) })
   if (!res.ok || !res.body || !res.body.getReader) {
     const err = new Error('stream unavailable'); err.status = res.status; throw err
