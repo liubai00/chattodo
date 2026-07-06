@@ -222,6 +222,7 @@
             <div style="padding:16px;color:var(--text3);font:500 13px/1.5 var(--font);">{{ vm.stubName }}</div>
           </template>
         </aside>
+        <template v-if="!vm.isMobile"><div @mousedown="vm.startMidResize" title="拖动调整宽度" style="flex:0 0 5px;cursor:col-resize;background:transparent;position:relative;z-index:6;" data-hv="0"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div></template>
         <main :style="vm.mainStyle"><template v-if="vm.isViewer"><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--idea-bg);border-bottom:1px solid var(--line);font:600 12px/1.4 var(--font);color:var(--idea);"><i class="ph ph-lock-simple"></i>只读模式 · 你当前是「只读」角色，无法创建或编辑内容</div></template>
           <template v-if="vm.isChat">
             <div style="position:relative;height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);z-index:12;">
@@ -411,11 +412,11 @@
             <template v-if="vm.isBoardView">
               <div style="flex:1;overflow:auto;padding:18px;display:flex;gap:16px;align-items:stretch;">
                 <template v-for="(col, __i20) in vm.boardCols" :key="__i20">
-                  <div @drop="col.onDrop" @dragover="col.onOver" style="flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;">
+                  <div @drop="col.onDrop" @dragover="col.onOver" @dragleave="col.onLeave" :style="`flex:1;min-width:0;background:var(--panel);border:1px solid ${col.hl?'var(--accent)':'var(--line)'};border-radius:14px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .12s;${col.hl?'box-shadow:0 0 0 2px var(--accent-bg);':''}`">
                     <div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--line);"><span :style="`width:8px;height:8px;border-radius:50%;background:${col.color};`"></span><span style="font:600 13px/1 var(--font);color:var(--text);">{{ col.name }}</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ col.count }}</span></div>
                     <div style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:9px;min-height:120px;">
                       <template v-for="(c, __i21) in col.cards" :key="__i21">
-                        <div draggable="true" @dragstart="c.onDragStart" @click="c.open" style="background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:11px 12px;cursor:grab;box-shadow:var(--shadow);" data-hv="2">
+                        <div draggable="true" @dragstart="c.onDragStart" @drop="c.onCardDrop" @dragover="c.onCardOver" @click="c.open" style="background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:11px 12px;cursor:grab;box-shadow:var(--shadow);" data-hv="2">
                           <div :style="`font:600 13px/1.4 var(--font);color:${c.titleColor};${c.titleDeco}`">{{ c.title }}</div>
                           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:9px;"><span :style="c.prioStyle">{{ c.prio }}</span><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px/1 var(--font);color:var(--text2);"><i class="ph ph-folder" style="font-size:11px;"></i>{{ c.project }}</span><span :style="`font:500 11px/1 var(--font);color:${c.dueColor};`">{{ c.due }}</span><span :title="c.assignee" :style="`width:20px;height:20px;border-radius:50%;background:${c.assigneeColor};color:#fff;display:flex;align-items:center;justify-content:center;font:600 10px/1 var(--font);margin-left:auto;flex:0 0 auto;`">{{ c.assigneeInitial }}</span></div>
                         </div>
@@ -870,6 +871,7 @@ class Component {
     team: [],
     friends: { accepted: [], incoming: [], outgoing: [] }, addFriendEmail: '',
     conversations: [], activeConversationId: null,
+    taskOrder: [], dragOverCol: null, midW: null,
     todayOpen: false, todayLoading: false, todayError: '', todayItems: [],
     newProjOpen: false, newProjName: '',
     aiSource: 'team', ownAiOpen: false,
@@ -895,7 +897,7 @@ class Component {
   };
   applyTheme() { const m=this.TOK[this.state.theme]; for(const p in m) document.body.style.setProperty(p,m[p]); const ic=document.getElementById('lx-thm'); if(ic) ic.className='ph ph-'+(this.state.theme==='dark'?'sun':'moon'); const ic2=document.getElementById('lx-thm2'); if(ic2) ic2.className='ph ph-'+(this.state.theme==='dark'?'sun':'moon'); }
   applyNav() { const ids={chat:'nav-chat',database:'nav-database',projects:'nav-projects',friends:'nav-friends',clarify:'nav-clarify',nontodo:'nav-nontodo',agent:'nav-agent',settings:'nav-settings',admin:'nav-admin'}; Object.values(ids).forEach(id=>{const e=document.getElementById(id); if(e){e.style.background='transparent';e.style.color='var(--text2)';}}); const a=document.getElementById(ids[this.state.view]); if(a){a.style.background='var(--accent-bg)';a.style.color='var(--accent-ink)';} const na=document.getElementById('nav-admin'); if(na) na.style.opacity=this.state.role==='admin'?'1':'.4'; }
-  componentDidMount() { this.applyTheme(); this.applyNav(); this._onResize=()=>{ const w=window.innerWidth||document.documentElement.clientWidth||1200; const m=w<820; if(m!==this.state.isMobile) this.setState({isMobile:m}); }; this._onResize(); window.addEventListener('resize',this._onResize); requestAnimationFrame(()=>this._onResize()); setTimeout(()=>this._onResize(),0); setTimeout(()=>this._onResize(),250); try{ this._ro=new ResizeObserver(()=>this._onResize()); this._ro.observe(document.documentElement); }catch(e){} this._onKey=(e)=>{ if(!this.state.authed) return; if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); this.setState(s=>({searchOpen:!s.searchOpen,searchQuery:'',paletteIndex:0})); return; } if(e.key==='Escape'){ this.setState({searchOpen:false,notifOpen:false,shortcutsOpen:false}); return; } if(this.state.searchOpen) return; const tag=(e.target&&e.target.tagName)||''; if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return; if(e.key==='/'){ e.preventDefault(); this.setState({searchOpen:true,searchQuery:'',paletteIndex:0}); return; } if(e.key==='?'){ e.preventDefault(); this.setState(s=>({shortcutsOpen:!s.shortcutsOpen})); return; } if(e.key==='n'||e.key==='N'){ e.preventDefault(); this.go('chat'); setTimeout(()=>{const c=document.getElementById('lx-composer'); if(c)c.focus();},60); return; } const k=(e.key||'').toLowerCase(); if(this._gPending){ this._gPending=false; const map={c:'chat',d:'database',p:'projects',f:'friends',s:'settings',l:'clarify',a:'agent',t:'nontodo'}; if(map[k]){ e.preventDefault(); this.go(map[k]); } return; } if(k==='g'){ this._gPending=true; clearTimeout(this._gTimer); this._gTimer=setTimeout(()=>{this._gPending=false;},900); } }; window.addEventListener('keydown',this._onKey); if(window.visualViewport){ this._onVV=()=>{ const root=document.getElementById('lx-root'); if(!root) return; if(this.state.isMobile){ root.style.height=window.visualViewport.height+'px'; this.scrollMsgs(true); } else { root.style.height=''; } }; window.visualViewport.addEventListener('resize',this._onVV); } if(getToken()){ api.me().then(u=>{ this._applyUser(u); return this.loadState(); }).then(()=>this._enterApp()).catch(()=>{ setToken(''); }); } }
+  componentDidMount() { this.applyTheme(); this.applyNav(); try{ const o=JSON.parse(localStorage.getItem('lx_task_order')||'[]'); if(Array.isArray(o)) this.state.taskOrder=o; const mw=parseInt(localStorage.getItem('lx_mid_w')||'',10); if(mw>=220&&mw<=560) this.state.midW=mw; }catch(e){} this._onResize=()=>{ const w=window.innerWidth||document.documentElement.clientWidth||1200; const m=w<820; if(m!==this.state.isMobile) this.setState({isMobile:m}); }; this._onResize(); window.addEventListener('resize',this._onResize); requestAnimationFrame(()=>this._onResize()); setTimeout(()=>this._onResize(),0); setTimeout(()=>this._onResize(),250); try{ this._ro=new ResizeObserver(()=>this._onResize()); this._ro.observe(document.documentElement); }catch(e){} this._onKey=(e)=>{ if(!this.state.authed) return; if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); this.setState(s=>({searchOpen:!s.searchOpen,searchQuery:'',paletteIndex:0})); return; } if(e.key==='Escape'){ this.setState({searchOpen:false,notifOpen:false,shortcutsOpen:false}); return; } if(this.state.searchOpen) return; const tag=(e.target&&e.target.tagName)||''; if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return; if(e.key==='/'){ e.preventDefault(); this.setState({searchOpen:true,searchQuery:'',paletteIndex:0}); return; } if(e.key==='?'){ e.preventDefault(); this.setState(s=>({shortcutsOpen:!s.shortcutsOpen})); return; } if(e.key==='n'||e.key==='N'){ e.preventDefault(); this.go('chat'); setTimeout(()=>{const c=document.getElementById('lx-composer'); if(c)c.focus();},60); return; } const k=(e.key||'').toLowerCase(); if(this._gPending){ this._gPending=false; const map={c:'chat',d:'database',p:'projects',f:'friends',s:'settings',l:'clarify',a:'agent',t:'nontodo'}; if(map[k]){ e.preventDefault(); this.go(map[k]); } return; } if(k==='g'){ this._gPending=true; clearTimeout(this._gTimer); this._gTimer=setTimeout(()=>{this._gPending=false;},900); } }; window.addEventListener('keydown',this._onKey); if(window.visualViewport){ this._onVV=()=>{ const root=document.getElementById('lx-root'); if(!root) return; if(this.state.isMobile){ root.style.height=window.visualViewport.height+'px'; this.scrollMsgs(true); } else { root.style.height=''; } }; window.visualViewport.addEventListener('resize',this._onVV); } if(getToken()){ api.me().then(u=>{ this._applyUser(u); return this.loadState(); }).then(()=>this._enterApp()).catch(()=>{ setToken(''); }); } }
   componentWillUnmount() { if(this._onResize) window.removeEventListener('resize',this._onResize); if(this._onVV&&window.visualViewport) window.visualViewport.removeEventListener('resize',this._onVV); if(this._ro) try{ this._ro.disconnect(); }catch(e){} }
   componentDidUpdate() { this.applyNav(); }
   _projName(pid){ if(!pid) return '收件箱'; const p=(this.state.projects||[]).find(x=>x.id===pid); return p?p.name:pid; }
@@ -1358,6 +1360,33 @@ class Component {
   }
   paletteKey(e){ const flat=this.buildPalette().flat; const n=flat.length; if(e.key==='ArrowDown'){e.preventDefault();this.setState(s=>({paletteIndex:Math.min((s.paletteIndex||0)+1,Math.max(0,n-1))}));} else if(e.key==='ArrowUp'){e.preventDefault();this.setState(s=>({paletteIndex:Math.max((s.paletteIndex||0)-1,0)}));} else if(e.key==='Enter'){e.preventDefault();const it=flat[this.state.paletteIndex||0]||flat[0]; if(it)it.run();} else if(e.key==='Escape'){this.setState({searchOpen:false});} }
   openFeed(f){ if(f.kind==='task') this.setState({view:'chat',detailId:f.refId}); else if(f.kind==='idea') this.setState({view:'clarify',mobilePane:'main'}); else this.setState({view:'nontodo',mobilePane:'main'}); }
+  // ---- 拖拽排序：本地顺序（localStorage 记忆），应用到看板与表格 ----
+  orderTasks(list){ const ord=this.state.taskOrder; if(!ord||!ord.length) return list; const map=new Map(ord.map((id,i)=>[id,i])); return [...list].sort((a,b)=>(map.has(a.id)?map.get(a.id):1e9)-(map.has(b.id)?map.get(b.id):1e9)); }
+  _saveOrder(order){ try{ localStorage.setItem('lx_task_order', JSON.stringify(order)); }catch(e){} }
+  _moveInOrder(dragId,beforeId){
+    let order=(this.state.taskOrder||[]).slice();
+    const allIds=this.state.tasks.map(t=>t.id);
+    for(const id of allIds) if(!order.includes(id)) order.push(id);   // 新任务补进顺序
+    order=order.filter(id=>allIds.includes(id) && id!==dragId);        // 清理已删除 + 摘出被拖的
+    if(beforeId){ const i=order.indexOf(beforeId); order.splice(i<0?order.length:i,0,dragId); } else order.push(dragId);
+    this.setState({taskOrder:order,dragOverCol:null}); this._saveOrder(order);
+  }
+  _dropOnCard(targetId){
+    const drag=this._dragId; this._dragId=null;
+    if(!drag||drag===targetId) return;
+    const dragT=this.state.tasks.find(x=>x.id===drag), tgtT=this.state.tasks.find(x=>x.id===targetId);
+    if(dragT&&tgtT&&dragT.status!==tgtT.status) this.patchTask(drag,{status:tgtT.status});
+    this._moveInOrder(drag,targetId);
+  }
+  _dropOnCol(status){
+    const drag=this._dragId; this._dragId=null; this.setState({dragOverCol:null});
+    if(!drag) return;
+    const dragT=this.state.tasks.find(x=>x.id===drag);
+    if(dragT&&dragT.status!==status) this.patchTask(drag,{status});
+    this._moveInOrder(drag,null);
+  }
+  // 中栏可拖拽调整宽度（桌面端），localStorage 记忆
+  startMidResize(e){ if(this.state.isMobile) return; if(e&&e.preventDefault)e.preventDefault(); const startX=e.clientX; const startW=this.state.midW||304; document.body.style.userSelect='none'; document.body.style.cursor='col-resize'; const move=(ev)=>{ let w=startW+(ev.clientX-startX); w=Math.max(220,Math.min(560,w)); this.setState({midW:w}); }; const up=()=>{ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); document.body.style.userSelect=''; document.body.style.cursor=''; try{localStorage.setItem('lx_mid_w',String(this.state.midW||304));}catch(_){}}; document.addEventListener('mousemove',move); document.addEventListener('mouseup',up); }
   patchTask(id,patch){ const ep={...patch}; if(typeof ep.title==='string') ep.title=expandTimeTokens(ep.title); if(typeof ep.notes==='string') ep.notes=expandTimeTokens(ep.notes); this.setState(s=>({tasks:s.tasks.map(t=>t.id===id?{...t,...ep,edited:true}:t)})); const body={}; ['title','notes','status','priority','assignee'].forEach(k=>{ if(k in ep) body[k]=ep[k]; }); if('scope' in ep) body.privacyScope=ep.scope; if(Object.keys(body).length) api.updateTask(id,body).catch(()=>{}); }
   moveOut(id){ const t=this.state.tasks.find(x=>x.id===id); this.setState(s=>({tasks:s.tasks.filter(x=>x.id!==id),detailId:null})); api.taskMoveOut(id).then(r=>{ if(r&&r.nonTodo) this.setState(s=>({nonTodos:[this._mapNon(r.nonTodo),...s.nonTodos]})); this.flashToast('已移出 todo · 保留来源与生成记录'); }).catch(e=>{ if(t) this.setState(s=>({tasks:[t,...s.tasks]})); this.flashToast('移出失败：'+e.message); }); }
   flashToast(msg){ this.setState({toast:msg}); this._toastTimer&&clearTimeout(this._toastTimer); this._toastTimer=setTimeout(()=>this.setState({toast:null}),2600); }
@@ -1435,7 +1464,9 @@ class Component {
       selBoxStyle:'width:17px;height:17px;border-radius:5px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;cursor:pointer;'+(selected?'background:var(--accent);border:1px solid var(--accent);':'border:1.5px solid var(--line2);background:var(--panel);'),
       selCheck:selected?'':'display:none;',
       toggleSel:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.toggleSelect(t.id); },
-      onDragStart:()=>{ this._dragId=t.id; },
+      onDragStart:(e)=>{ this._dragId=t.id; try{ if(e&&e.dataTransfer){ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',t.id); } }catch(_){} },
+      onCardDrop:(e)=>{ if(e){ e.preventDefault(); e.stopPropagation(); } this._dropOnCard(t.id); },
+      onCardOver:(e)=>{ if(e) e.preventDefault(); },
       titleColor: done?'var(--text3)':'var(--text)',
       titleDeco: done?'text-decoration:line-through;':'',
       dueColor: (t.due==='今天 17:00'||t.due==='明天'||t.today)?'var(--accent-ink)':'var(--text2)',
@@ -1489,10 +1520,11 @@ class Component {
     else if(st.dbView==='done') tbl=dbase.filter(t=>t.status==='done');
     else if(st.dbView==='collab') tbl=dbase.filter(t=>t.collabFrom);
     if(st.dbSortKey){ const dir=st.dbSortDir==='asc'?1:-1; const dOrd=(d)=>{const m={'昨天':0,'今天':1,'明天':2,'后天':3,'周一':4,'周二':4,'周三':4,'周四':5,'周五':6,'下周':8,'月底':9,'待定':99};for(const k in m){if(d&&d.indexOf(k)>=0)return m[k];}return 50;}; const sOrd={todo:0,in_progress:1,done:2}; tbl=[...tbl].sort((a,b)=>{ if(st.dbSortKey==='title')return dir*a.title.localeCompare(b.title,'zh'); if(st.dbSortKey==='project')return dir*a.project.localeCompare(b.project,'zh'); if(st.dbSortKey==='priority')return dir*(a.priority-b.priority); if(st.dbSortKey==='due')return dir*(dOrd(a.due)-dOrd(b.due)); if(st.dbSortKey==='status')return dir*(sOrd[a.status]-sOrd[b.status]); return 0; }); }
+    else tbl=this.orderTasks(tbl);   // 无显式排序时应用自定义拖拽顺序
     const filteredTasks=tbl.map(t=>this.fmtTask(t));
     const isTableView=st.dbLayout==='table', isBoardView=st.dbLayout==='board';
     const boardDefs=[['todo','待办','var(--text3)'],['in_progress','进行中','var(--idea)'],['done','已完成','var(--accent)']];
-    const boardCols=boardDefs.map(d=>({key:d[0],name:d[1],color:d[2],count:dbase.filter(t=>t.status===d[0]).length,cards:dbase.filter(t=>t.status===d[0]).map(t=>this.fmtTask(t)),onDrop:(e)=>{if(e&&e.preventDefault)e.preventDefault(); const id=this._dragId; if(id)this.patchTask(id,{status:d[0]}); this._dragId=null;},onOver:(e)=>{if(e&&e.preventDefault)e.preventDefault();}}));
+    const boardCols=boardDefs.map(d=>({key:d[0],name:d[1],color:d[2],count:dbase.filter(t=>t.status===d[0]).length,cards:this.orderTasks(dbase.filter(t=>t.status===d[0])).map(t=>this.fmtTask(t)),hl:st.dragOverCol===d[0],onDrop:(e)=>{if(e&&e.preventDefault)e.preventDefault(); this._dropOnCol(d[0]);},onOver:(e)=>{if(e&&e.preventDefault)e.preventDefault(); if(st.dragOverCol!==d[0]) this.setState({dragOverCol:d[0]});},onLeave:()=>{ if(this.state.dragOverCol===d[0]) this.setState({dragOverCol:null}); }}));
     const projectOptions=[{value:'all',label:'全部项目'}].concat([...new Set(st.tasks.map(t=>t.project))].map(p=>({value:p,label:p})));
     const priorityOptions=[{value:'all',label:'全部优先级'},{value:'1',label:'P1 紧急'},{value:'2',label:'P2 高'},{value:'3',label:'P3 中'},{value:'4',label:'P4 低'}];
     const layoutSeg=(on)=>'border:0;padding:6px 12px;border-radius:7px;font:'+(on?'600':'500')+' 12.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:5px;'+(on?'background:var(--panel);color:var(--text);box-shadow:var(--shadow);':'background:transparent;color:var(--text2);');
@@ -1573,7 +1605,7 @@ class Component {
       shellStyle='display:flex;height:100vh;';
       railStyle='width:66px;flex:0 0 66px;background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:5px;z-index:5;';
       paneWrapStyle='flex:1;display:flex;min-width:0;position:relative;';
-      midStyle='width:304px;flex:0 0 304px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0;';
+      { const mw=st.midW||304; midStyle='width:'+mw+'px;flex:0 0 '+mw+'px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0;'; }
       mainStyle='flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;position:relative;background:var(--bg);';
       bottomNavStyle='display:none;'; showBack=false;
     } else {
@@ -1596,7 +1628,7 @@ class Component {
     const pendingRefsView=st.pendingRefs.map(r=>({label:r.label,remove:()=>this.removeRef(r.id)}));
     return {
       showLogin:!st.authed, authed:st.authed,
-      isMobile:mob, shellStyle, railStyle, paneWrapStyle, midStyle, mainStyle, bottomNavStyle, showBack, mobileNav, back:()=>this.setState({mobilePane:'list'}),
+      isMobile:mob, shellStyle, railStyle, paneWrapStyle, midStyle, mainStyle, bottomNavStyle, showBack, mobileNav, back:()=>this.setState({mobilePane:'list'}), startMidResize:(e)=>this.startMidResize(e),
       mentionOpen:st.mentionOpen, mentionItems, noMention:mentionItems.length===0, pendingRefs:pendingRefsView, hasPendingRefs:st.pendingRefs.length>0, onComposerInput:(e)=>this.onComposerInput(e), atButton:()=>this.atButton(),
       authMode:st.authMode, isRegister:st.authMode==='register', authName:st.authName, authEmail:st.authEmail, authPassword:st.authPassword, authError:st.authError, authBusy:st.authBusy,
       onAuthName:(e)=>this.setState({authName:e.target.value}), onAuthEmail:(e)=>this.setState({authEmail:e.target.value}), onAuthPassword:(e)=>this.setState({authPassword:e.target.value}),

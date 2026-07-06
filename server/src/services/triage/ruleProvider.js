@@ -210,6 +210,8 @@ export function detectIntent(message) {
   if (/^(?:帮我)?(?:把)?(.{1,50}?)(?:标记为?完成|置为完成|标记完成|完成掉|搞定了|做完了|已完成|完成了)[。!！~～]*$/.test(m) || /^完成(?:任务)?[:：]/.test(m)) return 'complete'
   // delete command (suffix "把X删掉" or verb-first "删除X" — a deletion is never content to capture)
   if (/^(?:帮我)?(?:把)?(.{1,50}?)(?:删了|删掉|删除|删除掉)[。!！~～]*$/.test(m) || /^(?:帮我)?删除/.test(m) || /^删掉/.test(m)) return 'delete'
+  // modify command: 改期 / 改优先级 / 开始执行 / 改名（改动既有任务，不是新建）
+  if (parseTaskCommand(m)) return 'modify'
   // open questions → answer (or hand to the LLM), don't silently file a todo
   if (/[?？]$/.test(m)) return 'question'
   if (/^(为什么|什么是|如何|怎么样|怎么办|是不是|能不能|可不可以|有没有)/.test(m) && m.length <= 40) return 'question'
@@ -239,6 +241,37 @@ export function extractCommandTarget(message) {
     if (mm && mm[1]) return mm[1].trim().replace(/^(任务|这个|那个)\s*/, '')
   }
   return ''
+}
+
+const cleanTarget = (s) => String(s || '').trim().replace(/^(任务|这个|那个|一下)\s*/, '').replace(/\s*(任务|一下)$/, '').trim()
+function toPriority(tok) {
+  const t = String(tok || '').trim()
+  const map = { 1: 1, 2: 2, 3: 3, 4: 4, 一: 1, 二: 2, 三: 3, 四: 4, 最高: 1, 高: 1, 重要: 1, 中: 3, 普通: 3, 一般: 3, 低: 4, 最低: 4 }
+  return map[t] || null
+}
+
+// 解析"修改既有任务"的命令 → {op:'due'|'priority'|'status'|'title', target, value}，否则 null。
+// 用具体动词（改到/推迟到、设为P?/优先级、开始执行/进行中、改名为）保证不误伤"新建任务"的输入。
+export function parseTaskCommand(message) {
+  const m = String(message || '').trim()
+  if (!m) return null
+  // 改名：把X改名为Y / 重命名X为Y / X标题改成Y / X改叫Y
+  let mm = m.match(/^(?:帮我|请)?(?:把|将)?\s*[「"'『]?(.+?)[」"'』]?\s*(?:改名为?|重命名为?|标题改(?:成|为)?|名字改(?:成|为)?|改叫)\s*[「"'『]?(.+?)[」"'』]?[。!！~～]*$/)
+  if (mm && mm[1] && mm[2]) return { op: 'title', target: cleanTarget(mm[1]), value: mm[2].trim() }
+  // 优先级：把X设为P1 / X改成高优先级 / 把X降为P3（需 P数字 或 优先级/级 语境）
+  mm = m.match(/^(?:帮我|请)?(?:把|将)?\s*[「"'『]?(.+?)[」"'』]?\s*(?:的优先级)?\s*(?:设为|设成|设置为?|改(?:成|为)?|调(?:成|为)?|降为|升为|标为|定为)\s*(?:优先级\s*)?(?:p|P)\s*([1-4])\b[。!！~～]*$/)
+  if (mm && mm[1]) return { op: 'priority', target: cleanTarget(mm[1]), value: Number(mm[2]) }
+  mm = m.match(/^(?:帮我|请)?(?:把|将)?\s*[「"'『]?(.+?)[」"'』]?\s*(?:设为|设成|设置为?|改(?:成|为)?|调(?:成|为)?|降为|升为|标为|定为)\s*(最高|最低|高|中|低|重要|普通|一般|[一二三四1-4])\s*(?:优先级|级)[。!！~～]*$/)
+  if (mm && mm[1]) { const pr = toPriority(mm[2]); if (pr) return { op: 'priority', target: cleanTarget(mm[1]), value: pr } }
+  // 改期：把X改到/推迟到/提前到 <时间>
+  mm = m.match(/^(?:帮我|请)?(?:把|将)?\s*[「"'『]?(.+?)[」"'』]?\s*(?:的?(?:截止|deadline|ddl|due)\s*)?(?:改到|推迟到|延后到|延到|提前到|挪到|移到|调到|改期到|截止改?到)\s*(.+?)[。!！~～]*$/i)
+  if (mm && mm[1] && mm[2]) { const due = detectDue(mm[2]); if (due) return { op: 'due', target: cleanTarget(mm[1]), value: due } }
+  // 开始执行 / 进行中（需明确措辞，避免把"开始健身"这类新建当成改状态）
+  mm = m.match(/^(?:帮我|请)?(?:把|将)?\s*[「"'『]?(.+?)[」"'』]?\s*(?:开始执行|设为进行中|标记为?进行中|设成进行中|置为进行中|正在进行)[。!！~～]*$/)
+  if (mm && mm[1]) return { op: 'status', target: cleanTarget(mm[1]), value: 'in_progress' }
+  mm = m.match(/^(?:帮我|请)?(?:开始执行|着手处理)\s*[:：]?\s*[「"'『]?(.+?)[」"'』]?[。!！~～]*$/)
+  if (mm && mm[1]) return { op: 'status', target: cleanTarget(mm[1]), value: 'in_progress' }
+  return null
 }
 
 // AiProvider implementation (async to match the LLM-backed interface).

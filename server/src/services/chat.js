@@ -1,5 +1,5 @@
 import { detectIntent, extractCommandTarget, triageInputSync } from './triage/index.js'
-import { detectDue, splitSegments } from './triage/ruleProvider.js'
+import { detectDue, splitSegments, parseTaskCommand } from './triage/ruleProvider.js'
 import { planNextBlock } from './planning.js'
 import { visibleFilter } from './privacy.js'
 import { persistCapture } from './capture.js'
@@ -217,6 +217,29 @@ async function ruleChat(repos, { message, db, user, mentions = [] }) {
     }
     await repos.tasks.remove(t.id)
     return finish(repos, { message, intent, reply: `🗑️ 已删除「${t.title}」。`, performed: [{ type: 'delete_task', id: t.id, title: t.title }] })
+  }
+
+  // 修改既有任务（改期 / 改优先级 / 开始执行 / 改名）——离线规则模式也支持"改"，补全 CRUD。
+  if (intent === 'modify') {
+    const cmd = parseTaskCommand(message)
+    const settings = await repos.settings.get()
+    const open = visibleFilter(await repos.tasks.all(), settings).filter((t) => t.status !== 'archived')
+    const hits = matchTasks(open, cmd.target)
+    if (!hits.length) {
+      return finish(repos, { message, intent, reply: `没找到标题匹配「${cmd.target}」的任务，未做修改。先说「有哪些任务」看看清单，或换个更接近标题的说法；如果想新建，直接描述这件事即可。` })
+    }
+    if (hits.length > 1) {
+      return finish(repos, { message, intent, reply: `找到 ${hits.length} 条相近的任务，说得更具体些（用完整标题）：\n${listLines(hits.slice(0, 5))}` })
+    }
+    const t = hits[0]
+    const patch = {}; let desc = ''
+    if (cmd.op === 'due') { patch.dueAt = cmd.value; desc = `截止时间改到 ${fmtDue(cmd.value)}` }
+    else if (cmd.op === 'priority') { patch.priority = cmd.value; desc = `优先级设为 P${cmd.value}` }
+    else if (cmd.op === 'status') { patch.status = cmd.value; desc = '状态设为「进行中」' }
+    else if (cmd.op === 'title') { patch.title = cmd.value; desc = `标题改为「${cmd.value}」` }
+    const task = await repos.tasks.update(t.id, patch)
+    await repos.activity.log(t.id, '通过聊天' + desc)
+    return finish(repos, { message, intent, reply: `✏️ 已更新「${cmd.op === 'title' ? cmd.value : t.title}」：${desc}。`, entities: [{ type: 'task', entity: task }], performed: [{ type: 'update_task', id: t.id, task }] })
   }
 
   if (intent === 'remember') {

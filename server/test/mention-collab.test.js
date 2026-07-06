@@ -3,8 +3,11 @@ import assert from 'node:assert/strict'
 import { makeAuthApp, befriend } from './helpers.js'
 import { stripInviteClaims } from '../src/services/collab.js'
 
+// 唯一邮箱：auth 限流器是进程级共享的（同一 IP+邮箱 10 次/10 分钟），
+// 本文件测试多、复用同邮箱会触发 429，故每次注册用不同邮箱。
+let _emailSeq = 0
 const reg = (app, name, email) =>
-  app.inject({ method: 'POST', url: '/api/auth/register', payload: { name, email, password: 'pass1234' } }).then((r) => r.json())
+  app.inject({ method: 'POST', url: '/api/auth/register', payload: { name, email: email.replace('@', `${++_emailSeq}@`), password: 'pass1234' } }).then((r) => r.json())
 const H = (t) => ({ authorization: `Bearer ${t}` })
 const say = (app, token, message, mentions) =>
   app.inject({ method: 'POST', url: '/api/chat', headers: H(token), payload: mentions ? { message, mentions } : { message } }).then((r) => r.json())
@@ -120,7 +123,7 @@ test('doc mention is accepted and does not trigger collaboration', async () => {
   assert.ok(!res.performed.some((p) => p.type === 'invite' || p.type === 'friend_request'))
 })
 
-test('agent: LLM claims invite for a real friend → reply reflects actual invite', async () => {
+test('agent: LLM claims invite for a real friend → reply reflects actual invite + assignee set', async () => {
   const { app, db } = await makeAuthApp()
   const a = await reg(app, '安娜', 'a@x.com')
   const b = await reg(app, '博文', 'b@x.com')
@@ -131,7 +134,54 @@ test('agent: LLM claims invite for a real friend → reply reflects actual invit
     const res = await say(app, a.token, '和 @博文 对一遍合同')
     assert.ok(res.performed.some((p) => p.type === 'invite' && p.userName === '博文'))
     assert.ok(res.reply.includes('已向 博文 发出协作邀请'))
-    // 不能残留 LLM 原始的"邀请了博文"含糊措辞与权威行并存造成重复
-    assert.ok((res.reply.match(/博文/g) || []).length >= 1)
+    // 匹配成功 → 成员被写为任务责任人（assignee）
+    assert.equal(res.entities[0].entity.assignee, '博文')
+    // 原始 LLM 的"邀请了博文"含糊措辞已被剥离，只剩一条权威口径
+    assert.ok(!res.reply.includes('邀请了博文'))
+    assert.equal((res.reply.match(/已向 博文 发出协作邀请/g) || []).length, 1)
+  } finally { restore() }
+})
+
+// 对任意 LLM 措辞都健壮：多种"邀请"表达 + 未知成员 → 一律被剥离，无矛盾
+for (const phrasing of [
+  '好的，已把 liubai 加入协作，任务已创建。',
+  '任务已创建。liubai 会一起参与这次吃饭。',
+  '已创建吃饭任务，并通知了 liubai。',
+  '已创建任务，已将 liubai 设为参与人。',
+]) {
+  test(`agent: unknown-member invite claim stripped regardless of phrasing — ${phrasing.slice(0, 12)}…`, async () => {
+    const { app } = await makeAuthApp()
+    const a = await reg(app, '安娜', 'a@x.com')
+    await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(a.token), payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k' } })
+    const iso = (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); return d.toISOString() })()
+    const restore = stubLlm({ reply: phrasing, actions: [{ type: 'create_task', title: '和 liubai 吃饭', dueAt: iso, priority: 3 }] })
+    try {
+      const res = await say(app, a.token, '@liubai 明天10点吃饭')
+      assert.equal(res.entities[0].type, 'task')
+      assert.ok(res.reply.includes('没找到成员「liubai」'))
+      // 没有任何"已邀请/已通知/加入协作/参与"的残留断言
+      assert.ok(!/(已把 ?liubai|通知了 ?liubai|liubai 会一起|设为参与人)/.test(res.reply), 'claim about liubai must be stripped')
+      assert.ok(!res.reply.includes('没有实际发出'))
+    } finally { restore() }
+  })
+}
+
+test('agent: multiple @members — one friend invited (assignee), one non-friend degraded, one unknown reported', async () => {
+  const { app, db } = await makeAuthApp()
+  const a = await reg(app, '安娜', 'a@x.com')
+  const b = await reg(app, '博文', 'b@x.com') // 好友
+  await reg(app, '晨曦', 'c@x.com')           // 非好友
+  await befriend(db, a.user.id, b.user.id)
+  await app.inject({ method: 'PUT', url: '/api/ai/config', headers: H(a.token), payload: { provider: 'openai', baseUrl: 'https://llm.example.com/v1', model: 'm', apiKey: 'k' } })
+  const restore = stubLlm({ reply: '好的，已创建评审任务，已邀请博文、晨曦和赵六一起参与。', actions: [{ type: 'create_task', title: '方案评审', priority: 2 }] })
+  try {
+    const res = await say(app, a.token, '和 @博文 @晨曦 @赵六 一起做方案评审')
+    assert.ok(res.performed.some((p) => p.type === 'invite' && p.userName === '博文'))
+    assert.equal(res.entities[0].entity.assignee, '博文')
+    assert.ok(res.reply.includes('已向 博文 发出协作邀请'))
+    assert.ok(res.reply.includes('晨曦 还不是你的好友'))
+    assert.ok(res.reply.includes('没找到成员「赵六」'))
+    // 三种口径互斥、不与 LLM 原话矛盾
+    assert.ok(!res.reply.includes('已邀请博文、晨曦和赵六'))
   } finally { restore() }
 })
