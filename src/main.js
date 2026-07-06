@@ -1,5 +1,6 @@
 import { createApp } from 'vue';
 import App from './App.vue';
+import './styles/tokens.css'; // design tokens first, so app styles can reference them
 import './styles.css';
 
 const app = createApp(App);
@@ -11,7 +12,7 @@ function showErrorBanner(msg) {
   if (bannerShown) return;
   bannerShown = true;
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;background:#B0553F;color:#fff;padding:10px 16px;border-radius:10px;font:600 13px/1.4 sans-serif;box-shadow:0 8px 24px #0003;max-width:80vw;';
+  el.style.cssText = 'position:fixed;left:50%;bottom:var(--space-5);transform:translateX(-50%);z-index:9999;background:var(--status-error);color:var(--accent-contrast);padding:var(--space-3) var(--space-5);border-radius:var(--radius-lg);font:var(--font-medium) var(--text-sm)/1.4 var(--font-sans);box-shadow:var(--shadow-lg);max-width:80vw;';
   el.textContent = '界面发生异常：' + String(msg).slice(0, 120) + '（已记录，刷新可恢复）';
   document.body.appendChild(el);
   setTimeout(() => { el.remove(); bannerShown = false; }, 6000);

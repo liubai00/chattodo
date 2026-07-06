@@ -1,22 +1,76 @@
 *{box-sizing:border-box}
-body{margin:0;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;--bg:#FBF9F4;--panel:#FFFFFF;--mid:#F4F1EA;--rail:#F1ECE3;--elev:#FFFFFF;--text:#2C2823;--text2:#75706A;--text3:#ABA49B;--line:#ECE6DC;--line2:#E1DACE;--accent:#5F7D64;--accent-ink:#456049;--accent-bg:#E9F0EA;--idea:#A97C2E;--idea-bg:#F6EDDB;--nono:#8C877F;--nono-bg:#EFEBE3;--danger:#B0553F;--danger-bg:#F4E7E1;--font:'Hanken Grotesk','Noto Sans SC',sans-serif;--display:'Newsreader','Noto Serif SC',serif;--r:14px;--r-sm:9px;--shadow:0 1px 2px #2b241a10,0 10px 30px #2b241a12;font-family:var(--font);background:var(--bg);color:var(--text);}
+/* The app's own semantic vars are kept by NAME and re-pointed onto Attio design
+   tokens (see src/styles/tokens.css). Every inline `var(--bg)` / `var(--accent)`
+   in App.vue therefore reskins at once, and dark mode flows through for free. */
+body{
+  margin:0;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+
+  /* surfaces */
+  --bg:var(--surface-sunken);      /* app canvas (subtle gray behind panels) */
+  --panel:var(--surface-base);     /* cards / main panels */
+  --mid:var(--surface-hover);      /* secondary / hover surface */
+  --rail:var(--surface-sunken);    /* left nav rail */
+  --elev:var(--surface-raised);    /* popovers / dropdowns / modals */
+
+  /* text */
+  --text:var(--text-primary);
+  --text2:var(--text-secondary);
+  --text3:var(--text-tertiary);
+
+  /* borders */
+  --line:var(--border-default);
+  --line2:var(--border-strong);
+
+  /* accent — --accent itself is inherited from tokens.css :root (same name),
+     so it must NOT be redefined here (self-reference would be a cyclic invalid). */
+  --accent-ink:var(--accent-active);
+  --accent-bg:var(--accent-soft);
+
+  /* status */
+  --idea:var(--status-warning);
+  --idea-bg:var(--status-warning-soft);
+  --nono:var(--text-tertiary);
+  --nono-bg:var(--surface-active);
+  --danger:var(--status-error);
+  --danger-bg:var(--status-error-soft);
+
+  /* type / radius / shadow */
+  --font:var(--font-sans);
+  --display:var(--font-sans);      /* Attio unifies on Inter — no serif display */
+  --mono:var(--font-mono);
+  --r:var(--radius-lg);
+  --r-sm:var(--radius-md);
+  --shadow:var(--shadow-md);
+
+  font-family:var(--font);
+  font-size:var(--text-base);
+  background:var(--surface-base);
+  color:var(--text-primary);
+}
 summary::-webkit-details-marker{display:none}
 input::placeholder,textarea::placeholder{color:var(--text3)}
 input:focus,textarea:focus{outline:none}
-select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ABA49B' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px !important;}
+select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px !important;}
+:root[data-theme="dark"] select,
+:root:not([data-theme="light"]) select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23707070' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>")}
 ::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:#8884;border-radius:6px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:var(--radius-sm);border:2px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-track{background:transparent}
 @keyframes lx-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes lx-pulse{0%,100%{opacity:.3}50%{opacity:.9}}
 @keyframes lx-shimmer{0%{background-position:180% 0}100%{background-position:-80% 0}}
 @keyframes lx-blink{0%,100%{opacity:1}50%{opacity:0}}
 /* one-line "thinking" status: shimmering text, clamped to a single row */
-.lx-think{display:inline-block;max-width:min(420px,60vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:500 12.5px/1.4 var(--font);background:linear-gradient(90deg,var(--text3) 32%,var(--accent-ink) 50%,var(--text3) 68%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--text3);animation:lx-shimmer 1.6s linear infinite}
+.lx-think{display:inline-block;max-width:min(420px,60vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:var(--font-medium) 12.5px/1.4 var(--font);background:linear-gradient(90deg,var(--text3) 32%,var(--accent-ink) 50%,var(--text3) 68%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--text3);animation:lx-shimmer 1.6s linear infinite}
 @keyframes lx-slide{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
 @keyframes lx-pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes lx-spin{to{transform:rotate(360deg)}}
 .lx-spin{display:inline-block;animation:lx-spin .8s linear infinite}
+/* numeric/date/id/code runs — the Attio "feel" cue */
+.lx-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:var(--tracking-mono)}
+[data-hv="0"],[data-hv="1"],[data-hv="2"]{transition:var(--transition-colors)}
 [data-hv="0"]:hover{background:var(--mid) !important}
 [data-hv="1"]:hover{background:var(--line) !important}
 [data-hv="2"]:hover{border-color:var(--accent) !important}

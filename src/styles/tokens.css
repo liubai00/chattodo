@@ -1,0 +1,244 @@
+/* =========================================================================
+   Attio-style design tokens
+   -------------------------------------------------------------------------
+   Pure styling layer. Primitives (gray scale) + semantic tokens (surface,
+   border, text, accent, status), typography, radius, shadow, spacing, motion.
+   Consumed by src/styles.css (which maps the app's own semantic vars onto
+   these) and by inline styles across App.vue.
+
+   Dark theme is driven by BOTH  <html data-theme="dark">  and the OS
+   `prefers-color-scheme`. A manual  data-theme="light"  always wins over the
+   OS preference (see the :not() guard on the media query below).
+   ========================================================================= */
+
+:root {
+  color-scheme: light;
+
+  /* ---------- Neutral scale (skeleton, from Attio) ---------- */
+  --gray-0:   #ffffff;
+  --gray-50:  #f6f7f7;
+  --gray-100: #f5f5f5;
+  --gray-200: #e6e6e6;
+  --gray-300: #cccccc;
+  --gray-400: #c7c7c7;
+  --gray-500: #999999;
+  --gray-600: #838383;
+  --gray-700: #666666;
+  --gray-800: #333333;
+  --gray-900: #222222;
+  --gray-1000:#000000;
+
+  /* ---------- Surface / background ---------- */
+  --surface-base:   #ffffff;   /* app canvas / cards */
+  --surface-raised: #ffffff;   /* popovers, dropdowns, modals */
+  --surface-sunken: #f6f7f7;   /* sidebars, inset input wells */
+  --surface-hover:  #f6f7f7;   /* hover backdrop */
+  --surface-active: #f0f1f1;   /* pressed / selected */
+  --overlay-scrim:  rgba(0, 0, 0, 0.32);
+
+  /* ---------- Borders (Attio uses "shadow-as-hairline") ---------- */
+  --border-subtle:  rgba(0, 0, 0, 0.06);
+  --border-default: #e6e6e6;
+  --border-strong:  #cccccc;
+
+  /* ---------- Text ---------- */
+  --text-primary:   #222222;
+  --text-secondary: #666666;
+  --text-tertiary:  #999999;   /* meta / placeholder — large-text only, ~2.9:1 on white */
+  --text-disabled:  #c7c7c7;
+  --text-inverse:   #ffffff;
+
+  /* ---------- Accent (used sparingly: primary CTA / link / focus / selected)
+     Swap ONLY --accent + --accent-hover + --accent-active; everything else
+     (soft fill, focus ring, info status) is derived from them via color-mix. */
+  --accent:         #5b63d3;
+  --accent-hover:   #4f56c4;
+  --accent-active:  #454bb0;
+  --accent-contrast:#ffffff;
+  --accent-soft:    color-mix(in srgb, var(--accent) 8%, var(--surface-base));
+  /* Pink alternative (Attio export, use with care):
+     --accent:#ea4c89; --accent-hover:#ec5e95; --accent-active:#d8447d; */
+
+  /* ---------- Status ---------- */
+  --status-success: #68cd52;
+  --status-warning: #f5a623;
+  --status-error:   #f53f3f;
+  --status-info:    var(--accent);
+  /* soft fills derived so they track the base hue and the current surface */
+  --status-success-soft: color-mix(in srgb, var(--status-success) 12%, var(--surface-base));
+  --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--surface-base));
+  --status-error-soft:   color-mix(in srgb, var(--status-error)   12%, var(--surface-base));
+
+  /* ---------- Categorical (avatars / project dots — identity, not chrome)
+     Desaturated so they sit calmly on neutral surfaces; theme-aware. */
+  --cat-1: #5b7fb0;
+  --cat-2: #7a70b8;
+  --cat-3: #4f9280;
+  --cat-4: #b58a4a;
+  --cat-5: #b56b7e;
+  --cat-fallback: var(--gray-500);
+
+  /* ---------- Typography ----------
+     Inter/JetBrains Mono first, then a CJK fallback (the app ships Chinese
+     copy — Latin webfonts carry no CJK glyphs), then system stacks. */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans SC', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'Noto Sans SC', monospace;
+
+  --text-xs:   12px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   15px;
+  --text-lg:   18px;
+  --text-xl:   22px;
+  --text-2xl:  28px;
+
+  --font-regular:  400;
+  --font-medium:   500;
+  --font-semibold: 600;
+
+  --leading-tight:  1.3;
+  --leading-normal: 1.5;
+  --tracking-tight: -0.01em;
+  --tracking-mono:  0;
+
+  /* ---------- Radius ---------- */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-pill: 999px;
+
+  /* ---------- Shadow (hairline inner stroke + soft ambient) ---------- */
+  --shadow-hairline: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-xs: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(28, 40, 64, 0.06);
+  --shadow-sm: 0 0 2px rgba(28, 40, 64, 0.18), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+
+  /* ---------- Spacing (4px base) ---------- */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 40px;
+
+  /* ---------- Motion (fast, restrained, no bounce) ---------- */
+  --duration-fast:   110ms;
+  --duration-base:   160ms;
+  --duration-medium: 200ms;
+  --duration-slow:   300ms;
+
+  --ease-in:     cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.7, 0, 0.39, 0.98);
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* named transitions — easing baked in so callers stay consistent */
+  --transition-colors:    background-color var(--duration-medium) var(--ease-in-out),
+                          color var(--duration-medium) var(--ease-in-out),
+                          box-shadow var(--duration-medium) var(--ease-in-out),
+                          border-color var(--duration-medium) var(--ease-in-out);
+  --transition-transform: transform var(--duration-base) var(--ease-out);
+  --transition-opacity:   opacity var(--duration-fast) var(--ease-in);
+}
+
+/* ========================= Dark theme =========================
+   NOTE: the original spec joined a selector and an @media rule with a comma —
+   that is invalid CSS and silently drops the whole block. They must be two
+   separate rules. The media query is guarded with :not([data-theme="light"])
+   so a user who explicitly picks light mode is never overridden by a dark OS. */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-base:   #191919;
+  --surface-raised: #222222;
+  --surface-sunken: #1e1e1e;
+  --surface-hover:  #262626;
+  --surface-active: #2e2e2e;
+  --overlay-scrim:  rgba(0, 0, 0, 0.55);
+
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-default: #3b3b3b;
+  --border-strong:  #5c5c5c;
+
+  --text-primary:   #dbdbdb;
+  --text-secondary: #b3b3b3;
+  --text-tertiary:  #707070;
+  --text-disabled:  #666666;
+  --text-inverse:   #191919;
+
+  --accent-soft:    color-mix(in srgb, var(--accent) 16%, transparent);
+  --status-success-soft: color-mix(in srgb, var(--status-success) 18%, transparent);
+  --status-warning-soft: color-mix(in srgb, var(--status-warning) 18%, transparent);
+  --status-error-soft:   color-mix(in srgb, var(--status-error)   18%, transparent);
+
+  --cat-1: #86a6d6;
+  --cat-2: #a79bda;
+  --cat-3: #74b3a1;
+  --cat-4: #d4ab6f;
+  --cat-5: #d295a3;
+  --cat-fallback: var(--gray-600);
+
+  --shadow-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-xs: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --surface-base:   #191919;
+    --surface-raised: #222222;
+    --surface-sunken: #1e1e1e;
+    --surface-hover:  #262626;
+    --surface-active: #2e2e2e;
+    --overlay-scrim:  rgba(0, 0, 0, 0.55);
+
+    --border-subtle:  rgba(255, 255, 255, 0.08);
+    --border-default: #3b3b3b;
+    --border-strong:  #5c5c5c;
+
+    --text-primary:   #dbdbdb;
+    --text-secondary: #b3b3b3;
+    --text-tertiary:  #707070;
+    --text-disabled:  #666666;
+    --text-inverse:   #191919;
+
+    --accent-soft:    color-mix(in srgb, var(--accent) 16%, transparent);
+    --status-success-soft: color-mix(in srgb, var(--status-success) 18%, transparent);
+    --status-warning-soft: color-mix(in srgb, var(--status-warning) 18%, transparent);
+    --status-error-soft:   color-mix(in srgb, var(--status-error)   18%, transparent);
+
+    --cat-1: #86a6d6;
+    --cat-2: #a79bda;
+    --cat-3: #74b3a1;
+    --cat-4: #d4ab6f;
+    --cat-5: #d295a3;
+    --cat-fallback: var(--gray-600);
+
+    --shadow-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-xs: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 16px 40px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* ---------- Respect reduced-motion (spinners kept sane, not spun at 0.001ms) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
