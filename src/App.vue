@@ -524,35 +524,7 @@
               </div>
             </div>
           </template>
-          <template v-if="vm.isAgent">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
-              <i class="ph ph-sparkle" style="font-size:19px;color:var(--accent-ink);"></i>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">Agent 配置</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">{{ vm.agName }}</span>
-            </div>
-            <div style="flex:1;overflow:auto;padding:30px 24px;">
-              <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:16px;">
-                <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);">
-                  <div style="font:600 15px/1.3 var(--display);color:var(--text);">{{ vm.agName }}</div>
-                  <div style="font:500 12.5px/1.5 var(--font);color:var(--text3);margin-top:4px;">{{ vm.agDesc }}</div>
-                  <textarea :value="vm.agValue" @change="vm.onAgent" style="margin-top:14px;width:100%;min-height:150px;border:1px solid var(--line2);border-radius:11px;background:var(--bg);padding:13px 15px;font:500 14px/1.65 var(--font);color:var(--text);resize:vertical;"></textarea>
-                  <template v-if="vm.isMemorySection && vm.autoRules.length">
-                    <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px;">
-                      <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:9px;">自动化规则（由记忆生成）</div>
-                      <template v-for="(r, __ir) in vm.autoRules" :key="__ir">
-                        <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);">
-                          <i class="ph ph-lightning" style="color:var(--idea);font-size:15px;"></i>
-                          <span style="flex:1;font:500 13px/1.4 var(--font);color:var(--text);">新任务包含「{{ r.keyword }}」→ 自动邀请 {{ r.targetName }} 协作</span>
-                          <button @click="r.remove" title="删除规则" style="border:0;background:transparent;color:var(--text3);cursor:pointer;font-size:15px;padding:3px;"><i class="ph ph-trash"></i></button>
-                        </div>
-                      </template>
-                    </div>
-                  </template>
-                </div>
-                <div style="display:flex;align-items:center;gap:12px;"><button @click="vm.saveAgent" style="height:40px;padding:0 18px;border:0;border-radius:11px;background:var(--accent);color:var(--accent-contrast);font:600 13px/1 var(--font);cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;gap:7px;"><i class="ph ph-check"></i>保存</button><span style="font:500 12px/1.5 var(--font);color:var(--text3);">修改后由 AI 在后续判断与追问中使用</span></div>
-              </div>
-            </div>
-          </template>
+          <template v-if="vm.isAgent"><AgentView :section="vm.agentSection" /></template>
           <template v-if="vm.isSettings"><SettingsView :section="vm.setSection" /></template>
           <template v-if="vm.showAdminContent">
             <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
@@ -723,6 +695,7 @@ import { useEventsStore } from './stores/events';
 import { useToast } from './stores/toast';
 import { applyTheme as applyThemeVars } from './lib/theme';
 import SettingsView from './app/views/SettingsView.vue';
+import AgentView from './app/views/AgentView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1640,7 +1613,7 @@ class Component {
       nonList, nonCount:visNon.length, hasNon:!!selNon, noNon:!selNon,
       cnTitle:selNon?selNon.title:'', cnText:selNon?selNon.text:'', cnRaw:selNon?selNon.raw:'', cnReason:selNon?selNon.reason:'', cnDest:selNon?(destLabel[selNon.dest]||'建议归档'):'', cnGen:selNon?selNon.gen:'',
       nonConvert:()=>selNon&&this.nonConvert(selNon.id), nonArchive:()=>selNon&&this.removeNon(selNon.id,'已归档'), nonDelete:()=>selNon&&this.removeNon(selNon.id,'已删除'), nonCopy:()=>this.copyNonText(), nonExport:()=>this.exportNonMd(),
-      agentSections, agName:agCur[1], agDesc:agCur[3], agValue:st.agent[st.agentSection], onAgent:(e)=>this.updateAgent(st.agentSection,e.target.value), saveAgent:()=>this.flashToast('Agent 配置已保存'),
+      agentSection:st.agentSection, agentSections, agName:agCur[1], agDesc:agCur[3], agValue:st.agent[st.agentSection], onAgent:(e)=>this.updateAgent(st.agentSection,e.target.value), saveAgent:()=>this.flashToast('Agent 配置已保存'),
       isMemorySection:st.agentSection==='memory', autoRules:st.autoRules.map(r=>({keyword:r.keyword,targetName:r.targetName,remove:()=>this.deleteRule(r.id)})),
       setSections, setName,
       setSection:st.setSection, isSetAccount:st.setSection==='account', isSetGeneral:st.setSection==='general', isSetAi:st.setSection==='ai', isSetNotif:st.setSection==='notifications', isSetPrivacy:st.setSection==='privacy', isSetData:st.setSection==='data',
@@ -1737,7 +1710,7 @@ export default {
     onMounted(() => { if (inst.componentDidMount) inst.componentDidMount(); });
     onUpdated(() => { if (inst.componentDidUpdate) inst.componentDidUpdate(); });
     onBeforeUnmount(() => { if (inst.componentWillUnmount) inst.componentWillUnmount(); });
-    return { vm, SettingsView };
+    return { vm, SettingsView, AgentView };
   }
 };
 </script>
