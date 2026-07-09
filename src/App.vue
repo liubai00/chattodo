@@ -94,7 +94,7 @@
             <div style="flex:1;margin:10px;border:2px dashed var(--accent);border-radius:16px;background:var(--accent-bg);opacity:.6;display:flex;align-items:center;justify-content:center;"><span style="font:600 13px/1 var(--font);color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px;">放到右侧<i class="ph ph-arrow-line-right"></i></span></div>
           </div>
         </template>
-        <aside id="lx-mid" :style="vm.midStyle">
+        <aside v-if="!vm.isFriends" id="lx-mid" :style="vm.midStyle">
           <template v-if="vm.isChat">
             <div style="padding:15px 16px 13px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px;">
               <div style="display:flex;align-items:center;gap:8px;">
@@ -202,23 +202,6 @@
             <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:4px;">
               <template v-for="(p, __i10) in vm.projList" :key="__i10"><a @click="p.select" :style="`display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:11px;cursor:pointer;background:${p.bg};`" data-hv="0"><div style="display:flex;align-items:center;gap:8px;"><span :style="`width:9px;height:9px;border-radius:3px;background:${p.color};flex:0 0 auto;`"></span><span style="flex:1;min-width:0;font:600 13.5px/1.3 var(--font);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ p.done }}/{{ p.count }}</span></div><div style="height:5px;border-radius:3px;background:var(--mid);overflow:hidden;"><div :style="`height:100%;width:${p.pct}%;background:${p.color};border-radius:3px;`"></div></div></a></template>
               <template v-if="vm.projList.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:36px 12px;text-align:center;"><i class="ph ph-folders" style="font-size:24px;"></i><div style="font:500 12px/1.6 var(--font);">还没有项目<br/>点右上角 + 创建后，聊天里提到项目名会自动归属</div></div></template>
-            </div>
-          </template>
-          <template v-if="vm.isFriends">
-            <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);"><div style="font:600 16px/1.2 var(--display);color:var(--text);">好友</div><div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;"><span class="lx-mono">{{ vm.friendCount }}</span> 位好友 · <span class="lx-mono">{{ vm.friendPendingCount }}</span> 条待处理</div></div>
-            <div style="padding:10px 12px;border-bottom:1px solid var(--line);display:flex;gap:7px;">
-              <input :value="vm.addFriendEmail" @input="vm.onAddFriendEmail" @keydown="vm.addFriendKey" placeholder="对方注册邮箱（回车添加）" style="flex:1;min-width:0;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
-              <button @click="vm.submitAddFriend" style="height:34px;padding:0 12px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-contrast);font:600 12.5px/1 var(--font);cursor:pointer;">添加</button>
-            </div>
-            <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:2px;">
-              <span style="font:700 10.5px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;padding:8px 8px 6px;">我的好友</span>
-              <template v-for="(f, __if0) in vm.friendList" :key="__if0">
-                <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;">
-                  <span style="width:30px;height:30px;flex:0 0 auto;border-radius:50%;background:var(--surface-active);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font);">{{ f.initial }}</span>
-                  <span style="flex:1;min-width:0;"><span style="display:block;font:600 13px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11px/1.2 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }}</span></span>
-                </div>
-              </template>
-              <template v-if="vm.friendList.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:30px 12px;text-align:center;"><i class="ph ph-users" style="font-size:24px;"></i><div style="font:500 12px/1.6 var(--font);">还没有好友<br/>输入对方邮箱添加，或把你的邮箱发给对方</div></div></template>
             </div>
           </template>
           <template v-if="vm.showAdminDenied">
@@ -476,54 +459,7 @@
               <template v-if="vm.noNon"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);padding-top:90px;"><i class="ph ph-tray" style="font-size:30px;"></i><div style="font:500 13px/1 var(--font);">隔离区为空</div></div></template>
             </div>
           </template>
-          <template v-if="vm.isFriends">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
-              <i class="ph ph-users" style="font-size:20px;color:var(--accent-ink);"></i>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">好友</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">协作从好友开始</span>
-            </div>
-            <div style="flex:1;min-height:0;overflow:auto;padding:24px 24px;">
-              <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:20px;">
-                <template v-if="vm.friendIncoming.length>0">
-                  <div>
-                    <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:9px;">待处理请求 · {{ vm.friendIncoming.length }}</div>
-                    <template v-for="(f, __if1) in vm.friendIncoming" :key="__if1">
-                      <div style="display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);animation:lx-fade .2s ease;">
-                        <span style="width:34px;height:34px;flex:0 0 auto;border-radius:50%;background:var(--surface-active);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font:600 13px/1 var(--font);">{{ f.initial }}</span>
-                        <span style="flex:1;min-width:0;"><span style="display:block;font:600 13.5px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }} · <span class="lx-mono">{{ f.time }}</span></span></span>
-                        <button @click="f.accept" style="height:30px;padding:0 14px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-contrast);font:600 12px/1 var(--font);cursor:pointer;">接受</button>
-                        <button @click="f.decline" style="height:30px;padding:0 12px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text2);font:600 12px/1 var(--font);cursor:pointer;">拒绝</button>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-                <template v-if="vm.friendOutgoing.length>0">
-                  <div>
-                    <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:9px;">已发出 · 等待对方接受</div>
-                    <template v-for="(f, __if2) in vm.friendOutgoing" :key="__if2">
-                      <div style="display:flex;align-items:center;gap:12px;background:var(--panel);border:1px dashed var(--line2);border-radius:12px;padding:11px 14px;margin-bottom:8px;">
-                        <span style="width:32px;height:32px;flex:0 0 auto;border-radius:50%;background:var(--mid);color:var(--text2);display:flex;align-items:center;justify-content:center;font:600 12.5px/1 var(--font);">{{ f.initial }}</span>
-                        <span style="flex:1;min-width:0;"><span style="display:block;font:600 13px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }} · <span class="lx-mono">{{ f.time }}</span></span></span>
-                        <button @click="f.withdraw" style="height:28px;padding:0 12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;">撤回</button>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-                <div>
-                  <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:9px;">我的好友 · <span class="lx-mono">{{ vm.friendCount }}</span></div>
-                  <template v-for="(f, __if3) in vm.friendRows" :key="__if3">
-                    <div style="display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
-                      <span style="width:34px;height:34px;flex:0 0 auto;border-radius:50%;background:var(--surface-active);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font:600 13px/1 var(--font);">{{ f.initial }}</span>
-                      <span style="flex:1;min-width:0;"><span style="display:block;font:600 13.5px/1.3 var(--font);color:var(--text);">{{ f.name }}</span><span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.email }} · {{ f.since }}起</span></span>
-                      <button @click="f.remove" title="解除好友（不影响已有协作任务）" style="height:28px;padding:0 12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text3);font:600 11.5px/1 var(--font);cursor:pointer;">解除</button>
-                    </div>
-                  </template>
-                  <template v-if="vm.friendRows.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:40px 12px;text-align:center;background:var(--panel);border:1px dashed var(--line2);border-radius:14px;"><i class="ph ph-users" style="font-size:30px;"></i><div style="font:500 13px/1.7 var(--font);">还没有好友<br/>在左侧输入对方的注册邮箱发送请求；也可以在聊天里说「加好友 对方邮箱」</div></div></template>
-                </div>
-                <div style="background:var(--mid);border-radius:12px;padding:12px 15px;font:500 12px/1.7 var(--font);color:var(--text3);">添加好友需要对方的注册邮箱（不提供按名字搜索，保护隐私）。成为好友后，双方可以互相 @提及、指派与邀请协作；解除好友不影响已有协作任务。不想被陌生人打扰？在 设置 · 隐私与安全 里可谢绝陌生请求。你的邮箱：{{ vm.sEmail }}</div>
-              </div>
-            </div>
-          </template>
+          <template v-if="vm.isFriends"><FriendsView /></template>
           <template v-if="vm.isAgent"><AgentView :section="vm.agentSection" /></template>
           <template v-if="vm.isSettings"><SettingsView :section="vm.setSection" /></template>
           <template v-if="vm.showAdminContent">
@@ -696,6 +632,7 @@ import { useToast } from './stores/toast';
 import { applyTheme as applyThemeVars } from './lib/theme';
 import SettingsView from './app/views/SettingsView.vue';
 import AgentView from './app/views/AgentView.vue';
+import FriendsView from './app/views/FriendsView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1710,7 +1647,7 @@ export default {
     onMounted(() => { if (inst.componentDidMount) inst.componentDidMount(); });
     onUpdated(() => { if (inst.componentDidUpdate) inst.componentDidUpdate(); });
     onBeforeUnmount(() => { if (inst.componentWillUnmount) inst.componentWillUnmount(); });
-    return { vm, SettingsView, AgentView };
+    return { vm, SettingsView, AgentView, FriendsView };
   }
 };
 </script>
