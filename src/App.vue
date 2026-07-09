@@ -94,7 +94,7 @@
             <div style="flex:1;margin:10px;border:2px dashed var(--accent);border-radius:16px;background:var(--accent-bg);opacity:.6;display:flex;align-items:center;justify-content:center;"><span style="font:600 13px/1 var(--font);color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px;">放到右侧<i class="ph ph-arrow-line-right"></i></span></div>
           </div>
         </template>
-        <aside v-if="!vm.isFriends" id="lx-mid" :style="vm.midStyle">
+        <aside v-if="!vm.isFriends && !vm.isClarify" id="lx-mid" :style="vm.midStyle">
           <template v-if="vm.isChat">
             <div style="padding:15px 16px 13px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px;">
               <div style="display:flex;align-items:center;gap:8px;">
@@ -159,12 +159,6 @@
               <span style="font:700 10.5px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;padding:14px 8px 6px;">按隐私范围</span>
               <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;font:500 13px/1 var(--font);color:var(--text2);"><span style="width:8px;height:8px;border-radius:2px;background:var(--accent);"></span>工作</div>
               <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;font:500 13px/1 var(--font);color:var(--text2);"><span style="width:8px;height:8px;border-radius:2px;background:var(--idea);"></span>个人</div>
-            </div>
-          </template>
-          <template v-if="vm.isClarify">
-            <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);"><div style="font:600 16px/1.2 var(--display);color:var(--text);">待澄清区</div><div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;"><span class="lx-mono">{{ vm.clarifyCount }}</span> 条 · 有行动倾向但还不够具体</div></div>
-            <div style="flex:1;overflow:auto;padding:8px 9px;display:flex;flex-direction:column;gap:2px;">
-              <template v-for="(i, __i5) in vm.ideaList" :key="__i5"><a @click="i.select" :style="`display:flex;flex-direction:column;gap:4px;padding:11px 12px;border-radius:10px;cursor:pointer;background:${i.bg};`" data-hv="0"><span style="font:600 13.5px/1.4 var(--font);color:var(--text);">{{ i.title }}</span><span style="font:500 11.5px/1.4 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ i.preview }}</span></a></template>
             </div>
           </template>
           <template v-if="vm.isNonTodo">
@@ -417,27 +411,7 @@
               </div>
             </template>
           </template>
-          <template v-if="vm.isClarify">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
-              <i class="ph ph-lightbulb" style="font-size:19px;color:var(--accent-ink);"></i>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">待澄清区</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">补充后转为正式任务</span>
-              <div style="flex:1"></div>
-              <span :style="vm.modeChipStyle"><i :class="`ph ${vm.modeIcon}`" style="font-size:13px;"></i>{{ vm.modeLabel }}</span>
-            </div>
-            <div style="flex:1;overflow:auto;padding:30px 24px;">
-              <template v-if="vm.hasIdea">
-                <div style="max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:18px;animation:lx-pop .3s ease;">
-                  <div style="font:600 22px/1.4 var(--display);color:var(--text);">{{ vm.ciTitle }}</div>
-                  <div style="background:var(--idea-bg);border-left:3px solid var(--idea);border-radius:12px;padding:14px 16px;"><div style="font:700 11px/1 var(--font);letter-spacing:.05em;color:var(--idea);display:flex;align-items:center;gap:6px;text-transform:uppercase;"><i class="ph ph-arrow-bend-down-right"></i>建议下一步</div><div style="font:500 14px/1.6 var(--font);color:var(--text);margin-top:8px;">{{ vm.ciSuggest }}</div></div>
-                  <div style="background:var(--mid);border-radius:12px;padding:13px 15px;"><div style="font:600 11px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-quotes"></i>原始输入</div><div style="font:500 13.5px/1.55 var(--font);color:var(--text);margin-top:6px;">{{ vm.ciRaw }}</div></div>
-                  <div style="display:flex;align-items:flex-start;gap:8px;font:500 12.5px/1.55 var(--font);color:var(--text2);"><i class="ph ph-sparkle" style="color:var(--accent-ink);margin-top:1px;"></i><span>AI 判断为 <b style="color:var(--idea);">待澄清</b> · {{ vm.ciReason }}</span></div>
-                  <div style="display:flex;align-items:center;gap:10px;margin-top:2px;"><button @click="vm.convertIdea" style="height:38px;padding:0 16px;border:0;border-radius:11px;background:var(--accent);color:var(--accent-contrast);font:600 13px/1 var(--font);cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;gap:7px;"><i class="ph ph-arrow-up-right"></i>转为正式任务</button><button @click="vm.discardIdea" style="height:38px;padding:0 16px;border:1px solid var(--line2);border-radius:11px;background:var(--panel);color:var(--text2);font:600 13px/1 var(--font);cursor:pointer;">放弃</button><div style="flex:1"></div><span style="font:500 11.5px/1 var(--font);color:var(--text3);">生成于 {{ vm.ciGen }}</span></div>
-                </div>
-              </template>
-              <template v-if="vm.noIdea"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);padding-top:90px;"><i class="ph ph-lightbulb" style="font-size:30px;"></i><div style="font:500 13px/1 var(--font);">待澄清区为空</div></div></template>
-            </div>
-          </template>
+          <template v-if="vm.isClarify"><ClarifyView :workspace="vm.workspace" :privacy="vm.privacy" /></template>
           <template v-if="vm.isNonTodo">
             <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
               <i class="ph ph-tray" style="font-size:19px;color:var(--nono);"></i>
@@ -633,6 +607,7 @@ import { applyTheme as applyThemeVars } from './lib/theme';
 import SettingsView from './app/views/SettingsView.vue';
 import AgentView from './app/views/AgentView.vue';
 import FriendsView from './app/views/FriendsView.vue';
+import ClarifyView from './app/views/ClarifyView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1598,7 +1573,7 @@ class Component {
 
 export default {
   name: 'LinXApp',
-  components: { SettingsView, AgentView, FriendsView },
+  components: { SettingsView, AgentView, FriendsView, ClarifyView },
   setup() {
     const inst = new Component();
     inst.state = reactive(inst.state);
