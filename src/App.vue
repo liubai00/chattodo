@@ -1598,6 +1598,7 @@ class Component {
 
 export default {
   name: 'LinXApp',
+  components: { SettingsView, AgentView, FriendsView },
   setup() {
     const inst = new Component();
     inst.state = reactive(inst.state);
@@ -1647,7 +1648,7 @@ export default {
     onMounted(() => { if (inst.componentDidMount) inst.componentDidMount(); });
     onUpdated(() => { if (inst.componentDidUpdate) inst.componentDidUpdate(); });
     onBeforeUnmount(() => { if (inst.componentWillUnmount) inst.componentWillUnmount(); });
-    return { vm, SettingsView, AgentView, FriendsView };
+    return { vm };
   }
 };
 </script>
