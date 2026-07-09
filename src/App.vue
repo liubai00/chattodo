@@ -421,7 +421,7 @@
                 <template v-for="(col, __i20) in vm.boardCols" :key="__i20">
                   <div @drop="col.onDrop" @dragover="col.onOver" @dragleave="col.onLeave" :style="`flex:1;min-width:0;background:var(--panel);border:1px solid ${col.hl?'var(--accent)':'var(--line)'};border-radius:14px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .12s;${col.hl?'box-shadow:0 0 0 2px var(--accent-bg);':''}`">
                     <div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--line);"><span :style="`width:8px;height:8px;border-radius:50%;background:${col.color};`"></span><span style="font:600 13px/1 var(--font);color:var(--text);">{{ col.name }}</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ col.count }}</span></div>
-                    <div style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:9px;min-height:120px;">
+                    <div v-stagger style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:9px;min-height:120px;">
                       <template v-for="(c, __i21) in col.cards" :key="__i21">
                         <div draggable="true" @dragstart="c.onDragStart" @drop="c.onCardDrop" @dragover="c.onCardOver" @click="c.open" style="background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:11px 12px;cursor:grab;box-shadow:var(--shadow);" data-hv="2">
                           <div :style="`font:600 13px/1.4 var(--font);color:${c.titleColor};${c.titleDeco}`">{{ c.title }}</div>
@@ -702,7 +702,7 @@
               <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px;">
                 <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);"><div style="font:500 13.5px/1.6 var(--font);color:var(--text2);">{{ vm.spDesc }}</div><div style="margin-top:14px;display:flex;align-items:center;gap:12px;"><div style="flex:1;height:8px;border-radius:4px;background:var(--mid);overflow:hidden;"><div :style="`height:100%;width:${vm.spPct}%;background:${vm.spColor};border-radius:4px;`"></div></div><span style="font:600 13px/1 var(--font);color:var(--text);">{{ vm.spPct }}%</span></div></div>
                 <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;">项目任务 · {{ vm.spCount }}</div>
-                <div style="display:flex;flex-direction:column;gap:8px;">
+                <div v-stagger style="display:flex;flex-direction:column;gap:8px;">
                   <template v-for="(t, __i28) in vm.spTasks" :key="__i28"><div @click="t.open" style="display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;cursor:pointer;box-shadow:var(--shadow);" data-hv="2"><span :style="`width:8px;height:8px;border-radius:50%;background:${t.assigneeColor};flex:0 0 auto;`"></span><div style="flex:1;min-width:0;"><div :style="`font:600 13.5px/1.4 var(--font);color:${t.titleColor};${t.titleDeco}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ t.title }}</div><div style="font:500 11px/1 var(--font);color:var(--text3);margin-top:3px;">{{ t.statusLabel }} · <span class="lx-mono">{{ t.due }}</span></div></div><span :style="t.prioStyle">{{ t.prio }}</span><span :style="`width:24px;height:24px;border-radius:50%;background:${t.assigneeColor};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 11px/1 var(--font);flex:0 0 auto;`">{{ t.assigneeInitial }}</span></div></template>
                 </div>
               </div>
@@ -816,10 +816,15 @@
 </template>
 
 <script>
-import { reactive, computed, onMounted, onUpdated, onBeforeUnmount, nextTick } from 'vue';
+// @ts-nocheck
+import { reactive, computed, onMounted, onUpdated, onBeforeUnmount, nextTick, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { api, setToken, getToken } from './lib/api.js';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
+import gsap from 'gsap';
+import { Flip } from 'gsap/Flip';
+gsap.registerPlugin(Flip);
 
 // ---- backend <-> frontend display helpers ----
 function lxPad(n){ return String(n).padStart(2,'0'); }
@@ -966,7 +971,7 @@ class Component {
     }catch(e){ if(e&&e.status===401){ setToken(''); this.setState({authed:false}); } else { this.flashToast('数据加载失败，请刷新重试'); } }
   }
   _applyUser(u){ if(!u) return; this.setState(s=>({role:u.role||'member', settings:{...s.settings, name:u.name||s.settings.name, accountName:u.accountName||u.name||s.settings.accountName, email:u.email||s.settings.email}})); }
-  _enterApp(){ const ok=['chat','database','projects','clarify','nontodo','agent','settings']; this.setState(s=>({authed:true, view:ok.includes(s.settings.defaultView)?s.settings.defaultView:'chat', workspace:s.settings.defaultWs||'work', privacy:!!s.settings.privacyDefault, authPassword:'', authError:''}), ()=>{ this.applyTheme(); this.applyNav(); this.scrollMsgs(true); }); this._startEvents(); }
+  _enterApp(){ const ok=['chat','database','projects','clarify','nontodo','agent','settings']; const rv=this._initialRouteView; this._initialRouteView=null; this.setState(s=>({authed:true, view: rv || (ok.includes(s.settings.defaultView)?s.settings.defaultView:'chat'), workspace:s.settings.defaultWs||'work', privacy:!!s.settings.privacyDefault, authPassword:'', authError:''}), ()=>{ this.applyTheme(); this.applyNav(); this.scrollMsgs(true); }); this._startEvents(); }
   // 实时事件：收到推送 → 即时提示 + 节流刷新（2.5s 合并窗口）
   _startEvents(){
     if(this._stopEvents) this._stopEvents();
@@ -1394,8 +1399,12 @@ class Component {
     const drag=this._dragId; this._dragId=null; this.setState({dragOverCol:null});
     if(!drag) return;
     const dragT=this.state.tasks.find(x=>x.id===drag);
+    // GSAP FLIP：记录卡片旧位置 -> patchTask 改状态让 Vue 重排 -> Flip.from 平滑滑到新列
+    let flipState=null;
+    try{ flipState=Flip.getState(document.querySelectorAll('#lx-main div[draggable="true"]')); }catch(e){ console.error('[lx] flip getState:',e); }
     if(dragT&&dragT.status!==status) this.patchTask(drag,{status});
     this._moveInOrder(drag,null);
+    if(flipState){ nextTick(()=>{ try{ Flip.from(flipState,{targets:document.querySelectorAll('#lx-main div[draggable="true"]'),duration:0.35,ease:'power3.out',absoluteOnLeave:true}); }catch(e){ console.error('[lx] flip.from:',e); } }); }
   }
   // 中栏可拖拽调整宽度（桌面端），localStorage 记忆。互换后方向自适应。
   startMidResize(e){ if(this.state.isMobile) return; if(e&&e.preventDefault)e.preventDefault(); const startX=e.clientX; const startW=this.state.midW||304; const sign=this.state.paneSwap?-1:1; document.body.style.userSelect='none'; document.body.style.cursor='col-resize'; const move=(ev)=>{ let w=startW+sign*(ev.clientX-startX); w=Math.max(220,Math.min(560,w)); this.setState({midW:w}); }; const up=()=>{ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); document.body.style.userSelect=''; document.body.style.cursor=''; try{localStorage.setItem('lx_mid_w',String(this.state.midW||304));}catch(_){}}; document.addEventListener('mousemove',move); document.addEventListener('mouseup',up); }
@@ -1636,14 +1645,14 @@ class Component {
       railStyle='width:66px;flex:0 0 66px;background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:5px;z-index:5;';
       paneWrapStyle='flex:1;display:flex;min-width:0;position:relative;';
       { const mw=st.midW||304; const bd=st.paneSwap?'border-left:1px solid var(--line)':'border-right:1px solid var(--line)'; midStyle='order:'+(st.paneSwap?3:1)+';width:'+mw+'px;flex:0 0 '+mw+'px;background:var(--panel);'+bd+';display:flex;flex-direction:column;min-width:0;will-change:transform;'; }
-      mainStyle='order:'+(st.paneSwap?1:3)+';flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;position:relative;background:var(--bg);will-change:transform;';
+      mainStyle={order:String(st.paneSwap?1:3),flex:'1',display:'flex',flexDirection:'column',minWidth:0,minHeight:0,position:'relative',background:'var(--bg)',willChange:'transform'};
       bottomNavStyle='display:none;'; showBack=false;
     } else {
       shellStyle='display:flex;flex-direction:column;height:100%;';
       railStyle='display:none;';
       paneWrapStyle='flex:1;display:flex;min-width:0;position:relative;overflow:hidden;';
       midStyle=showList?'flex:1;min-width:0;width:100%;background:var(--panel);display:flex;flex-direction:column;':'display:none;';
-      mainStyle=showList?'display:none;':'flex:1;min-width:0;min-height:0;width:100%;display:flex;flex-direction:column;position:relative;background:var(--bg);';
+      mainStyle=showList?{display:'none'}:{flex:'1',minWidth:0,minHeight:0,width:'100%',display:'flex',flexDirection:'column',position:'relative',background:'var(--bg)'};
       bottomNavStyle='display:flex;flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel);padding:6px 2px;';
       showBack=!showList;
     }
@@ -1783,6 +1792,42 @@ export default {
       if (cb) nextTick(() => cb());
     };
     const vm = computed(() => inst.renderVals());
+    // 视图切换淡入：pre-flush 阶段先 gsap.set 立即隐藏旧内容（在 Vue 重渲染前），
+    // 新内容渲染后 400ms 淡入 + 8px 上滑。mainStyle 用对象式 :style，重渲染不会覆盖 GSAP 的 inline opacity/transform。
+    watch(() => inst.state.view, (n, o) => {
+      console.log('[lx] view watch fired:', o, '->', n);
+      if (!n || n === o) return;
+      const el = document.getElementById('lx-main');
+      if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      gsap.set(el, { opacity: 0, y: 8 });
+      nextTick(() => {
+        gsap.to(el, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' });
+      });
+    });
+    // ---- 路由桥（Phase 1b）：内部 view ↔ URL 双向同步 ----
+    // 迁移期：旧 App 的内部 view 状态与 hash 路由互相同步，URL 反映当前视图、前进/后退可用。
+    // 视图逐个迁移后，对应路由改指向新页面，此桥随之缩小直至 Phase 4 删除。
+    // 防循环靠比较守卫：view->URL 仅在 route.name!==view 时触发；URL->view 仅在 view!==name 时触发。
+    const route = useRoute();
+    const router = useRouter();
+    const LEGACY_VIEWS = ['chat','database','projects','friends','clarify','nontodo','agent','settings'];
+    // 首屏深链恢复：_enterApp 会按 settings.defaultView 设 view，从而冲掉 URL 里的视图
+    // （view->URL watcher 会把 defaultView 推到路由）。在此把初始路由视图交给实例，
+    // _enterApp 优先采用它，使刷新/深链 #/xxx 能落到正确视图；用后即清，避免登出再登入误用。
+    const __initName = route.name;
+    inst._initialRouteView = __initName && LEGACY_VIEWS.includes(__initName) ? __initName : null;
+    // view -> URL：内部视图变化同步到路由（home/legacy 首进用 replace 避免历史噪音，其余 push 产生历史）
+    watch(() => inst.state.view, (v) => {
+      if (!v || !LEGACY_VIEWS.includes(v)) return;
+      if (route.name === v) return;
+      const method = (route.name === 'home' || route.name === 'legacy') ? 'replace' : 'push';
+      router[method]({ name: v });
+    });
+    // URL -> view：路由变化（前进/后退/手改 URL）切换内部视图
+    watch(() => route.name, (name) => {
+      if (!name || !LEGACY_VIEWS.includes(name)) return;
+      if (inst.state.view !== name) inst.go(name);
+    });
     onMounted(() => { if (inst.componentDidMount) inst.componentDidMount(); });
     onUpdated(() => { if (inst.componentDidUpdate) inst.componentDidUpdate(); });
     onBeforeUnmount(() => { if (inst.componentWillUnmount) inst.componentWillUnmount(); });
