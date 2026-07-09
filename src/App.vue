@@ -553,108 +553,7 @@
               </div>
             </div>
           </template>
-          <template v-if="vm.isSettings">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
-              <i class="ph ph-gear" style="font-size:19px;color:var(--accent-ink);"></i>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">设置</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">{{ vm.setName }}</span>
-            </div>
-            <div style="flex:1;overflow:auto;padding:30px 24px;">
-              <div style="max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:16px;">
-                <template v-if="vm.isSetAccount">
-                  <div style="display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);">
-                    <span style="width:52px;height:52px;border-radius:16px;background:var(--accent);color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 24px/1 var(--display);flex:0 0 auto;">{{ vm.meBig }}</span>
-                    <div style="flex:1;min-width:0;"><div style="font:600 16px/1.3 var(--display);color:var(--text);">{{ vm.sName }}</div><div style="font:500 12.5px/1 var(--font);color:var(--text3);margin-top:4px;">@{{ vm.sAccountName }} · {{ vm.sEmail }}</div></div>
-                    <span style="padding:5px 11px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 11.5px/1 var(--font);">{{ vm.roleLabel }}</span>
-                  </div>
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 18px;box-shadow:var(--shadow);">
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">账户名</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">你的唯一账号标识，用于系统展示（登录仍用邮箱）</div></div><input :value="vm.sAccountName" @change="vm.onAccountName" maxlength="24" placeholder="账户名" style="width:150px;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">称呼</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">聊天、问候与协作里对你的称谓，可随时修改</div></div><input :value="vm.sName" @change="vm.onName" maxlength="24" placeholder="称呼" style="width:150px;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">邮箱</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">登录账号，不可修改</div></div><span style="font:500 13.5px/1 var(--font);color:var(--text2);">{{ vm.sEmail }}</span></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">角色</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">首个注册账号为管理员，决定后台访问权限</div></div><span style="padding:5px 12px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 12px/1 var(--font);">{{ vm.roleLabel }}</span></div>
-                    <div style="display:flex;flex-direction:column;gap:0;padding:15px 0;">
-                      <div style="display:flex;align-items:center;gap:14px;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">密码</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">验证当前密码后设置新密码</div></div><button @click="vm.changePwd" style="height:34px;padding:0 14px;border:1px solid var(--line2);border-radius:9px;background:var(--bg);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;">{{ vm.pwdOpen ? '收起' : '修改密码' }}</button></div>
-                      <template v-if="vm.pwdOpen">
-                        <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;background:var(--mid);border-radius:11px;padding:14px;">
-                          <input :value="vm.pwdOld" @input="vm.onPwdOld" type="password" placeholder="当前密码" style="border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
-                          <input :value="vm.pwdNew" @input="vm.onPwdNew" type="password" placeholder="新密码（至少 8 位，改密后其他设备将退出登录）" style="border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
-                          <button @click="vm.submitPwd" :disabled="vm.pwdBusy" style="align-self:flex-start;height:34px;padding:0 16px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-contrast);font:600 12.5px/1 var(--font);cursor:pointer;">{{ vm.pwdBusy ? '提交中…' : '确认修改' }}</button>
-                        </div>
-                      </template>
-                    </div>
-                  </div>
-                  <button @click="vm.logout" style="align-self:flex-start;height:38px;padding:0 16px;border:1px solid var(--danger);border-radius:11px;background:var(--danger-bg);color:var(--danger);font:600 12.5px/1 var(--font);cursor:pointer;display:flex;align-items:center;gap:7px;"><i class="ph ph-sign-out"></i>退出登录</button>
-                </template>
-                <template v-if="vm.isSetGeneral">
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 18px;box-shadow:var(--shadow);">
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">外观主题</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">明亮 / 深色，保存到账号，下次登录生效</div></div><div style="display:inline-flex;background:var(--mid);border-radius:8px;padding:3px;gap:2px;"><button @click="vm.setThemeLight" :style="vm.themeLightStyle">明亮</button><button @click="vm.setThemeDark" :style="vm.themeDarkStyle">深色</button></div></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">默认工作区</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">下次登录时进入的空间</div></div><div style="display:inline-flex;background:var(--mid);border-radius:8px;padding:3px;gap:2px;"><button @click="vm.setDefWork" :style="vm.sDefaultWork">工作</button><button @click="vm.setDefPersonal" :style="vm.sDefaultPersonal">个人</button></div></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">默认视图</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">下次登录首屏进入的页面</div></div><select :value="vm.sDefaultView" @change="vm.onDefaultView" style="border:1px solid var(--line2);border-radius:9px;padding:8px 10px;background:var(--bg);color:var(--text);font:600 12.5px/1 var(--font);cursor:pointer;"><template v-for="(o, __i23) in vm.viewOptions" :key="__i23"><option :value="o.value">{{ o.label }}</option></template></select></div>
-                  </div>
-                  <div style="background:var(--mid);border-radius:12px;padding:12px 15px;font:500 12px/1.6 var(--font);color:var(--text3);">以上设置即时保存到你的账号。</div>
-                </template>
-                <template v-if="vm.isSetAi && !vm.canAdmin">
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;">
-                    <span style="width:40px;height:40px;border-radius:11px;background:var(--accent-bg);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;"><i :class="`ph ${vm.aiOwnActive?'ph-user-gear':'ph-lock-simple'}`"></i></span>
-                    <div style="flex:1;min-width:0;"><div style="font:600 14px/1.3 var(--font);color:var(--text);">{{ vm.aiOwnActive ? '正在使用你的个人 AI 配置' : 'AI 接入由管理员统一配置' }}</div><div style="font:500 12px/1.5 var(--font);color:var(--text3);margin-top:3px;">当前模型：{{ vm.aiIsRule ? '规则版（离线）' : (vm.aiModel || vm.aiPreset) }}{{ vm.aiOwnActive ? ' · 仅对你生效' : ' · 全团队共享' }}</div></div>
-                    <button @click="vm.toggleOwnAi" style="height:32px;padding:0 13px;border:1px solid var(--line2);border-radius:9px;background:var(--bg);color:var(--text2);font:600 12px/1 var(--font);cursor:pointer;">{{ vm.ownAiOpen ? '收起' : '使用自己的 Key' }}</button>
-                  </div>
-                  <template v-if="vm.ownAiOpen">
-                    <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;animation:lx-fade .2s ease;">
-                      <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">服务商预设</span><select :value="vm.aiPreset" @change="vm.onAiPreset" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13.5px/1 var(--font);cursor:pointer;"><template v-for="(o, __ipo) in vm.aiPresetOptions" :key="__ipo"><option :value="o.value">{{ o.label }}</option></template></select></label>
-                      <template v-if="!vm.aiIsRule">
-                        <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">Base URL</span><input :value="vm.aiBaseUrl" @input="vm.onAiBaseUrl" placeholder="https://api.deepseek.com/v1" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></label>
-                        <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">模型</span><input :value="vm.aiModel" @input="vm.onAiModel" placeholder="如 deepseek-chat / claude-sonnet-5" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></label>
-                        <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">API Key</span><input :value="vm.sApiKey" @input="vm.onApiKey" type="password" :placeholder="vm.aiOwnActive?'••••••（已配置，留空不修改）':'sk-...'" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></label>
-                      </template>
-                      <div style="display:flex;align-items:center;gap:10px;">
-                        <button @click="vm.saveOwnAi" style="height:36px;padding:0 16px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-contrast);font:600 12.5px/1 var(--font);cursor:pointer;">保存个人配置</button>
-                        <button v-if="vm.aiOwnActive" @click="vm.clearOwnAi" style="height:36px;padding:0 14px;border:1px solid var(--line2);border-radius:10px;background:var(--bg);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;">恢复团队配置</button>
-                        <span style="font:500 11.5px/1.5 var(--font);color:var(--text3);">只影响你自己的 AI 调用 · Key 不回显</span>
-                      </div>
-                    </div>
-                  </template>
-                </template>
-                <template v-if="vm.isSetAi && vm.canAdmin">
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;">
-                    <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">服务商预设</span><select :value="vm.aiPreset" @change="vm.onAiPreset" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13.5px/1 var(--font);cursor:pointer;"><template v-for="(o, __ip) in vm.aiPresetOptions" :key="__ip"><option :value="o.value">{{ o.label }}</option></template></select><span v-if="vm.aiPresetHint" style="font:500 11.5px/1.4 var(--font);color:var(--text3);">{{ vm.aiPresetHint }}</span></label>
-                    <template v-if="!vm.aiIsRule">
-                      <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">Base URL</span><input :value="vm.aiBaseUrl" @input="vm.onAiBaseUrl" placeholder="https://api.deepseek.com/v1（Claude 可留空用官方）" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></label>
-                      <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">模型</span><input :value="vm.aiModel" @input="vm.onAiModel" placeholder="如 deepseek-chat / qwen-plus / claude-sonnet-5" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/></label>
-                      <label style="display:flex;flex-direction:column;gap:6px;"><span style="font:600 12px/1 var(--font);color:var(--text2);">API Key <span v-if="vm.aiHasKey" style="color:var(--text3);font-weight:500;">· 已配置（留空则不修改）</span></span><input :value="vm.sApiKey" @input="vm.onApiKey" type="password" :placeholder="vm.aiHasKey?'••••••（已配置）':'sk-...'" style="border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:500 13px/1 'Hanken Grotesk',monospace;"/></label>
-                      <div style="display:flex;align-items:center;gap:14px;padding-top:2px;"><div style="flex:1;"><div style="font:600 13px/1.3 var(--font);color:var(--text);">失败兜底</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">模型调用失败时自动回退规则版，不丢输入</div></div><span @click="vm.toggleAiFallback" :style="vm.aiFallbackTrack"><span :style="vm.aiFallbackKnob"></span></span></div>
-                    </template>
-                    <div v-else style="background:var(--mid);border-radius:12px;padding:12px 15px;font:500 12px/1.6 var(--font);color:var(--text3);">规则版为离线关键词分类，无需 API Key。切换到其他服务商即可接入真实模型（支持任意 OpenAI 兼容服务）。</div>
-                  </div>
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">连接状态</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">用一条样例验证服务商 / 模型 / Key</div></div><template v-if="vm.aiTested"><span style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 11.5px/1 var(--font);"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>可用</span></template><button @click="vm.testConn" style="height:34px;padding:0 14px;border:1px solid var(--line2);border-radius:9px;background:var(--bg);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;">测试连接</button></div>
-                  <div style="display:flex;align-items:center;gap:12px;"><button @click="vm.saveSettings" style="height:40px;padding:0 18px;border:0;border-radius:11px;background:var(--accent);color:var(--accent-contrast);font:600 13px/1 var(--font);cursor:pointer;box-shadow:var(--shadow);">保存配置</button><span style="font:500 12px/1.5 var(--font);color:var(--text3);">仅保存在你的账号下 · Key 不回显</span></div>
-                </template>
-                <template v-if="vm.isSetNotif">
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 18px;box-shadow:var(--shadow);">
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">任务指派</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">有人把任务指派给你</div></div><span @click="vm.toggleNpAssign" :style="vm.npAssignTrack"><span :style="vm.npAssignKnob"></span></span></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">到期提醒</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">任务临近截止时间</div></div><span @click="vm.toggleNpDue" :style="vm.npDueTrack"><span :style="vm.npDueKnob"></span></span></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">AI 失败告警</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">AI 生成失败需要排查</div></div><span @click="vm.toggleNpFail" :style="vm.npFailTrack"><span :style="vm.npFailKnob"></span></span></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">完成动态</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">团队成员完成任务</div></div><span @click="vm.toggleNpDone" :style="vm.npDoneTrack"><span :style="vm.npDoneKnob"></span></span></div>
-                  </div>
-                  <div style="background:var(--mid);border-radius:12px;padding:12px 15px;font:500 12px/1.6 var(--font);color:var(--text3);">关闭后，对应类型的通知不再出现在左侧通知中心。</div>
-                </template>
-                <template v-if="vm.isSetPrivacy">
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 18px;box-shadow:var(--shadow);">
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">AI 可见范围</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">AI 制定计划时可读取的数据</div></div><div style="display:inline-flex;background:var(--mid);border-radius:8px;padding:3px;gap:2px;"><button @click="vm.setVisScope" :style="vm.sVisScope">仅可见范围</button><button @click="vm.setVisAll" :style="vm.sVisAll">全部 todo</button></div></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">默认开启隐私模式</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">登录后自动隐藏跨空间数据</div></div><span @click="vm.togglePm" :style="vm.pmTrack"><span :style="vm.pmKnob"></span></span></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">谢绝陌生人好友请求</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">开启后别人无法向你发起好友请求，只能由你主动添加对方</div></div><span @click="vm.toggleFp" :style="vm.fpTrack"><span :style="vm.fpKnob"></span></span></div>
-                  </div>
-                  <div style="background:var(--mid);border-radius:12px;padding:13px 15px;font:500 12.5px/1.6 var(--font);color:var(--text2);">隐私模式开启时，AI 只读取当前工作区（工作 / 个人）可见内容，非 todo 内容默认不参与计划。</div>
-                </template>
-                <template v-if="vm.isSetData">
-                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 18px;box-shadow:var(--shadow);">
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line);"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--text);">导出全部数据</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">任务、待澄清、非 todo 与生成记录 (JSON)</div></div><button @click="vm.exportData" style="height:34px;padding:0 14px;border:1px solid var(--line2);border-radius:9px;background:var(--bg);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-download-simple"></i>导出</button></div>
-                    <div style="display:flex;align-items:center;gap:14px;padding:15px 0;"><div style="flex:1;"><div style="font:600 13.5px/1.3 var(--font);color:var(--danger);">清空测试数据</div><div style="font:500 12px/1.45 var(--font);color:var(--text3);margin-top:3px;">删除当前账号下的全部测试数据，不可恢复</div></div><button @click="vm.clearData" style="height:34px;padding:0 14px;border:1px solid var(--danger);border-radius:9px;background:var(--danger-bg);color:var(--danger);font:600 12.5px/1 var(--font);cursor:pointer;">清空</button></div>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </template>
+          <template v-if="vm.isSettings"><SettingsView :section="vm.setSection" /></template>
           <template v-if="vm.showAdminContent">
             <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
               <i class="ph ph-chart-bar" style="font-size:19px;color:var(--accent-ink);"></i>
@@ -821,6 +720,9 @@ import { reactive, computed, onMounted, onUpdated, onBeforeUnmount, nextTick, wa
 import { useRoute, useRouter } from 'vue-router';
 import { api, setToken, getToken } from './lib/api.js';
 import { useEventsStore } from './stores/events';
+import { useToast } from './stores/toast';
+import { applyTheme as applyThemeVars } from './lib/theme';
+import SettingsView from './app/views/SettingsView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -913,7 +815,7 @@ class Component {
     light: {'--bg':'var(--surface-sunken)','--panel':'var(--surface-base)','--mid':'var(--surface-hover)','--rail':'var(--surface-sunken)','--elev':'var(--surface-raised)','--text':'var(--text-primary)','--text2':'var(--text-secondary)','--text3':'var(--text-tertiary)','--line':'var(--border-default)','--line2':'var(--border-strong)','--accent-ink':'var(--accent-active)','--accent-bg':'var(--accent-soft)','--idea':'var(--status-warning)','--idea-bg':'var(--status-warning-soft)','--nono':'var(--text-tertiary)','--nono-bg':'var(--surface-active)','--danger':'var(--status-error)','--danger-bg':'var(--status-error-soft)','--shadow':'var(--shadow-md)'},
     dark: {'--bg':'var(--surface-sunken)','--panel':'var(--surface-base)','--mid':'var(--surface-hover)','--rail':'var(--surface-sunken)','--elev':'var(--surface-raised)','--text':'var(--text-primary)','--text2':'var(--text-secondary)','--text3':'var(--text-tertiary)','--line':'var(--border-default)','--line2':'var(--border-strong)','--accent-ink':'var(--accent-active)','--accent-bg':'var(--accent-soft)','--idea':'var(--status-warning)','--idea-bg':'var(--status-warning-soft)','--nono':'var(--text-tertiary)','--nono-bg':'var(--surface-active)','--danger':'var(--status-error)','--danger-bg':'var(--status-error-soft)','--shadow':'var(--shadow-md)'}
   };
-  applyTheme() { document.documentElement.setAttribute('data-theme', this.state.theme==='dark'?'dark':'light'); const m=this.TOK[this.state.theme]; for(const p in m) document.body.style.setProperty(p,m[p]); const ic=document.getElementById('lx-thm'); if(ic) ic.className='ph ph-'+(this.state.theme==='dark'?'sun':'moon'); const ic2=document.getElementById('lx-thm2'); if(ic2) ic2.className='ph ph-'+(this.state.theme==='dark'?'sun':'moon'); }
+  applyTheme() { applyThemeVars(this.state.theme); }
   applyNav() { const ids={chat:'nav-chat',database:'nav-database',projects:'nav-projects',friends:'nav-friends',clarify:'nav-clarify',nontodo:'nav-nontodo',agent:'nav-agent',settings:'nav-settings',admin:'nav-admin'}; Object.values(ids).forEach(id=>{const e=document.getElementById(id); if(e){e.style.background='transparent';e.style.color='var(--text2)';}}); const a=document.getElementById(ids[this.state.view]); if(a){a.style.background='var(--accent-bg)';a.style.color='var(--accent-ink)';} const na=document.getElementById('nav-admin'); if(na) na.style.opacity=this.state.role==='admin'?'1':'.4'; }
   componentDidMount() { this.applyTheme(); this.applyNav(); try{ const o=JSON.parse(localStorage.getItem('lx_task_order')||'[]'); if(Array.isArray(o)) this.state.taskOrder=o; const mw=parseInt(localStorage.getItem('lx_mid_w')||'',10); if(mw>=220&&mw<=560) this.state.midW=mw; if(localStorage.getItem('lx_pane_swap')==='1') this.state.paneSwap=true; }catch(e){} this._onResize=()=>{ const w=window.innerWidth||document.documentElement.clientWidth||1200; const m=w<820; if(m!==this.state.isMobile) this.setState({isMobile:m}); }; this._onResize(); window.addEventListener('resize',this._onResize); requestAnimationFrame(()=>this._onResize()); setTimeout(()=>this._onResize(),0); setTimeout(()=>this._onResize(),250); try{ this._ro=new ResizeObserver(()=>this._onResize()); this._ro.observe(document.documentElement); }catch(e){} this._onKey=(e)=>{ if(!this.state.authed) return; if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); this.setState(s=>({searchOpen:!s.searchOpen,searchQuery:'',paletteIndex:0})); return; } if(e.key==='Escape'){ this.setState({searchOpen:false,notifOpen:false,shortcutsOpen:false}); return; } if(this.state.searchOpen) return; const tag=(e.target&&e.target.tagName)||''; if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return; if(e.key==='/'){ e.preventDefault(); this.setState({searchOpen:true,searchQuery:'',paletteIndex:0}); return; } if(e.key==='?'){ e.preventDefault(); this.setState(s=>({shortcutsOpen:!s.shortcutsOpen})); return; } if(e.key==='n'||e.key==='N'){ e.preventDefault(); this.go('chat'); setTimeout(()=>{const c=document.getElementById('lx-composer'); if(c)c.focus();},60); return; } const k=(e.key||'').toLowerCase(); if(this._gPending){ this._gPending=false; const map={c:'chat',d:'database',p:'projects',f:'friends',s:'settings',l:'clarify',a:'agent',t:'nontodo'}; if(map[k]){ e.preventDefault(); this.go(map[k]); } return; } if(k==='g'){ this._gPending=true; clearTimeout(this._gTimer); this._gTimer=setTimeout(()=>{this._gPending=false;},900); } }; window.addEventListener('keydown',this._onKey); if(window.visualViewport){ this._onVV=()=>{ const root=document.getElementById('lx-root'); if(!root) return; if(this.state.isMobile){ root.style.height=window.visualViewport.height+'px'; this.scrollMsgs(true); } else { root.style.height=''; } }; window.visualViewport.addEventListener('resize',this._onVV); } if(getToken()){ api.me().then(u=>{ this._applyUser(u); return this.loadState(); }).then(()=>this._enterApp()).catch(()=>{ setToken(''); }); } }
   componentWillUnmount() { if(this._onResize) window.removeEventListener('resize',this._onResize); if(this._onVV&&window.visualViewport) window.visualViewport.removeEventListener('resize',this._onVV); if(this._ro) try{ this._ro.disconnect(); }catch(e){} }
@@ -1431,7 +1333,7 @@ class Component {
   }
   patchTask(id,patch){ const ep={...patch}; if(typeof ep.title==='string') ep.title=expandTimeTokens(ep.title); if(typeof ep.notes==='string') ep.notes=expandTimeTokens(ep.notes); this.setState(s=>({tasks:s.tasks.map(t=>t.id===id?{...t,...ep,edited:true}:t)})); const body={}; ['title','notes','status','priority','assignee'].forEach(k=>{ if(k in ep) body[k]=ep[k]; }); if('scope' in ep) body.privacyScope=ep.scope; if(Object.keys(body).length) api.updateTask(id,body).catch(()=>{}); }
   moveOut(id){ const t=this.state.tasks.find(x=>x.id===id); this.setState(s=>({tasks:s.tasks.filter(x=>x.id!==id),detailId:null})); api.taskMoveOut(id).then(r=>{ if(r&&r.nonTodo) this.setState(s=>({nonTodos:[this._mapNon(r.nonTodo),...s.nonTodos]})); this.flashToast('已移出 todo · 保留来源与生成记录'); }).catch(e=>{ if(t) this.setState(s=>({tasks:[t,...s.tasks]})); this.flashToast('移出失败：'+e.message); }); }
-  flashToast(msg){ this.setState({toast:msg}); this._toastTimer&&clearTimeout(this._toastTimer); this._toastTimer=setTimeout(()=>this.setState({toast:null}),2600); }
+  flashToast(msg){ this._toast.flash(msg); }
   convertIdea(id){ const it=this.state.ideas.find(x=>x.id===id); const ideas=this.state.ideas.filter(x=>x.id!==id); this.setState({ideas, selIdeaId:ideas[0]?ideas[0].id:null}); api.ideaConvert(id).then(r=>{ if(r&&r.task) this.setState(s=>({tasks:[this._mapTask(r.task),...s.tasks]})); this.flashToast('已转为正式任务 · 进入 Todo 数据库'); }).catch(e=>{ if(it) this.setState(s=>({ideas:[it,...s.ideas]})); this.flashToast('转换失败：'+e.message); }); }
   discardIdea(id){ const it=this.state.ideas.find(x=>x.id===id); const ideas=this.state.ideas.filter(x=>x.id!==id); this.setState({ideas, selIdeaId:ideas[0]?ideas[0].id:null}); api.ideaDiscard(id).then(()=>this.flashToast('已放弃该待澄清项')).catch(e=>{ if(it) this.setState(s=>({ideas:[it,...s.ideas]})); this.flashToast('操作失败：'+e.message); }); }
   nonConvert(id){ const n=this.state.nonTodos.find(x=>x.id===id); const nonTodos=this.state.nonTodos.filter(x=>x.id!==id); this.setState({nonTodos, selNonId:nonTodos[0]?nonTodos[0].id:null}); api.nonToTodo(id).then(r=>{ if(r&&r.task) this.setState(s=>({tasks:[this._mapTask(r.task),...s.tasks]})); this.flashToast('已转为 todo · 进入 Todo 数据库'); }).catch(e=>{ if(n) this.setState(s=>({nonTodos:[n,...s.nonTodos]})); this.flashToast('转换失败：'+e.message); }); }
@@ -1741,7 +1643,7 @@ class Component {
       agentSections, agName:agCur[1], agDesc:agCur[3], agValue:st.agent[st.agentSection], onAgent:(e)=>this.updateAgent(st.agentSection,e.target.value), saveAgent:()=>this.flashToast('Agent 配置已保存'),
       isMemorySection:st.agentSection==='memory', autoRules:st.autoRules.map(r=>({keyword:r.keyword,targetName:r.targetName,remove:()=>this.deleteRule(r.id)})),
       setSections, setName,
-      isSetAccount:st.setSection==='account', isSetGeneral:st.setSection==='general', isSetAi:st.setSection==='ai', isSetNotif:st.setSection==='notifications', isSetPrivacy:st.setSection==='privacy', isSetData:st.setSection==='data',
+      setSection:st.setSection, isSetAccount:st.setSection==='account', isSetGeneral:st.setSection==='general', isSetAi:st.setSection==='ai', isSetNotif:st.setSection==='notifications', isSetPrivacy:st.setSection==='privacy', isSetData:st.setSection==='data',
       sName:st.settings.name, sAccountName:st.settings.accountName||st.settings.name, sEmail:st.settings.email, meBig:(st.settings.name||'我').slice(-1),
       onName:(e)=>{ const v=e.target.value.trim(); if(!v){ this.flashToast('称呼不能为空'); return; } this.setState(s=>({settings:{...s.settings,name:v}})); api.updateMe({name:v}).then(u=>this._applyUser(u)).catch(err=>this.flashToast('保存失败：'+err.message)); },
       onAccountName:(e)=>{ const v=e.target.value.trim(); const old=st.settings.accountName; if(!v){ this.flashToast('账户名不能为空'); return; } this.setState(s=>({settings:{...s.settings,accountName:v}})); api.updateMe({accountName:v}).then(u=>{ this._applyUser(u); this.flashToast('账户名已更新'); }).catch(err=>{ this.setState(s=>({settings:{...s.settings,accountName:old}})); this.flashToast('保存失败：'+err.message); }); },
@@ -1779,7 +1681,7 @@ class Component {
       searchOpen:st.searchOpen, openSearch:()=>this.setState({searchOpen:true,searchQuery:'',paletteIndex:0}), closeSearch:()=>this.setState({searchOpen:false}), searchQuery:st.searchQuery, onSearch:(e)=>this.setState({searchQuery:e.target.value,paletteIndex:0}), paletteGroups, paletteKey:(e)=>this.paletteKey(e), stop:(e)=>{if(e&&e.stopPropagation)e.stopPropagation();}, shortcutsOpen:st.shortcutsOpen, toggleShortcuts:()=>this.setState(s=>({shortcutsOpen:!s.shortcutsOpen})), closeShortcuts:()=>this.setState({shortcutsOpen:false}),
       isProjects, goProjects:()=>this.go('projects'), projList, spName:selProject?selProject.name:'', spDesc:selProject?selProject.desc:'', spColor:selProject?selProject.color:'var(--accent)', spTasks, spCount:spTasks.length, spDone, spPct,
       newProjOpen:st.newProjOpen, newProjName:st.newProjName, toggleNewProj:()=>this.setState(s=>({newProjOpen:!s.newProjOpen,newProjName:''})), onNewProjName:(e)=>this.setState({newProjName:e.target.value}), newProjKey:(e)=>{if(e.key==='Enter'){e.preventDefault();this.submitNewProject();}}, submitNewProj:()=>this.submitNewProject(),
-      toast:st.toast
+      toast:this._toast.msg.value
     };
   }
 }
@@ -1794,6 +1696,7 @@ export default {
       if (p) Object.assign(this.state, p);
       if (cb) nextTick(() => cb());
     };
+    inst._toast = useToast();
     const vm = computed(() => inst.renderVals());
     // 视图切换淡入：pre-flush 阶段先 gsap.set 立即隐藏旧内容（在 Vue 重渲染前），
     // 新内容渲染后 400ms 淡入 + 8px 上滑。mainStyle 用对象式 :style，重渲染不会覆盖 GSAP 的 inline opacity/transform。
@@ -1834,7 +1737,7 @@ export default {
     onMounted(() => { if (inst.componentDidMount) inst.componentDidMount(); });
     onUpdated(() => { if (inst.componentDidUpdate) inst.componentDidUpdate(); });
     onBeforeUnmount(() => { if (inst.componentWillUnmount) inst.componentWillUnmount(); });
-    return { vm };
+    return { vm, SettingsView };
   }
 };
 </script>

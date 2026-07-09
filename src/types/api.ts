@@ -26,6 +26,7 @@ export interface Settings {
   email: string
   apiKey: string
   aiTested: boolean
+  theme?: 'light' | 'dark'
   defaultWs: Workspace
   defaultView: string
   aiVisibility: string
@@ -54,6 +55,9 @@ export interface AiConfig {
   baseUrl?: string
   model?: string
   apiKey?: string
+  hasKey?: boolean
+  fallbackToRule?: boolean
+  source?: 'team' | 'own'
 }
 
 export interface Subtask {
