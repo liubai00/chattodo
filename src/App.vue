@@ -820,6 +820,7 @@
 import { reactive, computed, onMounted, onUpdated, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, setToken, getToken } from './lib/api.js';
+import { useEventsStore } from './stores/events';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -975,12 +976,14 @@ class Component {
   // 实时事件：收到推送 → 即时提示 + 节流刷新（2.5s 合并窗口）
   _startEvents(){
     if(this._stopEvents) this._stopEvents();
-    this._stopEvents=api.subscribeEvents((e)=>{
+    const ev=useEventsStore(); ev.connect();
+    const unsub=ev.subscribe((e)=>{
       if(e.kind==='notify'&&e.text) this.flashToast('🔔 '+String(e.text).slice(0,46));
       const now=Date.now();
       if(now-(this._lastEvtLoad||0)>2500){ this._lastEvtLoad=now; this.loadState(); }
       else { clearTimeout(this._evtTimer); this._evtTimer=setTimeout(()=>{ this._lastEvtLoad=Date.now(); this.loadState(); },2600); }
     });
+    this._stopEvents=()=>{ unsub(); ev.disconnect(); };
   }
   async submitAuth(){
     const s=this.state;
