@@ -553,7 +553,7 @@
               </div>
             </div>
           </template>
-          <template v-if="vm.isSettings"><SettingsView :section="vm.setSection" /></template>
+          <template v-if="vm.isSettings"><SettingsView :section="vm.setSection" /></template>
           <template v-if="vm.showAdminContent">
             <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
               <i class="ph ph-chart-bar" style="font-size:19px;color:var(--accent-ink);"></i>
@@ -1681,7 +1681,7 @@ class Component {
       searchOpen:st.searchOpen, openSearch:()=>this.setState({searchOpen:true,searchQuery:'',paletteIndex:0}), closeSearch:()=>this.setState({searchOpen:false}), searchQuery:st.searchQuery, onSearch:(e)=>this.setState({searchQuery:e.target.value,paletteIndex:0}), paletteGroups, paletteKey:(e)=>this.paletteKey(e), stop:(e)=>{if(e&&e.stopPropagation)e.stopPropagation();}, shortcutsOpen:st.shortcutsOpen, toggleShortcuts:()=>this.setState(s=>({shortcutsOpen:!s.shortcutsOpen})), closeShortcuts:()=>this.setState({shortcutsOpen:false}),
       isProjects, goProjects:()=>this.go('projects'), projList, spName:selProject?selProject.name:'', spDesc:selProject?selProject.desc:'', spColor:selProject?selProject.color:'var(--accent)', spTasks, spCount:spTasks.length, spDone, spPct,
       newProjOpen:st.newProjOpen, newProjName:st.newProjName, toggleNewProj:()=>this.setState(s=>({newProjOpen:!s.newProjOpen,newProjName:''})), onNewProjName:(e)=>this.setState({newProjName:e.target.value}), newProjKey:(e)=>{if(e.key==='Enter'){e.preventDefault();this.submitNewProject();}}, submitNewProj:()=>this.submitNewProject(),
-      toast:this._toast.msg.value
+      toast:this._toast.msg
     };
   }
 }
