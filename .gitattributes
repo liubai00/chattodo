@@ -1,0 +1,32 @@
+# 统一行尾为 LF（blob 与工作树皆然）。
+# 背景：core.autocrlf=true 启发式不可靠，且 App.vue 在 index 里被陈旧地标为 -text(二进制)，
+# 导致 blob 在 CRLF/LF 间反复横跳、每次提交整文件 churn。下面显式 `*.x text eol=lf` 强制
+# 覆盖 auto 误判，工作树也变 LF，行级编辑匹配不再受 CRLF 干扰。
+* text=auto eol=lf
+
+# 显式标记源码为 text（覆盖 auto 对超长行/陈旧 index 标记的误判）
+*.vue   text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.css   text eol=lf
+*.scss  text eol=lf
+*.json  text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.svg   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# 二进制资源（text=auto 已能识别，此处显式以防误判）
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.otf   binary

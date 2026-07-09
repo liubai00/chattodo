@@ -524,7 +524,7 @@
               </div>
             </div>
           </template>
-          <template v-if="vm.isAgent"><AgentView :section="vm.agentSection" /></template>
+          <template v-if="vm.isAgent"><AgentView :section="vm.agentSection" /></template>
           <template v-if="vm.isSettings"><SettingsView :section="vm.setSection" /></template>
           <template v-if="vm.showAdminContent">
             <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
