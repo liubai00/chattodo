@@ -1,0 +1,70 @@
+/* Tailwind v4 entry for the chattodo frontend.
+ *
+ * 迁移期策略（Phase 0）：故意不引入 preflight（不 @import "tailwindcss/preflight"），
+ * 只取 theme + utilities。utilities 按需生成——旧 App.vue 全是内联样式、不用工具类，
+ * 因此本文件对旧应用产出的 CSS 几乎为零，保证「应用外观不变」。
+ * shadcn-vue 组件在 Phase 2 落地时若依赖 preflight，再以作用域方式补回。
+ *
+ * 设计令牌：复用 src/styles/tokens.css 的 Attio 令牌（accent #5b63d3，含暗色）。
+ * 通过 @theme inline 把 Attio 令牌映射成 Tailwind 工具类（bg-primary / text-foreground …），
+ * 暗色经 [data-theme="dark"] 自动流转。
+ *
+ * 命名注意：Tailwind 的 --color-accent（= bg-accent，shadcn 用作 hover 浅底）映射到
+ * --surface-hover，【不会】覆盖 Attio 的 --accent（紫色），两者各司其职。
+ */
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  /* surfaces */
+  --color-background: var(--surface-base);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--surface-raised);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--text-primary);
+
+  /* brand: Attio 紫 */
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-contrast);
+
+  /* secondary / muted / hover */
+  --color-secondary: var(--surface-active);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--surface-sunken);
+  --color-muted-foreground: var(--text-secondary);
+  --color-accent: var(--surface-hover);
+  --color-accent-foreground: var(--text-primary);
+
+  /* status */
+  --color-destructive: var(--status-error);
+  --color-destructive-foreground: #ffffff;
+  --color-success: var(--status-success);
+  --color-warning: var(--status-warning);
+  --color-error: var(--status-error);
+
+  /* lines / focus */
+  --color-border: var(--border-default);
+  --color-input: var(--border-strong);
+  --color-ring: var(--accent);
+
+  /* categorical（头像 / 项目圆点） */
+  --color-cat-1: var(--cat-1);
+  --color-cat-2: var(--cat-2);
+  --color-cat-3: var(--cat-3);
+  --color-cat-4: var(--cat-4);
+  --color-cat-5: var(--cat-5);
+
+  /* type */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* radius */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+}

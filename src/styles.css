@@ -58,19 +58,25 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:var(--radius-sm);border:2px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-track{background:transparent}
-@keyframes lx-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes lx-fade{0%{opacity:0;transform:translateY(18px) scale(.97);filter:blur(5px)}70%{opacity:1;transform:translateY(-3px) scale(1.01);filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
 @keyframes lx-pulse{0%,100%{opacity:.3}50%{opacity:.9}}
 @keyframes lx-shimmer{0%{background-position:180% 0}100%{background-position:-80% 0}}
 @keyframes lx-blink{0%,100%{opacity:1}50%{opacity:0}}
 /* one-line "thinking" status: shimmering text, clamped to a single row */
 .lx-think{display:inline-block;max-width:min(420px,60vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:var(--font-medium) 12.5px/1.4 var(--font);background:linear-gradient(90deg,var(--text3) 32%,var(--accent-ink) 50%,var(--text3) 68%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--text3);animation:lx-shimmer 1.6s linear infinite}
-@keyframes lx-slide{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
-@keyframes lx-pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes lx-slide{0%{opacity:0;transform:translateX(48px)}100%{opacity:1;transform:none}}
+@keyframes lx-pop{0%{opacity:0;transform:translateY(14px) scale(.88);filter:blur(4px)}70%{opacity:1;transform:translateY(-2px) scale(1.02);filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
 @keyframes lx-spin{to{transform:rotate(360deg)}}
 .lx-spin{display:inline-block;animation:lx-spin .8s linear infinite}
 /* numeric/date/id/code runs — the Attio "feel" cue */
 .lx-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:var(--tracking-mono)}
-[data-hv="0"],[data-hv="1"],[data-hv="2"]{transition:var(--transition-colors)}
+[data-hv="0"],[data-hv="1"],[data-hv="2"]{transition:var(--transition-colors),transform var(--duration-base) var(--ease-out)}
 [data-hv="0"]:hover{background:var(--mid) !important}
 [data-hv="1"]:hover{background:var(--line) !important}
-[data-hv="2"]:hover{border-color:var(--accent) !important}
+[data-hv="2"]:hover{border-color:var(--accent) !important;box-shadow:0 6px 22px color-mix(in srgb,var(--accent) 22%,transparent),0 0 0 1px var(--accent-bg) !important}
+[data-hv]:active{transform:scale(.98)}
+/* 按钮按压微动：120ms scale 0.97，ease-out，松手复原。
+   规范：交互仅微量按压反馈，无大幅形变；色相过渡沿用 data-hv 的 200ms。 */
+button{transition:transform var(--duration-base) var(--ease-out),var(--transition-colors)}
+button:active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}[data-hv]:active{transform:none}}
