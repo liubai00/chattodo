@@ -94,7 +94,7 @@
             <div style="flex:1;margin:10px;border:2px dashed var(--accent);border-radius:16px;background:var(--accent-bg);opacity:.6;display:flex;align-items:center;justify-content:center;"><span style="font:600 13px/1 var(--font);color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px;">放到右侧<i class="ph ph-arrow-line-right"></i></span></div>
           </div>
         </template>
-        <aside v-if="!vm.isFriends && !vm.isClarify" id="lx-mid" :style="vm.midStyle">
+        <aside v-if="!vm.isFriends && !vm.isClarify && !vm.isNonTodo" id="lx-mid" :style="vm.midStyle">
           <template v-if="vm.isChat">
             <div style="padding:15px 16px 13px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px;">
               <div style="display:flex;align-items:center;gap:8px;">
@@ -159,12 +159,6 @@
               <span style="font:700 10.5px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;padding:14px 8px 6px;">按隐私范围</span>
               <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;font:500 13px/1 var(--font);color:var(--text2);"><span style="width:8px;height:8px;border-radius:2px;background:var(--accent);"></span>工作</div>
               <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;font:500 13px/1 var(--font);color:var(--text2);"><span style="width:8px;height:8px;border-radius:2px;background:var(--idea);"></span>个人</div>
-            </div>
-          </template>
-          <template v-if="vm.isNonTodo">
-            <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);"><div style="font:600 16px/1.2 var(--display);color:var(--text);">非 todo 隔离区</div><div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;"><span class="lx-mono">{{ vm.nonCount }}</span> 条 · 不参与任务与计划</div></div>
-            <div style="flex:1;overflow:auto;padding:8px 9px;display:flex;flex-direction:column;gap:2px;">
-              <template v-for="(n, __i6) in vm.nonList" :key="__i6"><a @click="n.select" :style="`display:flex;flex-direction:column;gap:5px;padding:11px 12px;border-radius:10px;cursor:pointer;background:${n.bg};`" data-hv="0"><span style="font:600 13.5px/1.4 var(--font);color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ n.title }}</span><span style="font:500 11px/1 var(--font);color:var(--text3);display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-tray"></i>{{ n.dest }}</span></a></template>
             </div>
           </template>
           <template v-if="vm.isAgent">
@@ -412,27 +406,7 @@
             </template>
           </template>
           <template v-if="vm.isClarify"><ClarifyView :workspace="vm.workspace" :privacy="vm.privacy" /></template>
-          <template v-if="vm.isNonTodo">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
-              <i class="ph ph-tray" style="font-size:19px;color:var(--nono);"></i>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">非 todo 隔离区</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">不参与任务与计划</span>
-              <div style="flex:1"></div>
-              <span :style="vm.modeChipStyle"><i :class="`ph ${vm.modeIcon}`" style="font-size:13px;"></i>{{ vm.modeLabel }}</span>
-            </div>
-            <div style="flex:1;overflow:auto;padding:30px 24px;">
-              <template v-if="vm.hasNon">
-                <div style="max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:18px;animation:lx-pop .3s ease;">
-                  <div style="font:600 22px/1.4 var(--display);color:var(--text2);">{{ vm.cnTitle }}</div>
-                  <div style="background:var(--nono-bg);border:1px dashed var(--line2);border-radius:12px;padding:14px 16px;"><div style="font:500 14px/1.6 var(--font);color:var(--text2);">{{ vm.cnText }}</div><div style="margin-top:9px;display:flex;align-items:center;gap:6px;font:500 11.5px/1 var(--font);color:var(--text3);"><i class="ph ph-tray"></i>未进入 todo 主系统 · 已隔离保存</div></div>
-                  <div style="background:var(--mid);border-radius:12px;padding:13px 15px;"><div style="font:600 11px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-quotes"></i>原始输入</div><div style="font:500 13.5px/1.55 var(--font);color:var(--text);margin-top:6px;">{{ vm.cnRaw }}</div></div>
-                  <div style="display:flex;align-items:flex-start;gap:8px;font:500 12.5px/1.55 var(--font);color:var(--text2);"><i class="ph ph-sparkle" style="color:var(--accent-ink);margin-top:1px;"></i><span>AI 判断为 <b style="color:var(--nono);">非 todo</b> · {{ vm.cnReason }} · {{ vm.cnDest }}</span></div>
-                  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:2px;"><button @click="vm.nonConvert" style="height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-contrast);font:600 12.5px/1 var(--font);cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-arrow-up-right"></i>转为 todo</button><button @click="vm.nonCopy" style="height:36px;padding:0 13px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;">复制</button><button @click="vm.nonExport" style="height:36px;padding:0 13px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;">导出 Markdown</button><button @click="vm.nonArchive" style="height:36px;padding:0 13px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;">归档</button><button @click="vm.nonDelete" style="height:36px;padding:0 13px;border:0;border-radius:10px;background:var(--danger-bg);color:var(--danger);font:600 12.5px/1 var(--font);cursor:pointer;">删除</button></div>
-                </div>
-              </template>
-              <template v-if="vm.noNon"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);padding-top:90px;"><i class="ph ph-tray" style="font-size:30px;"></i><div style="font:500 13px/1 var(--font);">隔离区为空</div></div></template>
-            </div>
-          </template>
+          <template v-if="vm.isNonTodo"><NonTodoView :workspace="vm.workspace" :privacy="vm.privacy" /></template>
           <template v-if="vm.isFriends"><FriendsView /></template>
           <template v-if="vm.isAgent"><AgentView :section="vm.agentSection" /></template>
           <template v-if="vm.isSettings"><SettingsView :section="vm.setSection" /></template>
@@ -608,6 +582,7 @@ import SettingsView from './app/views/SettingsView.vue';
 import AgentView from './app/views/AgentView.vue';
 import FriendsView from './app/views/FriendsView.vue';
 import ClarifyView from './app/views/ClarifyView.vue';
+import NonTodoView from './app/views/NonTodoView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1573,7 +1548,7 @@ class Component {
 
 export default {
   name: 'LinXApp',
-  components: { SettingsView, AgentView, FriendsView, ClarifyView },
+  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView },
   setup() {
     const inst = new Component();
     inst.state = reactive(inst.state);
