@@ -208,11 +208,11 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <ChatView v-if="view==='chat'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :openIdea="openIdea" :openNon="openNon" :afterSend="afterSend" :setWorkspace="ui.setWorkspace" :togglePrivacy="ui.togglePrivacy" :isMobile="ui.isMobile" />
         <DatabaseView v-else-if="view==='database'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :isMobile="ui.isMobile" />
         <ProjectsView v-else-if="view==='projects'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :isMobile="ui.isMobile" />
-        <FriendsView v-else-if="view==='friends'" />
+        <FriendsView v-else-if="view==='friends'" :isMobile="ui.isMobile" />
         <ClarifyView v-else-if="view==='clarify'" :workspace="ui.workspace" :privacy="ui.privacy" :isMobile="ui.isMobile" />
         <NonTodoView v-else-if="view==='nontodo'" :workspace="ui.workspace" :privacy="ui.privacy" :isMobile="ui.isMobile" />
-        <AgentView v-else-if="view==='agent'" />
-        <SettingsView v-else-if="view==='settings'" />
+        <AgentView v-else-if="view==='agent'" :isMobile="ui.isMobile" />
+        <SettingsView v-else-if="view==='settings'" :isMobile="ui.isMobile" />
         <div v-else class="flex flex-1 items-center justify-center text-[var(--text3)]">未知视图</div>
 
         <!-- 任务详情浮层 -->

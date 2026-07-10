@@ -14,6 +14,7 @@ import Input from '@/components/ui/input/Input.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 
 type Section = 'account' | 'general' | 'ai' | 'notifications' | 'privacy' | 'data'
+defineProps<{ isMobile?: boolean }>()
 const section = ref<Section>('account')
 const SET_SECTIONS: Array<[Section, string]> = [['account', '账号'], ['general', '通用'], ['ai', 'AI 接入'], ['notifications', '通知'], ['privacy', '隐私与安全'], ['data', '数据']]
 
@@ -200,7 +201,7 @@ const seg = (on: boolean) => on
       <span class="text-[12.5px] font-medium text-[var(--text3)]">{{ setName }}</span>
     </div>
 
-    <div class="flex-1 overflow-auto px-6 py-[30px]">
+    <div :class="['flex-1 overflow-auto', isMobile ? 'px-4 py-5' : 'px-6 py-[30px]']">
       <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
       <div v-else class="mx-auto flex max-w-[600px] flex-col gap-4">
         <!-- section 标签栏（in-content，替代旧中栏导航） -->

@@ -21,7 +21,7 @@ const MEMBER_COLORS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-3)', 'var(--ca
 const PRIO_COLORS: Record<number, [string, string]> = { 1: ['var(--danger)', 'var(--danger-bg)'], 2: ['var(--idea)', 'var(--idea-bg)'], 3: ['var(--text2)', 'var(--mid)'], 4: ['var(--text3)', 'var(--mid)'] }
 const STATUS_LABEL: Record<TaskStatus, string> = { todo: '待办', in_progress: '进行中', done: '已完成' }
 
-const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void }>()
+const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
 const toast = useToast()
 const loading = ref(true)
 const myName = ref('')
@@ -116,7 +116,7 @@ function submitNewProject() {
 <template>
   <div class="flex h-full min-h-0">
     <!-- 列表列 -->
-    <div class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" style="width:280px;flex:0 0 280px;">
+    <div v-if="!isMobile || !selId" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:280px;flex:0 0 280px;'">
       <div class="flex items-center gap-2 border-b border-[var(--line)] p-4 pb-3">
         <div class="flex-1"><div class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">项目</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">按项目组织任务与进度</div></div>
         <button v-if="canEdit" @click="newProjOpen = !newProjOpen" title="新建项目" class="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-[var(--accent-bg)] text-[16px] text-[var(--accent-ink)]" style="border:0;cursor:pointer;"><i class="ph ph-plus"></i></button>
@@ -145,8 +145,8 @@ function submitNewProject() {
     </div>
 
     <!-- 详情列 -->
-    <div class="flex flex-1 flex-col">
-      <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]">
+    <div v-if="!isMobile || !!selId" class="flex flex-1 flex-col">
+      <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]"><button v-if="isMobile && !!selId" @click="selId = null" class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-caret-left"></i></button>
         <span :style="`width:12px;height:12px;border-radius:4px;background:${selProject?.color || 'var(--accent)'};flex:0 0 auto;`"></span>
         <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">{{ selProject?.name || '' }}</span>
         <span class="text-[12.5px] font-medium text-[var(--text3)]">{{ spDone }}/{{ spTasks.length }} 完成</span>

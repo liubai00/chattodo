@@ -30,6 +30,7 @@ const props = defineProps<{
   afterSend: () => void
   setWorkspace: (ws: Workspace) => void
   togglePrivacy: () => void
+  isMobile?: boolean
 }>()
 const toast = useToast()
 
@@ -51,6 +52,7 @@ const mentionOpen = ref(false); const mentionQuery = ref(''); const mentionAt = 
 const pendingRefs = ref<any[]>([])
 const mentions = ref<any[]>([])
 const composer = ref<string>('')
+const showList = ref(false)
 let _seq = 100
 let _composing = false as boolean
 let _thinkTimer: ReturnType<typeof setTimeout> | null = null
@@ -75,8 +77,8 @@ function buildMessages(chatRows: any[]): RawMsg[] {
 
 // ---- 会话 ----
 function loadConversations() { api.conversations().then((r: any) => { conversations.value = r.conversations || [] }).catch(() => {}) }
-function newConversation() { api.createConversation().then((c: any) => { conversations.value = [c, ...conversations.value]; activeConversationId.value = c.id; rawMessages.value = [] }).catch((e: any) => toast.flash('新建失败：' + e.message)) }
-function switchConversation(id: string) { activeConversationId.value = id; api.conversationMessages(id).then((r: any) => { rawMessages.value = buildMessages(r.chat || []); nextTick(scrollMsgs) }).catch(() => {}) }
+function newConversation() { api.createConversation().then((c: any) => { conversations.value = [c, ...conversations.value]; activeConversationId.value = c.id; rawMessages.value = []; if (props.isMobile) showList.value = false }).catch((e: any) => toast.flash('新建失败：' + e.message)) }
+function switchConversation(id: string) { activeConversationId.value = id; if (props.isMobile) showList.value = false; api.conversationMessages(id).then((r: any) => { rawMessages.value = buildMessages(r.chat || []); nextTick(scrollMsgs) }).catch(() => {}) }
 function deleteConversationUi(id: string) { const wasActive = activeConversationId.value === id; api.deleteConversation(id).then(() => { const rest = conversations.value.filter((c) => c.id !== id); conversations.value = rest; if (wasActive) { if (rest.length) switchConversation(rest[0].id); else load() } toast.flash('已删除对话') }).catch((e: any) => toast.flash('删除失败：' + e.message)) }
 
 const conversationList = computed(() => conversations.value.map((c) => ({ id: c.id, title: c.title || '新对话', preview: (c.lastText || '还没有消息').replace(/\s+/g, ' ').slice(0, 30), time: lxFmtDue(c.updatedAt), active: c.id === activeConversationId.value, open: () => switchConversation(c.id), remove: () => deleteConversationUi(c.id) })))
@@ -263,6 +265,7 @@ async function load() {
     nonTodos.value = ((s.nonTodoOutputs || []) as any[]).map(mapNon)
     conversations.value = s.conversations || []
     activeConversationId.value = s.activeConversationId || null
+    if (props.isMobile) showList.value = !activeConversationId.value
     rawMessages.value = buildMessages(s.chat)
     team.value = (tm as any).users || []
     const fd: FeedItem[] = []
@@ -279,7 +282,7 @@ onMounted(load)
 <template>
   <div class="flex h-full min-h-0">
     <!-- 中栏：工作区 + 会话 + 收集箱 -->
-    <div class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" style="width:304px;flex:0 0 304px;">
+    <div v-if="!isMobile || showList" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:304px;flex:0 0 304px;'">
       <div class="flex flex-col gap-3 border-b border-[var(--line)] p-[15px_16px_13px]">
         <div class="flex items-center gap-2">
           <div class="inline-flex gap-0.5 rounded-[9px] bg-[var(--mid)] p-[3px]">
@@ -319,7 +322,8 @@ onMounted(load)
     </div>
 
     <!-- 主区：消息流 + composer -->
-    <div class="flex flex-1 flex-col">
+    <div v-if="!isMobile || !showList" class="flex flex-1 flex-col">
+      <div v-if="isMobile" class="flex h-[44px] flex-none items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3"><button @click="showList = true" class="flex h-8 w-8 items-center justify-center rounded-lg text-[18px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-list"></i></button><span class="text-sm font-semibold text-[var(--text)]">对话</span><div class="flex-1"></div><span class="text-[11px] font-medium text-[var(--text3)]">{{ modeLabel }}</span></div>
       <div v-if="!canEdit" class="flex flex-none items-center gap-2 border-b border-[var(--line)] bg-[var(--idea-bg)] px-[18px] py-2 text-[12px] font-semibold text-[var(--idea)]"><i class="ph ph-lock-simple"></i>只读模式 · 你当前是「只读」角色，无法创建或编辑内容</div>
       <div id="lx-msgs" class="flex flex-1 flex-col gap-[17px] overflow-auto p-[26px]">
         <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>

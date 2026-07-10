@@ -10,6 +10,7 @@ import Button from '@/components/ui/button/Button.vue'
 
 interface FriendItem { name: string; email: string; friendshipId: string; since?: string; at?: string }
 
+defineProps<{ isMobile?: boolean }>()
 const toast = useToast()
 const loading = ref(true)
 const myEmail = ref('')
@@ -70,7 +71,7 @@ function initial(name: string) { return (name || '?').slice(-1) }
       <span class="text-[12.5px] font-medium text-[var(--text3)]">协作从好友开始</span>
     </div>
 
-    <div class="flex-1 overflow-auto px-6 py-6">
+    <div :class="['flex-1 overflow-auto py-6', isMobile ? 'px-4' : 'px-6']">
       <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
       <div v-else class="mx-auto flex max-w-[680px] flex-col gap-5">
 

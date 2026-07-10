@@ -10,6 +10,7 @@ import Button from '@/components/ui/button/Button.vue'
 import type { Agent, AutoRule } from '@/types/api'
 
 type AgentSection = 'soul' | 'memory' | 'preferences' | 'workingStyle' | 'privacyRules' | 'followup'
+defineProps<{ isMobile?: boolean }>()
 const section = ref<AgentSection>('soul')
 
 const toast = useToast()
@@ -82,7 +83,7 @@ function deleteRule(id: string) {
       <span class="text-[12.5px] font-medium text-[var(--text3)]">{{ agName }}</span>
     </div>
 
-    <div class="flex-1 overflow-auto px-6 py-[30px]">
+    <div :class="['flex-1 overflow-auto', isMobile ? 'px-4 py-5' : 'px-6 py-[30px]']">
       <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
       <div v-else class="mx-auto flex max-w-[680px] flex-col gap-4">
         <!-- section 标签栏（in-content，替代旧中栏导航） -->
