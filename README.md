@@ -100,4 +100,4 @@ hash 模式，路由表见 [`src/app/router.ts`](./src/app/router.ts)：
 
 ## 构建体积
 
-（详见 [P7-5] 路由级懒加载拆分构建产物后的 chunk 数据。）
+路由级懒加载后（首屏 `ChatView` 同步、其余视图按需加载）：主 chunk ≈ **207 kB（gzip 73 kB）**，较懒加载前 316 kB 降约 35%；各视图拆为独立 chunk（gzip 2.4–11.3 kB），GSAP Flip 9.6 kB、reka-ui 共享 30 kB（均 gzip）。详见 `npm run build` 输出。

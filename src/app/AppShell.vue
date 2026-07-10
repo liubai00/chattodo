@@ -3,7 +3,7 @@
 // 用 auth/ui/events store；登录屏(未authed) + rail(nav+theme+avatar+logout) + 视图switch(按route.name) + toast + TaskDetailView。
 // 暂缓(记为 gap，路由可逆、legacy 留 fallback)：通知面板/搜索⌘K/快捷键/移动端布局/pane 拖拽。
 // openIdea/openNon/搜索结果 经路由参数 :selId 深选(跨视图选中 idea/non/project)。
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -12,15 +12,16 @@ import { useToast } from '@/stores/toast'
 import { api } from '@/lib/api'
 import { lxFmtDue } from '@/lib/format'
 import { applyTheme } from '@/lib/theme'
+// 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
 import ChatView from '@/app/views/ChatView.vue'
-import DatabaseView from '@/app/views/DatabaseView.vue'
-import ProjectsView from '@/app/views/ProjectsView.vue'
-import FriendsView from '@/app/views/FriendsView.vue'
-import ClarifyView from '@/app/views/ClarifyView.vue'
-import NonTodoView from '@/app/views/NonTodoView.vue'
-import AgentView from '@/app/views/AgentView.vue'
-import SettingsView from '@/app/views/SettingsView.vue'
-import TaskDetailView from '@/app/views/TaskDetailView.vue'
+const DatabaseView = defineAsyncComponent(() => import('@/app/views/DatabaseView.vue'))
+const ProjectsView = defineAsyncComponent(() => import('@/app/views/ProjectsView.vue'))
+const FriendsView = defineAsyncComponent(() => import('@/app/views/FriendsView.vue'))
+const ClarifyView = defineAsyncComponent(() => import('@/app/views/ClarifyView.vue'))
+const NonTodoView = defineAsyncComponent(() => import('@/app/views/NonTodoView.vue'))
+const AgentView = defineAsyncComponent(() => import('@/app/views/AgentView.vue'))
+const SettingsView = defineAsyncComponent(() => import('@/app/views/SettingsView.vue'))
+const TaskDetailView = defineAsyncComponent(() => import('@/app/views/TaskDetailView.vue'))
 
 const auth = useAuthStore()
 const ui = useUiStore()
