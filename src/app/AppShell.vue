@@ -86,8 +86,18 @@ function paletteKey(e: KeyboardEvent) {
   if (e.key === 'ArrowUp') { e.preventDefault(); ui.paletteIndex = Math.max((ui.paletteIndex || 0) - 1, 0); return }
   if (e.key === 'Enter') { e.preventDefault(); const it = items[ui.paletteIndex || 0] || items[0]; if (it) it.run() }
 }
+let _gPending = false
+let _gTimer: ReturnType<typeof setTimeout> | null = null
 function onGlobalKey(e: KeyboardEvent) {
-  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); e.stopPropagation(); ui.openSearch() }
+  const tag = (e.target as HTMLElement)?.tagName || ''
+  const inInput = /^(INPUT|TEXTAREA|SELECT)$/.test(tag) || ui.searchOpen || ui.shortcutsOpen
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); e.stopPropagation(); ui.openSearch(); return }
+  if (inInput) return
+  if (e.key === '?') { e.preventDefault(); ui.toggleShortcuts(); return }
+  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); go('chat'); setTimeout(() => document.getElementById('lx-composer')?.focus(), 80); return }
+  const k = (e.key || '').toLowerCase()
+  if (_gPending) { _gPending = false; if (_gTimer) clearTimeout(_gTimer); const map: Record<string, string> = { c: 'chat', d: 'database', p: 'projects', f: 'friends', s: 'settings', l: 'clarify', a: 'agent', t: 'nontodo' }; if (map[k]) { e.preventDefault(); go(map[k]) } return }
+  if (k === 'g') { _gPending = true; if (_gTimer) clearTimeout(_gTimer); _gTimer = setTimeout(() => { _gPending = false }, 900) }
 }
 
 const NAV: Array<[string, string, string]> = [
@@ -221,6 +231,21 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
               <div v-if="paletteGroups.length === 0" class="px-[18px] py-6 text-center text-[13px] font-medium text-[var(--text3)]">没有匹配的结果</div>
             </div>
             <div class="flex gap-[14px] border-t border-[var(--line)] px-[18px] py-[10px] text-[11px] font-medium text-[var(--text3)]"><span>↑↓ 选择</span><span>↵ 执行</span><span>esc 关闭</span></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 快捷键 modal -->
+      <template v-if="ui.shortcutsOpen">
+        <div @click="ui.closeShortcuts()" @keydown.esc.prevent.stop="ui.closeShortcuts()" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:var(--overlay-scrim);">
+          <div @click.stop class="w-[430px] max-w-[92vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="box-shadow:var(--shadow-lg);animation:lx-pop .18s ease;">
+            <div class="flex items-center gap-2.5 border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-keyboard text-[19px] text-[var(--accent-ink)]"></i><span class="text-[15px] font-semibold text-[var(--text)]" style="font-family:var(--display);">键盘快捷键</span></div>
+            <div class="px-[18px] py-[14px]">
+              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">命令面板</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">⌘K&nbsp;/&nbsp;/</span></div>
+              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">新建捕获</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">N</span></div>
+              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">跳转 · 聊天/数据库/项目/设置</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">G 然后 C/D/P/S</span></div>
+              <div class="flex items-center gap-3 py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">显示 / 关闭本表</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">?</span></div>
+            </div>
           </div>
         </div>
       </template>
