@@ -3,7 +3,7 @@
 // 用 auth/ui/events store；登录屏(未authed) + rail(nav+theme+avatar+logout) + 视图switch(按route.name) + toast + TaskDetailView。
 // 暂缓(记为 gap，路由可逆、legacy 留 fallback)：通知面板/搜索⌘K/快捷键/移动端布局/pane 拖拽。
 // chat 的 openIdea/openNon 暂只导航不深选(跨视图选择 gap)。
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -54,12 +54,14 @@ async function declineFriend(r: string) { await api.friendRespond(r, false).catc
 
 // 搜索 ⌘K
 const searchResults = ref<any[]>([])
+const searchInput = ref<HTMLInputElement | null>(null)
 let _searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(() => ui.searchQuery, (q) => {
   if (_searchTimer) clearTimeout(_searchTimer)
   if (!(q || '').trim()) { searchResults.value = []; return }
   _searchTimer = setTimeout(async () => { try { searchResults.value = await api.search(q.trim()) } catch { searchResults.value = [] } }, 250)
 })
+watch(() => ui.searchOpen, (open) => { if (open) nextTick(() => searchInput.value?.focus()) })
 const SEARCH_LABELS: Record<string, string> = { task: '任务', idea: '待澄清', nono: '非 todo', project: '项目' }
 const paletteGroups = computed(() => {
   const groups: Array<{ name: string; items: any[] }> = []
@@ -211,7 +213,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
       <template v-if="ui.searchOpen">
         <div @click="ui.closeSearch()" class="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" style="background:var(--overlay-scrim);">
           <div @click.stop class="w-[560px] max-w-[90vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="box-shadow:var(--shadow-lg);animation:lx-pop .18s ease;">
-            <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
+            <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input ref="searchInput" :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
             <div class="max-h-[52vh] overflow-auto p-[6px_0]">
               <template v-for="(g, gi) in paletteGroups" :key="gi">
                 <div class="px-[18px] pb-[5px] pt-[9px] text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--text3)]">{{ g.name }}</div>
