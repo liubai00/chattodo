@@ -9,6 +9,8 @@ import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import ViewHeader from '@/components/business/ViewHeader.vue'
+import LoadingState from '@/components/business/LoadingState.vue'
 import { useFlip } from '@/motion'
 import { usePane } from '@/app/composables/usePane'
 
@@ -263,7 +265,7 @@ onMounted(load)
     <div v-if="!isMobile" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="`width:${dbNavW}px;flex:0 0 ${dbNavW}px;`">
       <div class="border-b border-[var(--line)] p-4 pb-3"><div class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">Todo 数据库</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">全部任务与进度</div></div>
       <div class="flex flex-1 flex-col gap-1 overflow-auto p-[10px]">
-        <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
+        <LoadingState v-if="loading" class="flex-1" />
         <template v-else>
           <a v-for="d in DB_DEFS" :key="d[0]" @click="dbView = d[0]" :style="`display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;cursor:pointer;${dbView===d[0]?'font:600 13px/1 var(--font);color:var(--accent-ink);background:var(--accent-bg);':'font:500 13px/1 var(--font);color:var(--text2);background:transparent;'}`"><i :class="`ph ${d[2]}`" style="font-size:15px;"></i>{{ d[1] }}<span class="ml-auto text-[11px] font-semibold text-[var(--text3)]">{{ counts[d[0]] }}</span></a>
         </template>
@@ -278,17 +280,13 @@ onMounted(load)
         <a v-for="d in DB_DEFS" :key="d[0]" @click="dbView = d[0]" :style="`display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;${dbView===d[0]?'background:var(--accent-bg);color:var(--accent-ink);font:600 12px/1 var(--font);':'color:var(--text2);font:500 12px/1 var(--font);'}`"><i :class="`ph ${d[2]}`" style="font-size:13px;"></i>{{ d[1] }}<span class="text-[10px] font-semibold text-[var(--text3)]">{{ counts[d[0]] }}</span></a>
       </div>
       <!-- 57px 头 -->
-      <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]">
-        <i class="ph ph-table text-[19px] text-[var(--accent-ink)]"></i>
-        <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">{{ dbViewName }}</span>
-        <span class="text-[12.5px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ filteredTasks.length }}</span> 条</span>
-        <div class="flex-1"></div>
+      <ViewHeader icon="ph-table" :title="dbViewName"><span class="lx-mono">{{ filteredTasks.length }}</span> 条<template #trailing>
         <div class="inline-flex gap-0.5 rounded-[9px] bg-[var(--mid)] p-[3px]">
           <button @click="dbLayout = 'table'" :style="`border:0;padding:6px 12px;border-radius:7px;font:${dbLayout==='table'?'600':'500'} 12.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:5px;${dbLayout==='table'?'background:var(--panel);color:var(--text);box-shadow:var(--shadow);':'background:transparent;color:var(--text2);'}`"><i class="ph ph-rows"></i>表格</button>
           <button @click="dbLayout = 'board'" :style="`border:0;padding:6px 12px;border-radius:7px;font:${dbLayout==='board'?'600':'500'} 12.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:5px;${dbLayout==='board'?'background:var(--panel);color:var(--text);box-shadow:var(--shadow);':'background:transparent;color:var(--text2);'}`"><i class="ph ph-kanban"></i>看板</button>
         </div>
         <button v-if="canEdit" @click="newCapture" class="flex h-8 items-center gap-1.5 rounded-[9px] bg-[var(--accent)] px-3 text-[12.5px] font-semibold text-[var(--accent-contrast)] shadow-md" style="border:0;cursor:pointer;"><i class="ph ph-plus"></i>新建</button>
-      </div>
+      </template></ViewHeader>
       <!-- 筛选栏 -->
       <div :class="['flex flex-none items-center gap-2.5 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]', isMobile ? 'flex-wrap py-2' : 'h-[52px]']">
         <div class="flex items-center gap-2 rounded-[9px] bg-[var(--mid)] px-[11px] py-[7px]" :style="isMobile ? 'width:100%;' : 'width:230px;'">

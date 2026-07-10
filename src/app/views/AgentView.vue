@@ -7,6 +7,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import Button from '@/components/ui/button/Button.vue'
+import ViewHeader from '@/components/business/ViewHeader.vue'
+import LoadingState from '@/components/business/LoadingState.vue'
 import type { Agent, AutoRule } from '@/types/api'
 
 type AgentSection = 'soul' | 'memory' | 'preferences' | 'workingStyle' | 'privacyRules' | 'followup'
@@ -76,15 +78,10 @@ function deleteRule(id: string) {
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- 57px 头栏 -->
-    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]">
-      <i class="ph ph-sparkle text-[19px] text-[var(--accent-ink)]"></i>
-      <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">Agent 配置</span>
-      <span class="text-[12.5px] font-medium text-[var(--text3)]">{{ agName }}</span>
-    </div>
+    <ViewHeader icon="ph-sparkle" title="Agent 配置">{{ agName }}</ViewHeader>
 
     <div :class="['flex-1 overflow-auto', isMobile ? 'px-4 py-5' : 'px-6 py-[30px]']">
-      <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
+      <LoadingState v-if="loading" class="h-full" />
       <div v-else class="mx-auto flex max-w-[680px] flex-col gap-4">
         <!-- section 标签栏（in-content，替代旧中栏导航） -->
         <div class="flex flex-wrap gap-1 rounded-[10px] bg-[var(--mid)] p-[3px]">

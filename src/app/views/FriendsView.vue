@@ -7,6 +7,8 @@ import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import ViewHeader from '@/components/business/ViewHeader.vue'
+import LoadingState from '@/components/business/LoadingState.vue'
 
 interface FriendItem { name: string; email: string; friendshipId: string; since?: string; at?: string }
 
@@ -64,15 +66,10 @@ function initial(name: string) { return (name || '?').slice(-1) }
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- 57px 头栏 -->
-    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]">
-      <i class="ph ph-users text-[20px] text-[var(--accent-ink)]"></i>
-      <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">好友</span>
-      <span class="text-[12.5px] font-medium text-[var(--text3)]">协作从好友开始</span>
-    </div>
+    <ViewHeader icon="ph-users" icon-size="20px" title="好友">协作从好友开始</ViewHeader>
 
     <div :class="['flex-1 overflow-auto py-6', isMobile ? 'px-4' : 'px-6']">
-      <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
+      <LoadingState v-if="loading" class="h-full" />
       <div v-else class="mx-auto flex max-w-[680px] flex-col gap-5">
 
         <!-- 添加好友（回车提交） -->

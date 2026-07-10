@@ -8,6 +8,8 @@ import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import ViewHeader from '@/components/business/ViewHeader.vue'
+import LoadingState from '@/components/business/LoadingState.vue'
 import { useRoute } from 'vue-router'
 import { usePane } from '@/app/composables/usePane'
 
@@ -75,18 +77,14 @@ function discardIdea(id: string) {
 <template>
   <div class="flex h-full flex-col">
     <!-- 57px 头栏 -->
-    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]"><button v-if="isMobile && !!selId" @click="selId = null" class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-caret-left"></i></button>
-      <i class="ph ph-lightbulb text-[19px] text-[var(--accent-ink)]"></i>
-      <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">待澄清区</span>
-      <span class="text-[12.5px] font-medium text-[var(--text3)]">补充后转为正式任务</span>
-      <div class="flex-1"></div>
+    <ViewHeader :show-back="isMobile && !!selId" @back="selId = null" icon="ph-lightbulb" title="待澄清区">补充后转为正式任务<template #trailing>
       <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--mid)] px-[11px] py-1.5 text-xs font-semibold text-[var(--text2)]"><i :class="`ph ${modeIcon}`" style="font-size:13px;"></i>{{ modeLabel }}</span>
-    </div>
+    </template></ViewHeader>
 
     <div class="flex min-h-0 flex-1">
       <!-- 列表 -->
       <div v-if="!isMobile || !selId" class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : `width:${leftW}px;flex:0 0 ${leftW}px;`">
-        <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
+        <LoadingState v-if="loading" class="flex-1" />
         <template v-else>
           <a v-for="i in visIdeas" :key="i.id" @click="select(i.id)" :class="['flex cursor-pointer flex-col gap-1 p-[11px_12px]', i.id === selIdea?.id ? 'bg-[var(--accent-bg)]' : '']" data-hv="0">
             <span class="text-[13.5px] font-semibold leading-snug text-[var(--text)]">{{ i.title }}</span>

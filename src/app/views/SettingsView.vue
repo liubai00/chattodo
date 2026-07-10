@@ -10,6 +10,8 @@ import type { AiConfig } from '@/types/api'
 import { useToast } from '@/stores/toast'
 import { useEventsStore } from '@/stores/events'
 import Button from '@/components/ui/button/Button.vue'
+import ViewHeader from '@/components/business/ViewHeader.vue'
+import LoadingState from '@/components/business/LoadingState.vue'
 import Input from '@/components/ui/input/Input.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 
@@ -194,15 +196,10 @@ const seg = (on: boolean) => on
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- 顶栏 -->
-    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]">
-      <i class="ph ph-gear text-[19px] text-[var(--accent-ink)]"></i>
-      <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">设置</span>
-      <span class="text-[12.5px] font-medium text-[var(--text3)]">{{ setName }}</span>
-    </div>
+    <ViewHeader icon="ph-gear" title="设置">{{ setName }}</ViewHeader>
 
     <div :class="['flex-1 overflow-auto', isMobile ? 'px-4 py-5' : 'px-6 py-[30px]']">
-      <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
+      <LoadingState v-if="loading" class="h-full" />
       <div v-else class="mx-auto flex max-w-[600px] flex-col gap-4">
         <!-- section 标签栏（in-content，替代旧中栏导航） -->
         <div class="flex flex-wrap gap-1 rounded-[10px] bg-[var(--mid)] p-[3px]">
