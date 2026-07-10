@@ -9,6 +9,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 import { useEventsStore } from '@/stores/events'
 import { useToast } from '@/stores/toast'
+import { api } from '@/lib/api'
+import { lxFmtDue } from '@/lib/format'
 import { applyTheme } from '@/lib/theme'
 import ChatView from '@/app/views/ChatView.vue'
 import DatabaseView from '@/app/views/DatabaseView.vue'
@@ -35,6 +37,21 @@ const view = computed(() => route.name as string)
 const meBig = computed(() => (auth.user.name || '我').slice(-1))
 const adminUrl = computed(() => (import.meta.env.BASE_URL || '/') + 'admin/')
 
+// 通知
+const unread = computed(() => ui.notifs.filter((n: any) => !n.read).length)
+const hasUnread = computed(() => unread.value > 0)
+const notifList = computed(() => ui.notifs.map((n: any) => ({
+  ...n, icon: n.icon || 'ph-bell', color: n.color || 'var(--accent-ink)', time: lxFmtDue(n.createdAt),
+  isInvite: n.actionType === 'invite', isFriendReq: n.actionType === 'friend_request',
+  wasInvite: n.actionType === 'invite' && n.handled, wasFriendReq: n.actionType === 'friend_request' && n.handled,
+  dot: n.read ? 'var(--text3)' : 'var(--accent)',
+})))
+async function acceptInvite(r: string) { await api.respondInvite(r, 'accept', true).catch(() => {}); ui.loadNotifs(); toast.flash('已加入协作') }
+async function followInvite(r: string) { await api.respondInvite(r, 'follow').catch(() => {}); ui.loadNotifs(); toast.flash('已关注 · 进展会通知你') }
+async function declineInvite(r: string) { await api.respondInvite(r, 'decline').catch(() => {}); ui.loadNotifs(); toast.flash('已婉拒') }
+async function acceptFriend(r: string) { await api.friendRespond(r, true).catch(() => {}); ui.loadNotifs(); toast.flash('已成为好友') }
+async function declineFriend(r: string) { await api.friendRespond(r, false).catch(() => {}); ui.loadNotifs(); toast.flash('已拒绝') }
+
 const NAV: Array<[string, string, string]> = [
   ['chat', '聊天', 'ph-chat-circle'], ['database', 'Todo 数据库', 'ph-table'], ['projects', '项目', 'ph-folders'],
   ['friends', '好友', 'ph-users'], ['clarify', '待澄清区', 'ph-lightbulb'], ['nontodo', '非 todo 隔离区', 'ph-tray'],
@@ -57,7 +74,7 @@ async function submitAuth() {
   try {
     if (authMode.value === 'register') await auth.register(name, email, pw)
     else await auth.login(email, pw)
-    await ui.load(); events.connect(); subscribeEvents()
+    await ui.load(); ui.loadNotifs(); events.connect(); subscribeEvents()
     router.push({ name: 'chat' })
     toast.flash(authMode.value === 'register' ? '注册成功 · 欢迎使用' : '欢迎回来')
   } catch (e: any) { authError.value = (e && e.message) || '请求失败，请稍后再试' }
@@ -73,14 +90,14 @@ function subscribeEvents() {
   _unsub = events.subscribe((e: any) => {
     if (e.kind === 'notify' && e.text) toast.flash('🔔 ' + String(e.text).slice(0, 46))
     const now = Date.now()
-    if (!_evtTimer) { _evtTimer = setTimeout(() => { _evtTimer = null; ui.load() }, 2600) }
+    if (!_evtTimer) { _evtTimer = setTimeout(() => { _evtTimer = null; ui.load(); ui.loadNotifs() }, 2600) }
   })
 }
 
 onMounted(async () => {
   await auth.init()
   if (auth.authed) {
-    await ui.load(); applyTheme(ui.theme); events.connect(); subscribeEvents()
+    await ui.load(); applyTheme(ui.theme); ui.loadNotifs(); events.connect(); subscribeEvents()
   }
   booting.value = false
 })
@@ -118,6 +135,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub() })
         <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" class="flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-[12px] text-[22px]" :style="view===n[0]?'background:var(--accent-bg);color:var(--accent-ink);':'color:var(--text2);background:transparent;'" data-hv="0"><i :class="`ph ${n[2]}`"></i></a>
         <div class="flex-1"></div>
         <a v-if="auth.canAdmin" :href="adminUrl" title="监控后台" class="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] text-[22px] text-[var(--text2)]" style="text-decoration:none;" data-hv="0"><i class="ph ph-chart-line-up"></i></a>
+        <button @click="ui.toggleNotif()" title="通知" class="relative mt-1 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] text-[19px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;" data-hv="0"><i class="ph ph-bell"></i><span v-if="hasUnread" class="absolute right-[5px] top-[5px] flex h-[15px] min-w-[15px] items-center justify-center rounded-[8px] bg-[var(--danger)] px-[3px] text-[9px] font-bold text-[var(--accent-contrast)]"><span class="lx-mono">{{ unread }}</span></span></button>
         <button @click="ui.toggleTheme()" :title="ui.theme==='dark'?'切换明亮':'切换深色'" class="mt-1 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] text-[18px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;" data-hv="0"><i :class="`ph ${ui.theme==='dark'?'ph-sun':'ph-moon'}`"></i></button>
         <div :title="auth.user.name" class="mt-1.5 flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-full bg-[var(--surface-active)] text-[13px] font-semibold text-[var(--text-secondary)]" @click="go('settings')">{{ meBig }}</div>
         <button @click="logout" title="退出登录" class="mt-1 flex h-[34px] w-[34px] items-center justify-center rounded-full text-[15px] text-[var(--text3)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-sign-out"></i></button>
@@ -137,6 +155,18 @@ onBeforeUnmount(() => { if (_unsub) _unsub() })
         <!-- 任务详情浮层 -->
         <TaskDetailView v-if="ui.detailId" :taskId="ui.detailId" :afterChange="afterSend" @close="ui.closeDetail()" />
       </div>
+
+      <!-- 通知面板 -->
+      <template v-if="ui.notifOpen">
+        <div @click="ui.closeNotif()" class="fixed inset-0 z-40"></div>
+        <div class="fixed bottom-4 z-[41] w-[340px] max-w-[80vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="left:74px;box-shadow:var(--shadow-lg);animation:lx-pop .2s ease;">
+          <div class="flex items-center gap-2 border-b border-[var(--line)] px-4 py-[14px]"><i class="ph ph-bell text-[var(--accent-ink)]"></i><span class="text-sm font-semibold text-[var(--text)]" style="font-family:var(--display);">通知</span><div class="flex-1"></div><button @click="ui.markAllRead()" class="text-[11.5px] font-semibold text-[var(--accent-ink)]" style="border:0;background:transparent;cursor:pointer;">全部已读</button></div>
+          <div class="max-h-[360px] overflow-auto">
+            <div v-for="(n, i) in notifList" :key="i" class="flex gap-[11px] border-b border-[var(--line)] px-4 py-3"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-relaxed text-[var(--text)]">{{ n.text }}</div><div class="mt-[3px] text-[11px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ n.time }}</span></div><template v-if="n.isInvite && !n.wasInvite"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptInvite(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受并提醒我</button><button @click="followInvite(n.actionRef)" title="不进我的任务库，只接收进展通知" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">仅关注</button><button @click="declineInvite(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq && !n.wasFriendReq"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptFriend(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受好友</button><button @click="declineFriend(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div>
+            <div v-if="notifList.length === 0" class="flex flex-col items-center gap-2 px-4 py-[30px] text-center text-[var(--text3)]"><i class="ph ph-bell-slash text-[22px]"></i><div class="text-xs font-medium">暂无通知</div></div>
+          </div>
+        </div>
+      </template>
     </template>
 
     <!-- toast（全局，读 useToast store） -->

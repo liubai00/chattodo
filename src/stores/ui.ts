@@ -15,6 +15,13 @@ export const useUiStore = defineStore('ui', () => {
   const view = ref('chat')
   const isMobile = ref(false)
   const detailId = ref<string | null>(null)
+  const notifOpen = ref(false)
+  const notifs = ref<any[]>([])
+
+  async function loadNotifs() { try { notifs.value = await api.notifications() } catch { /* ignore */ } }
+  async function markAllRead() { try { await api.markAllNotificationsRead(); await loadNotifs() } catch { /* ignore */ } }
+  function toggleNotif() { notifOpen.value = !notifOpen.value; if (notifOpen.value) loadNotifs() }
+  function closeNotif() { notifOpen.value = false }
 
   // 从 appSettings 载入 theme/workspace/privacy（登录后调）
   async function load() {
@@ -40,5 +47,5 @@ export const useUiStore = defineStore('ui', () => {
   function closeDetail() { detailId.value = null }
   function setMobile(m: boolean) { isMobile.value = m }
 
-  return { theme, workspace, privacy, view, isMobile, detailId, load, toggleTheme, setWorkspace, togglePrivacy, go, openTask, closeDetail, setMobile }
+  return { theme, workspace, privacy, view, isMobile, detailId, notifOpen, notifs, load, toggleTheme, setWorkspace, togglePrivacy, go, openTask, closeDetail, setMobile, loadNotifs, markAllRead, toggleNotif, closeNotif }
 })
