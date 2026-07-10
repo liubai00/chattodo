@@ -7,8 +7,8 @@ import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
-import ViewHeader from '@/components/business/ViewHeader.vue'
-import LoadingState from '@/components/business/LoadingState.vue'
+import ViewHeader from '@/components/base/ViewHeader.vue'
+import LoadingState from '@/components/base/LoadingState.vue'
 
 interface FriendItem { name: string; email: string; friendshipId: string; since?: string; at?: string }
 
