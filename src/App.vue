@@ -179,84 +179,7 @@
               <div style="font:500 12.5px/1 var(--font);">即将展开</div>
             </div>
           </template>
-          <template v-if="vm.detailOpen">
-            <div @click="vm.closeDetail" style="position:absolute;inset:0;background:var(--overlay-scrim);z-index:8;"></div>
-            <div style="position:absolute;top:0;right:0;bottom:0;width:440px;max-width:92%;background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow-lg);z-index:9;display:flex;flex-direction:column;animation:lx-slide .28s ease;">
-              <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 16px;">
-                <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 11.5px/1 var(--font);"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>任务</span>
-                <div style="flex:1"></div>
-                <button @click="vm.closeDetail" style="width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;" data-hv="0"><i class="ph ph-x"></i></button>
-              </div>
-              <div style="flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:20px;">
-                <input :value="vm.dTitle" @change="vm.onTitle" style="border:0;background:transparent;font:600 20px/1.35 var(--display);color:var(--text);width:100%;"/>
-                <div style="display:inline-flex;background:var(--mid);border-radius:9px;padding:3px;gap:2px;align-self:flex-start;">
-                  <button @click="vm.tabDetail" :style="vm.dTabDetailStyle">详情</button>
-                  <button @click="vm.tabComments" :style="vm.dTabCommentStyle">评论</button>
-                  <button @click="vm.tabActivity" :style="vm.dTabActStyle">活动</button>
-                </div>
-                <template v-if="vm.isDetailTab">
-                <div style="display:flex;flex-direction:column;gap:20px;">
-                <div style="display:flex;flex-direction:column;gap:14px;">
-                  <div style="display:flex;align-items:center;gap:12px;"><span style="width:76px;flex:0 0 76px;font:600 12px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-circle-dashed"></i>状态</span><div style="display:inline-flex;background:var(--mid);border-radius:8px;padding:3px;gap:2px;"><button @click="vm.setTodo" :style="vm.stTodoStyle">待办</button><button @click="vm.setProg" :style="vm.stProgStyle">进行中</button><button @click="vm.setDone" :style="vm.stDoneStyle">已完成</button></div></div>
-                  <div style="display:flex;align-items:center;gap:12px;"><span style="width:76px;flex:0 0 76px;font:600 12px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-folder"></i>项目</span><span style="font:500 13.5px/1 var(--font);color:var(--text);">{{ vm.dProject }}</span></div>
-                  <div style="display:flex;align-items:center;gap:12px;"><span style="width:76px;flex:0 0 76px;font:600 12px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-blank"></i>截止</span><span style="font:500 13.5px/1 var(--font);color:var(--text);">{{ vm.dDue }}</span></div>
-                  <div style="display:flex;align-items:center;gap:12px;"><span style="width:76px;flex:0 0 76px;font:600 12px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-flag"></i>优先级</span><div style="display:inline-flex;background:var(--mid);border-radius:8px;padding:3px;gap:2px;"><button @click="vm.setP1" :style="vm.p1Style">P1</button><button @click="vm.setP2" :style="vm.p2Style">P2</button><button @click="vm.setP3" :style="vm.p3Style">P3</button><button @click="vm.setP4" :style="vm.p4Style">P4</button></div></div>
-                  <div style="display:flex;align-items:center;gap:12px;"><span style="width:76px;flex:0 0 76px;font:600 12px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-user"></i>负责人</span><div style="display:flex;flex-wrap:wrap;gap:7px;"><template v-for="(m, __i29) in vm.detailMembers" :key="__i29"><button @click="m.assign" :style="m.style"><span :style="`width:19px;height:19px;border-radius:50%;background:${m.color};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 10px/1 var(--font);flex:0 0 auto;`">{{ m.initial }}</span>{{ m.name }}</button></template></div></div>
-                  <div style="display:flex;align-items:flex-start;gap:12px;"><span style="width:76px;flex:0 0 76px;font:600 12px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;padding-top:6px;"><i class="ph ph-users"></i>协作</span>
-                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
-                      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-                        <template v-for="(c, __ic) in vm.dCollabs" :key="__ic"><span :style="`display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font:600 11.5px/1 var(--font);background:${c.bg};color:${c.fg};`"><span :style="`width:6px;height:6px;border-radius:50%;background:${c.dotc};`"></span>{{ c.name }} · {{ c.label }}</span></template>
-                        <template v-if="vm.dCollabs.length===0"><span style="font:500 12px/1 var(--font);color:var(--text3);">还没有协作人</span></template>
-                        <template v-if="vm.dIsOwner && vm.canEdit"><button @click="vm.toggleInvitePicker" style="height:26px;padding:0 10px;border:1px dashed var(--line2);border-radius:20px;background:transparent;color:var(--accent-ink);font:600 11.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i>邀请</button></template>
-                      </div>
-                      <template v-if="vm.invitePickerOpen && vm.dIsOwner">
-                        <div style="display:flex;flex-wrap:wrap;gap:6px;background:var(--mid);border-radius:10px;padding:9px 11px;animation:lx-fade .2s ease;">
-                          <template v-for="(u, __iu) in vm.inviteCandidates" :key="__iu"><button @click="u.invite" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--line2);border-radius:20px;background:var(--panel);color:var(--text2);font:600 11.5px/1 var(--font);cursor:pointer;" data-hv="2"><i class="ph ph-user-plus" style="font-size:12px;color:var(--accent-ink);"></i>{{ u.name }}</button></template>
-                          <template v-if="vm.inviteCandidates.length>1"><button @click="vm.inviteAll" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0;border-radius:20px;background:var(--accent);color:var(--accent-contrast);font:600 11.5px/1 var(--font);cursor:pointer;"><i class="ph ph-users-three" style="font-size:12px;"></i>邀请全员</button></template>
-                          <template v-if="vm.inviteCandidates.length===0"><span style="font:500 11.5px/1.4 var(--font);color:var(--text3);">团队成员都已在协作名单里</span></template>
-                        </div>
-                      </template>
-                    </div>
-                  </div>
-                  <div style="display:flex;align-items:flex-start;gap:12px;"><span style="width:76px;flex:0 0 76px;font:600 12px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;padding-top:8px;"><i class="ph ph-note"></i>备注</span><textarea :value="vm.dNotes" @change="vm.onNotes" placeholder="补充说明…" style="flex:1;border:1px solid var(--line2);border-radius:10px;background:var(--bg);padding:9px 11px;font:500 13px/1.55 var(--font);color:var(--text);resize:none;height:64px;"></textarea></div>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                  <div style="display:flex;align-items:center;gap:8px;"><span style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;">子任务</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ vm.subDone }}/{{ vm.subCount }}</span></div>
-                  <template v-for="(sb, __i30) in vm.subs" :key="__i30"><div style="display:flex;align-items:center;gap:9px;"><span @click="sb.toggle" :style="sb.boxStyle"><i class="ph ph-check" :style="`font-size:10px;color:var(--accent-contrast);${sb.check}`"></i></span><span :style="sb.textStyle">{{ sb.text }}</span></div></template>
-                  <template v-if="vm.canEdit"><div style="display:flex;align-items:center;gap:8px;background:var(--mid);border-radius:9px;padding:8px 11px;"><i class="ph ph-plus" style="color:var(--text3);font-size:14px;"></i><input id="lx-sub" @keydown="vm.subKey" placeholder="添加子任务，回车确认" style="border:0;background:transparent;flex:1;min-width:0;color:var(--text);font:500 12.5px/1 var(--font);"/></div></template>
-                </div>
-                <div style="height:1px;background:var(--line);"></div>
-                <div style="display:flex;flex-direction:column;gap:12px;">
-                  <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;">来源与 AI 生成记录</div>
-                  <div style="background:var(--mid);border-radius:12px;padding:13px 14px;display:flex;flex-direction:column;gap:5px;">
-                    <div style="font:600 11px/1 var(--font);color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="ph ph-quotes"></i>原始输入</div>
-                    <div style="font:500 13.5px/1.55 var(--font);color:var(--text);">{{ vm.dRaw }}</div>
-                  </div>
-                  <div style="display:flex;flex-direction:column;gap:9px;padding:2px 2px;">
-                    <div style="display:flex;align-items:center;gap:8px;font:500 12.5px/1 var(--font);color:var(--text2);"><i class="ph ph-sparkle" style="color:var(--accent-ink);"></i>AI 判断为<b style="color:var(--accent-ink);">任务</b><span style="color:var(--text3);">· 置信度 {{ vm.dConf }}</span></div>
-                    <div style="font:500 12.5px/1.55 var(--font);color:var(--text2);padding-left:24px;">{{ vm.dReason }}</div>
-                    <div style="display:flex;align-items:center;gap:8px;font:500 11.5px/1 var(--font);color:var(--text3);padding-left:24px;"><i class="ph ph-clock"></i>生成于 {{ vm.dGen }} · {{ vm.dEdited }}</div>
-                  </div>
-                </div>
-                <div style="height:1px;background:var(--line);"></div>
-                <template v-if="vm.canEdit && !vm.dCollabFrom"><button @click="vm.moveOut" style="width:100%;height:40px;border:1px solid var(--danger);border-radius:11px;background:var(--danger-bg);color:var(--danger);font:600 13px/1 var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="ph ph-arrow-u-up-left"></i>移出 todo（这不是一个任务）</button></template>
-                <template v-if="vm.dCollabFrom"><div style="display:flex;flex-direction:column;gap:10px;"><div style="display:flex;align-items:center;gap:8px;background:var(--accent-bg);border-radius:11px;padding:11px 13px;font:500 12.5px/1.5 var(--font);color:var(--accent-ink);"><i class="ph ph-users"></i>协作任务 · 来自 {{ vm.dCollabFrom }} · 你可以更新状态、评论与勾选子任务</div><button @click="vm.leaveCollab" style="width:100%;height:38px;border:1px solid var(--line2);border-radius:11px;background:var(--panel);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"><i class="ph ph-sign-out"></i>退出协作</button></div></template>
-                </div>
-                </template>
-                <template v-if="vm.isCommentTab">
-                  <div style="display:flex;flex-direction:column;gap:15px;">
-                    <template v-for="(c, __i31) in vm.comments" :key="__i31"><div style="display:flex;gap:10px;"><span :style="`width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:${c.color};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font);`">{{ c.initial }}</span><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;"><span style="font:600 12.5px/1 var(--font);color:var(--text);">{{ c.author }}</span><span style="font:500 11px/1 var(--font);color:var(--text3);"><span class="lx-mono">{{ c.time }}</span></span></div><div style="font:500 13px/1.55 var(--font);color:var(--text2);margin-top:5px;">{{ c.text }}</div></div></div></template>
-                    <template v-if="vm.canEdit"><div style="display:flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:11px;background:var(--bg);padding:8px 8px 8px 12px;"><input id="lx-cmt" @keydown="vm.cmtKey" placeholder="写评论，回车发送…" style="border:0;background:transparent;flex:1;min-width:0;color:var(--text);font:500 13px/1 var(--font);"/><button @click="vm.addComment" style="border:0;background:var(--accent);color:var(--accent-contrast);width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><i class="ph ph-paper-plane-tilt"></i></button></div></template>
-                  </div>
-                </template>
-                <template v-if="vm.isActivityTab">
-                  <div style="display:flex;flex-direction:column;">
-                    <template v-for="(a, __i32) in vm.activity" :key="__i32"><div style="display:flex;gap:11px;"><div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;"><span style="width:9px;height:9px;border-radius:50%;background:var(--accent);margin-top:4px;"></span><span style="flex:1;width:1.5px;background:var(--line);margin:2px 0;"></span></div><div style="padding-bottom:16px;flex:1;"><div style="font:500 13px/1.5 var(--font);color:var(--text);">{{ a.text }}</div><div style="font:500 11px/1 var(--font);color:var(--text3);margin-top:3px;"><span class="lx-mono">{{ a.time }}</span></div></div></div></template>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </template>
+          <template v-if="vm.detailOpen"><TaskDetailView :taskId="vm.detailId" :afterChange="afterSend" @close="vm.closeDetail" /></template>
           <template v-if="vm.toast">
             <div style="position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:20;background:var(--text);color:var(--bg);padding:11px 18px;border-radius:12px;font:600 13px/1 var(--font);box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;animation:lx-pop .25s ease;"><i class="ph ph-check-circle"></i>{{ vm.toast }}</div>
           </template>
@@ -288,6 +211,7 @@ import NonTodoView from './app/views/NonTodoView.vue';
 import ProjectsView from './app/views/ProjectsView.vue';
 import DatabaseView from './app/views/DatabaseView.vue';
 import ChatView from './app/views/ChatView.vue';
+import TaskDetailView from './app/views/TaskDetailView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1253,7 +1177,7 @@ class Component {
 
 export default {
   name: 'LinXApp',
-  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView, ProjectsView, DatabaseView, ChatView },
+  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView, ProjectsView, DatabaseView, ChatView, TaskDetailView },
   setup() {
     const inst = new Component();
     inst.state = reactive(inst.state);
