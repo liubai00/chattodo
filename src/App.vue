@@ -94,7 +94,7 @@
             <div style="flex:1;margin:10px;border:2px dashed var(--accent);border-radius:16px;background:var(--accent-bg);opacity:.6;display:flex;align-items:center;justify-content:center;"><span style="font:600 13px/1 var(--font);color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px;">放到右侧<i class="ph ph-arrow-line-right"></i></span></div>
           </div>
         </template>
-        <aside v-if="!vm.isFriends && !vm.isClarify && !vm.isNonTodo && !vm.isProjects" id="lx-mid" :style="vm.midStyle">
+        <aside v-if="!vm.isFriends && !vm.isClarify && !vm.isNonTodo && !vm.isProjects && !vm.isDatabase" id="lx-mid" :style="vm.midStyle">
           <template v-if="vm.isChat">
             <div style="padding:15px 16px 13px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px;">
               <div style="display:flex;align-items:center;gap:8px;">
@@ -144,21 +144,6 @@
                 </a>
               </template>
               <template v-if="vm.feedEmpty"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:36px 12px;text-align:center;"><i class="ph ph-tray" style="font-size:24px;"></i><div style="font:500 12px/1.6 var(--font);">还没有收集内容<br/>在右侧输入框丢一句话试试</div></div></template>
-            </div>
-          </template>
-          <template v-if="vm.isDatabase">
-            <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);">
-              <div style="font:600 16px/1.2 var(--display);color:var(--text);">Todo 数据库</div>
-              <div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;">{{ vm.taskTotal }} 个正式任务</div>
-            </div>
-            <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:2px;">
-              <span style="font:700 10.5px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;padding:8px 8px 6px;">视图</span>
-              <template v-for="(v, __i4) in vm.dbViews" :key="__i4">
-                <a @click="v.select" :style="v.style"><i :class="`ph ${v.icon}`" style="font-size:16px;"></i><span style="flex:1;">{{ v.name }}</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ v.count }}</span></a>
-              </template>
-              <span style="font:700 10.5px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;padding:14px 8px 6px;">按隐私范围</span>
-              <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;font:500 13px/1 var(--font);color:var(--text2);"><span style="width:8px;height:8px;border-radius:2px;background:var(--accent);"></span>工作</div>
-              <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;font:500 13px/1 var(--font);color:var(--text2);"><span style="width:8px;height:8px;border-radius:2px;background:var(--idea);"></span>个人</div>
             </div>
           </template>
           <template v-if="vm.isAgent">
@@ -314,84 +299,7 @@
               </div>
             </div>
           </template>
-          <template v-if="vm.isDatabase">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
-              <i class="ph ph-table" style="font-size:19px;color:var(--accent-ink);"></i>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">{{ vm.dbViewName }}</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);"><span class="lx-mono">{{ vm.filteredCount }}</span> 条</span>
-              <div style="flex:1"></div>
-              <div style="display:inline-flex;background:var(--mid);border-radius:9px;padding:3px;gap:2px;">
-                <button @click="vm.setTable" :style="vm.tableSegStyle"><i class="ph ph-rows"></i>表格</button>
-                <button @click="vm.setBoard" :style="vm.boardSegStyle"><i class="ph ph-kanban"></i>看板</button>
-              </div>
-              <template v-if="vm.canEdit"><button @click="vm.newCapture" style="height:32px;padding:0 12px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-contrast);display:flex;align-items:center;gap:6px;font:600 12.5px/1 var(--font);cursor:pointer;box-shadow:var(--shadow);"><i class="ph ph-plus"></i>新建</button></template>
-            </div>
-            <div style="flex:0 0 auto;height:52px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 18px;background:var(--panel);">
-              <div style="display:flex;align-items:center;gap:8px;background:var(--mid);border-radius:9px;padding:7px 11px;width:230px;">
-                <i class="ph ph-magnifying-glass" style="color:var(--text3);font-size:15px;"></i>
-                <input :value="vm.dbSearch" @input="vm.onDbSearch" placeholder="搜索任务标题" style="border:0;background:transparent;flex:1;min-width:0;color:var(--text);font:500 13px/1 var(--font);"/>
-              </div>
-              <select :value="vm.dbProject" @change="vm.onDbProject" style="border:1px solid var(--line2);border-radius:9px;padding:7px 10px;background:var(--panel);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;"><template v-for="(o, __i17) in vm.projectOptions" :key="__i17"><option :value="o.value">{{ o.label }}</option></template></select>
-              <select :value="vm.dbPriority" @change="vm.onDbPriority" style="border:1px solid var(--line2);border-radius:9px;padding:7px 10px;background:var(--panel);color:var(--text2);font:600 12.5px/1 var(--font);cursor:pointer;"><template v-for="(o, __i18) in vm.priorityOptions" :key="__i18"><option :value="o.value">{{ o.label }}</option></template></select>
-              <div style="flex:1"></div>
-              <span :style="vm.modeChipStyle"><i :class="`ph ${vm.modeIcon}`" style="font-size:13px;"></i>{{ vm.modeLabel }}</span>
-            </div>
-            <template v-if="vm.hasSelection">
-              <div style="flex:0 0 auto;height:48px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;padding:0 18px;background:var(--accent-bg);animation:lx-fade .2s ease;">
-                <span style="font:600 13px/1 var(--font);color:var(--accent-ink);">已选 {{ vm.selectedCount }} 项</span>
-                <div style="flex:1"></div>
-                <button @click="vm.batchDone" style="height:30px;padding:0 12px;border:0;border-radius:8px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-check-circle" style="color:var(--accent);"></i>标记完成</button>
-                <button @click="vm.batchProg" style="height:30px;padding:0 12px;border:0;border-radius:8px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">进行中</button>
-                <button @click="vm.batchP1" style="height:30px;padding:0 12px;border:0;border-radius:8px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">设为 P1</button>
-                <button @click="vm.batchMoveOut" style="height:30px;padding:0 12px;border:0;border-radius:8px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">移出 todo</button>
-                <button @click="vm.batchDelete" style="height:30px;padding:0 12px;border:0;border-radius:8px;background:var(--danger-bg);color:var(--danger);font:600 12px/1 var(--font);cursor:pointer;">删除</button>
-                <button @click="vm.clearSel" title="取消选择" style="height:30px;width:30px;border:0;border-radius:8px;background:transparent;color:var(--text2);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
-              </div>
-            </template>
-            <template v-if="vm.isTableView">
-              <div style="flex:1;overflow:auto;">
-                <div style="display:grid;grid-template-columns:36px 1fr 112px 100px 76px 88px 60px;gap:0;padding:0 22px;position:sticky;top:0;background:var(--bg);z-index:1;border-bottom:1px solid var(--line);">
-                  <div style="padding:12px 0;display:flex;align-items:center;"><span @click="vm.onSelectAll" :style="vm.selAllBoxStyle"><i class="ph ph-check" :style="`font-size:11px;color:var(--accent-contrast);${vm.allSelectedCheck}`"></i></span></div>
-                  <div @click="vm.hdrTitle.sort" :style="`padding:12px 8px;font:700 11px/1 var(--font);letter-spacing:.05em;color:${vm.hdrTitle.color};text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;`">标题<i :class="`ph ${vm.hdrTitle.icon}`" :style="`font-size:12px;color:${vm.hdrTitle.iconColor};`"></i></div>
-                  <div @click="vm.hdrProject.sort" :style="`padding:12px 8px;font:700 11px/1 var(--font);letter-spacing:.05em;color:${vm.hdrProject.color};text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;`">项目<i :class="`ph ${vm.hdrProject.icon}`" :style="`font-size:12px;color:${vm.hdrProject.iconColor};`"></i></div>
-                  <div @click="vm.hdrDue.sort" :style="`padding:12px 8px;font:700 11px/1 var(--font);letter-spacing:.05em;color:${vm.hdrDue.color};text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;`">截止<i :class="`ph ${vm.hdrDue.icon}`" :style="`font-size:12px;color:${vm.hdrDue.iconColor};`"></i></div>
-                  <div @click="vm.hdrPriority.sort" :style="`padding:12px 8px;font:700 11px/1 var(--font);letter-spacing:.05em;color:${vm.hdrPriority.color};text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;`">优先级<i :class="`ph ${vm.hdrPriority.icon}`" :style="`font-size:12px;color:${vm.hdrPriority.iconColor};`"></i></div>
-                  <div style="padding:12px 8px;font:700 11px/1 var(--font);letter-spacing:.05em;color:var(--text3);text-transform:uppercase;">负责人</div>
-                  <div style="padding:12px 8px;font:700 11px/1 var(--font);letter-spacing:.05em;color:var(--text3);text-transform:uppercase;">隐私</div>
-                </div>
-                <template v-for="(t, __i19) in vm.filteredTasks" :key="__i19">
-                  <div :style="`display:grid;grid-template-columns:36px 1fr 112px 100px 76px 88px 60px;gap:0;padding:0 22px;border-bottom:1px solid var(--line);align-items:center;background:${t.rowBg};`" data-hv="0">
-                    <div style="padding:13px 0;display:flex;align-items:center;"><span @click="t.toggleSel" :style="t.selBoxStyle"><i class="ph ph-check" :style="`font-size:11px;color:var(--accent-contrast);${t.selCheck}`"></i></span></div>
-                    <div @click="t.open" style="padding:13px 8px;min-width:0;cursor:pointer;"><div :style="`font:600 13.5px/1.4 var(--font);color:${t.titleColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${t.titleDeco}`">{{ t.title }}</div><div style="font:500 11px/1 var(--font);color:var(--text3);margin-top:3px;">{{ t.statusLabel }}</div></div>
-                    <div @click="t.open" style="padding:13px 8px;cursor:pointer;"><span style="display:inline-flex;align-items:center;gap:5px;font:500 12px/1 var(--font);color:var(--text2);"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.55;"></span>{{ t.project }}</span></div>
-                    <div @click="t.open" :style="`padding:13px 8px;font:500 12.5px/1 var(--font);color:${t.dueColor};cursor:pointer;`"><span class="lx-mono">{{ t.due }}</span></div>
-                    <div @click="t.open" style="padding:13px 8px;cursor:pointer;"><span :style="t.prioStyle">{{ t.prio }}</span></div>
-                    <div @click="t.open" style="padding:13px 8px;cursor:pointer;min-width:0;"><span style="display:inline-flex;align-items:center;gap:6px;font:500 12px/1 var(--font);color:var(--text2);min-width:0;"><span :style="`width:20px;height:20px;border-radius:50%;background:${t.assigneeColor};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 10px/1 var(--font);flex:0 0 auto;`">{{ t.assigneeInitial }}</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.assignee }}</span></span></div>
-                    <div @click="t.open" style="padding:13px 8px;cursor:pointer;"><span style="display:inline-flex;align-items:center;gap:5px;font:500 11.5px/1 var(--font);color:var(--text3);"><span :style="`width:7px;height:7px;border-radius:2px;background:${t.scopeColor};`"></span>{{ t.scopeLabel }}</span></div>
-                  </div>
-                </template>
-                <template v-if="vm.tableEmpty"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:70px 20px;"><i class="ph ph-stack" style="font-size:30px;"></i><div style="font:500 13px/1 var(--font);">{{ vm.taskTotal===0 ? '还没有任务 — 去聊天框丢一句「明天下午前完成XX」' : '没有匹配当前筛选的任务' }}</div></div></template>
-                <div style="height:40px;"></div>
-              </div>
-            </template>
-            <template v-if="vm.isBoardView">
-              <div style="flex:1;overflow:auto;padding:18px;display:flex;gap:16px;align-items:stretch;">
-                <template v-for="(col, __i20) in vm.boardCols" :key="__i20">
-                  <div @drop="col.onDrop" @dragover="col.onOver" @dragleave="col.onLeave" :style="`flex:1;min-width:0;background:var(--panel);border:1px solid ${col.hl?'var(--accent)':'var(--line)'};border-radius:14px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .12s;${col.hl?'box-shadow:0 0 0 2px var(--accent-bg);':''}`">
-                    <div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--line);"><span :style="`width:8px;height:8px;border-radius:50%;background:${col.color};`"></span><span style="font:600 13px/1 var(--font);color:var(--text);">{{ col.name }}</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ col.count }}</span></div>
-                    <div v-stagger style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:9px;min-height:120px;">
-                      <template v-for="(c, __i21) in col.cards" :key="__i21">
-                        <div draggable="true" @dragstart="c.onDragStart" @drop="c.onCardDrop" @dragover="c.onCardOver" @click="c.open" style="background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:11px 12px;cursor:grab;box-shadow:var(--shadow);" data-hv="2">
-                          <div :style="`font:600 13px/1.4 var(--font);color:${c.titleColor};${c.titleDeco}`">{{ c.title }}</div>
-                          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:9px;"><span :style="c.prioStyle">{{ c.prio }}</span><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px/1 var(--font);color:var(--text2);"><i class="ph ph-folder" style="font-size:11px;"></i>{{ c.project }}</span><span :style="`font:500 11px/1 var(--font);color:${c.dueColor};`"><span class="lx-mono">{{ c.due }}</span></span><span :title="c.assignee" :style="`width:20px;height:20px;border-radius:50%;background:${c.assigneeColor};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 10px/1 var(--font);margin-left:auto;flex:0 0 auto;`">{{ c.assigneeInitial }}</span></div>
-                        </div>
-                      </template>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </template>
-          </template>
+          <template v-if="vm.isDatabase"><DatabaseView :workspace="vm.workspace" :privacy="vm.privacy" :openTask="openTask" /></template>
           <template v-if="vm.isClarify"><ClarifyView :workspace="vm.workspace" :privacy="vm.privacy" /></template>
           <template v-if="vm.isNonTodo"><NonTodoView :workspace="vm.workspace" :privacy="vm.privacy" /></template>
           <template v-if="vm.isFriends"><FriendsView /></template>
@@ -554,6 +462,7 @@ import FriendsView from './app/views/FriendsView.vue';
 import ClarifyView from './app/views/ClarifyView.vue';
 import NonTodoView from './app/views/NonTodoView.vue';
 import ProjectsView from './app/views/ProjectsView.vue';
+import DatabaseView from './app/views/DatabaseView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1519,7 +1428,7 @@ class Component {
 
 export default {
   name: 'LinXApp',
-  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView, ProjectsView },
+  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView, ProjectsView, DatabaseView },
   setup() {
     const inst = new Component();
     inst.state = reactive(inst.state);
