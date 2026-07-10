@@ -13,15 +13,15 @@ import { api } from '@/lib/api'
 import { lxFmtDue } from '@/lib/format'
 import { applyTheme } from '@/lib/theme'
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
-import ChatView from '@/app/views/ChatView.vue'
-const DatabaseView = defineAsyncComponent(() => import('@/app/views/DatabaseView.vue'))
-const ProjectsView = defineAsyncComponent(() => import('@/app/views/ProjectsView.vue'))
-const FriendsView = defineAsyncComponent(() => import('@/app/views/FriendsView.vue'))
-const ClarifyView = defineAsyncComponent(() => import('@/app/views/ClarifyView.vue'))
-const NonTodoView = defineAsyncComponent(() => import('@/app/views/NonTodoView.vue'))
-const AgentView = defineAsyncComponent(() => import('@/app/views/AgentView.vue'))
-const SettingsView = defineAsyncComponent(() => import('@/app/views/SettingsView.vue'))
-const TaskDetailView = defineAsyncComponent(() => import('@/app/views/TaskDetailView.vue'))
+import ChatView from '@/views/ChatView.vue'
+const DatabaseView = defineAsyncComponent(() => import('@/views/DatabaseView.vue'))
+const ProjectsView = defineAsyncComponent(() => import('@/views/ProjectsView.vue'))
+const FriendsView = defineAsyncComponent(() => import('@/views/FriendsView.vue'))
+const ClarifyView = defineAsyncComponent(() => import('@/views/ClarifyView.vue'))
+const NonTodoView = defineAsyncComponent(() => import('@/views/NonTodoView.vue'))
+const AgentView = defineAsyncComponent(() => import('@/views/AgentView.vue'))
+const SettingsView = defineAsyncComponent(() => import('@/views/SettingsView.vue'))
+const TaskDetailView = defineAsyncComponent(() => import('@/views/TaskDetailView.vue'))
 
 const auth = useAuthStore()
 const ui = useUiStore()

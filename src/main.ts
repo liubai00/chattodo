@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import Root from './app/Root.vue'
-import { router } from './app/router'
+import { router } from '@/infrastructure/router'
 import './styles/tokens.css' // Attio 设计令牌（先于其它样式，供 var() 引用）
 import './styles/tailwind.css' // Tailwind v4（迁移期不含 preflight，不影响旧 App）
 import './styles.css'
