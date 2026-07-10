@@ -102,7 +102,7 @@
 
 <script>
 import { reactive, computed, onMounted } from 'vue'
-import { api, setToken, getToken } from '../src/lib/api.js'
+import { api, setToken, getToken } from '../src/lib/api'
 
 export default {
   name: 'AdminApp',
