@@ -2,13 +2,14 @@
 // P3 第七个迁移视图：Todo 数据库（列表部分）。自包含，挂载取 me+getState+localStorage(taskOrder)。
 // workspace/privacy 经 prop(visible 过滤+modeChip)；openTask 经稳定回调(点击任务->旧 App 详情浮层)。
 // 2 列：dbViews 导航 | 头+筛选+批量+table+kanban。拖拽(kanban 改状态/重排)、批量、排序、筛选。
-// 详情面板(子任务/评论/动态/协作)保持 legacy(全局浮层)，本视图只管列表。FLIP 动画省略(小 gap)。
-import { ref, computed, onMounted } from 'vue'
+// 详情面板(子任务/评论/动态/协作)保持 legacy(全局浮层)，本视图只管列表。FLIP 动画已补回(flipBoard + data-flip-id)。
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import { useFlip } from '@/motion'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -45,6 +46,7 @@ const dbSelected = ref<string[]>([])
 const taskOrder = ref<string[]>([])
 const dragOverCol = ref<TaskStatus | null>(null)
 let _dragId: string | null = null
+const boardEl = ref<HTMLElement | null>(null)
 
 function memberColor(name: string): string {
   if (!name) return 'var(--cat-fallback)'
@@ -165,19 +167,37 @@ function _moveInOrder(dragId: string, beforeId: string | null) {
   if (beforeId) { const i = order.indexOf(beforeId); order.splice(i < 0 ? order.length : i, 0, dragId) } else order.push(dragId)
   taskOrder.value = order; dragOverCol.value = null; _saveOrder(order)
 }
-function _dropOnCard(targetId: string) {
+// GSAP FLIP：记录卡片旧位置 -> 改状态/顺序让 Vue 重排 -> Flip.from 平滑滑到新位置。
+// cards 带 data-flip-id，跨列移动(Vue 重建节点)也能按 id 匹配做位移动画。
+async function flipBoard(mutate: () => void) {
+  const { Flip } = await useFlip()
+  const root = boardEl.value
+  const cards = root ? Array.from(root.querySelectorAll<HTMLElement>('div[draggable="true"]')) : []
+  const state = Flip && cards.length ? Flip.getState(cards) : null
+  mutate()
+  if (state && Flip) {
+    await nextTick()
+    try { Flip.from(state, { duration: 0.35, ease: 'power3.out', absoluteOnLeave: true }) } catch (e) { console.error('[lx] flip.from:', e) }
+  }
+}
+async function _dropOnCard(targetId: string) {
   const drag = _dragId; _dragId = null
   if (!drag || drag === targetId) return
   const dragT = tasks.value.find((x) => x.id === drag), tgtT = tasks.value.find((x) => x.id === targetId)
-  if (dragT && tgtT && dragT.status !== tgtT.status) patchTask(drag, { status: tgtT.status })
-  _moveInOrder(drag, targetId)
+  await flipBoard(() => {
+    if (dragT && tgtT && dragT.status !== tgtT.status) patchTask(drag, { status: tgtT.status })
+    _moveInOrder(drag, targetId)
+  })
 }
-function _dropOnCol(status: TaskStatus) {
-  const drag = _dragId; _dragId = null; dragOverCol.value = null
+async function _dropOnCol(status: TaskStatus) {
+  const drag = _dragId; _dragId = null
   if (!drag) return
   const dragT = tasks.value.find((x) => x.id === drag)
-  if (dragT && dragT.status !== status) patchTask(drag, { status })
-  _moveInOrder(drag, null)
+  await flipBoard(() => {
+    dragOverCol.value = null
+    if (dragT && dragT.status !== status) patchTask(drag, { status })
+    _moveInOrder(drag, null)
+  })
 }
 function patchTask(id: string, patch: { status?: TaskStatus }) {
   tasks.value = tasks.value.map((t) => (t.id === id ? { ...t, ...patch } : t))
@@ -318,11 +338,11 @@ onMounted(load)
 
       <!-- 看板视图 -->
       <template v-if="dbLayout === 'board'">
-        <div class="flex flex-1 items-stretch gap-4 overflow-auto p-[18px]">
+        <div ref="boardEl" class="flex flex-1 items-stretch gap-4 overflow-auto p-[18px]">
           <div v-for="col in boardCols" :key="col.key" @drop="col.onDrop" @dragover="col.onOver" @dragleave="col.onLeave" :style="`${isMobile?'flex:0 0 240px;min-width:240px;':'flex:1;min-width:0;'}background:var(--panel);border:1px solid ${col.hl?'var(--accent)':'var(--line)'};border-radius:14px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .12s;${col.hl?'box-shadow:0 0 0 2px var(--accent-bg);':''}`">
             <div class="flex items-center gap-2 border-b border-[var(--line)] p-[13px_14px]"><span :style="`width:8px;height:8px;border-radius:50%;background:${col.color};`"></span><span class="text-[13px] font-semibold text-[var(--text)]">{{ col.name }}</span><span class="text-[11px] font-semibold text-[var(--text3)]">{{ col.count }}</span></div>
             <div v-stagger class="flex flex-1 flex-col gap-[9px] overflow-auto p-[10px]" style="min-height:120px;">
-              <div v-for="c in col.cards" :key="c.id" draggable="true" @dragstart="c.onDragStart" @drop="c.onCardDrop" @dragover="c.onCardOver" @click="c.open" class="cursor-grab rounded-[11px] border border-[var(--line)] bg-[var(--bg)] p-[11px_12px] shadow-md" data-hv="2">
+              <div v-for="c in col.cards" :key="c.id" :data-flip-id="'flip-task-' + c.id" draggable="true" @dragstart="c.onDragStart" @drop="c.onCardDrop" @dragover="c.onCardOver" @click="c.open" class="cursor-grab rounded-[11px] border border-[var(--line)] bg-[var(--bg)] p-[11px_12px] shadow-md" data-hv="2">
                 <div :style="`font:600 13px/1.4 var(--font);color:${c.titleColor};${c.titleDeco}`">{{ c.title }}</div>
                 <div class="mt-[9px] flex flex-wrap items-center gap-1.5"><span :style="c.prioStyle">{{ c.prio }}</span><span class="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text2)]"><i class="ph ph-folder text-[11px]"></i>{{ c.project }}</span><span :style="`font:500 11px/1 var(--font);color:${c.dueColor};`"><span class="lx-mono">{{ c.due }}</span></span><span :title="c.assignee" :style="`width:20px;height:20px;border-radius:50%;background:${c.assigneeColor};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 10px/1 var(--font);margin-left:auto;flex:0 0 auto;`">{{ c.assigneeInitial }}</span></div>
               </div>
