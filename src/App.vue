@@ -94,58 +94,7 @@
             <div style="flex:1;margin:10px;border:2px dashed var(--accent);border-radius:16px;background:var(--accent-bg);opacity:.6;display:flex;align-items:center;justify-content:center;"><span style="font:600 13px/1 var(--font);color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px;">放到右侧<i class="ph ph-arrow-line-right"></i></span></div>
           </div>
         </template>
-        <aside v-if="!vm.isFriends && !vm.isClarify && !vm.isNonTodo && !vm.isProjects && !vm.isDatabase" id="lx-mid" :style="vm.midStyle">
-          <template v-if="vm.isChat">
-            <div style="padding:15px 16px 13px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div style="display:inline-flex;background:var(--mid);border-radius:9px;padding:3px;gap:2px;">
-                  <button @click="vm.setWork" :style="vm.wsWorkStyle">工作</button>
-                  <button @click="vm.setPersonal" :style="vm.wsPersonalStyle">个人</button>
-                </div>
-                <div style="flex:1"></div>
-                <button @click="vm.togglePrivacy" title="隐私模式" :style="vm.privBtnStyle"><i class="ph ph-lock-simple"></i></button>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;background:var(--mid);border-radius:9px;padding:8px 11px;">
-                <i class="ph ph-magnifying-glass" style="color:var(--text3);font-size:15px;"></i>
-                <input :value="vm.feedQuery" @input="vm.onFeedQuery" placeholder="搜索收集内容" style="border:0;background:transparent;flex:1;min-width:0;color:var(--text);font:500 13px/1 var(--font);"/>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 17px 7px;">
-              <span style="font:700 11px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;">对话</span>
-              <button @click="vm.newConversation" title="新建对话" style="display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--accent-ink);font:600 11.5px/1 var(--font);cursor:pointer;"><i class="ph ph-plus" style="font-size:13px;"></i>新建</button>
-            </div>
-            <div style="flex:0 1 auto;max-height:38%;overflow:auto;padding:2px 9px 6px;display:flex;flex-direction:column;gap:2px;">
-              <template v-for="(c, __ic) in vm.conversationList" :key="c.id">
-                <a @click="c.open" :style="`display:flex;gap:9px;padding:9px 10px;border-radius:10px;cursor:pointer;background:${c.active?'var(--accent-bg)':'transparent'};`" data-hv="0">
-                  <i class="ph ph-chat-teardrop-text" :style="`font-size:16px;margin-top:1px;flex:0 0 auto;color:${c.active?'var(--accent-ink)':'var(--text3)'};`"></i>
-                  <span style="flex:1;min-width:0;">
-                    <span :style="`display:block;font:600 12.5px/1.3 var(--font);color:${c.active?'var(--accent-ink)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ c.title }}</span>
-                    <span style="display:block;font:500 11px/1.3 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.preview }}</span>
-                  </span>
-                  <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:0 0 auto;">
-                    <span style="font:500 10px/1 var(--font);color:var(--text3);"><span class="lx-mono">{{ c.time }}</span></span>
-                    <button @click.stop="c.remove" title="删除对话" style="border:0;background:transparent;color:var(--text3);cursor:pointer;font-size:12px;padding:1px;line-height:1;">&times;</button>
-                  </span>
-                </a>
-              </template>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 17px 7px;border-top:1px solid var(--line);">
-              <span style="font:700 11px/1 var(--font);letter-spacing:.09em;color:var(--text3);text-transform:uppercase;">收集箱</span>
-              <span style="font:600 11px/1 var(--font);color:var(--text3);"><span class="lx-mono">{{ vm.feedCount }}</span></span>
-            </div>
-            <div style="flex:1;overflow:auto;padding:2px 9px 12px;display:flex;flex-direction:column;gap:1px;">
-              <template v-for="(f, __i3) in vm.feed" :key="__i3">
-                <a @click="f.open" style="display:flex;gap:10px;padding:10px;border-radius:10px;background:transparent;cursor:pointer;" data-hv="0">
-                  <span :style="`width:7px;height:7px;border-radius:50%;background:${f.dot};margin-top:6px;flex:0 0 auto;`"></span>
-                  <span style="flex:1;min-width:0;">
-                    <span :style="`display:block;font:600 13px/1.4 var(--font);color:${f.textColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ f.title }}</span>
-                    <span style="display:block;font:500 11.5px/1.3 var(--font);color:var(--text3);margin-top:2px;">{{ f.label }} · <span class="lx-mono">{{ f.time }}</span></span>
-                  </span>
-                </a>
-              </template>
-              <template v-if="vm.feedEmpty"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:36px 12px;text-align:center;"><i class="ph ph-tray" style="font-size:24px;"></i><div style="font:500 12px/1.6 var(--font);">还没有收集内容<br/>在右侧输入框丢一句话试试</div></div></template>
-            </div>
-          </template>
+        <aside v-if="!vm.isFriends && !vm.isClarify && !vm.isNonTodo && !vm.isProjects && !vm.isDatabase && !vm.isChat" id="lx-mid" :style="vm.midStyle">
           <template v-if="vm.isAgent">
             <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);"><div style="font:600 16px/1.2 var(--display);color:var(--text);">Agent 配置</div><div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;">定义 AI 如何判断与追问</div></div>
             <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:2px;">
@@ -173,132 +122,7 @@
         </aside>
         <template v-if="!vm.isMobile"><div @mousedown="vm.startMidResize" title="拖动调整宽度" style="order:2;flex:0 0 5px;cursor:col-resize;background:transparent;position:relative;z-index:6;" data-hv="0"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div></template>
         <main id="lx-main" :style="vm.mainStyle"><template v-if="vm.isViewer"><div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--idea-bg);border-bottom:1px solid var(--line);font:600 12px/1.4 var(--font);color:var(--idea);"><i class="ph ph-lock-simple"></i>只读模式 · 你当前是「只读」角色，无法创建或编辑内容</div></template>
-          <template v-if="vm.isChat">
-            <div style="position:relative;height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);z-index:12;">
-              <template v-if="!vm.isMobile"><span draggable="true" @dragstart="vm.paneDragStart" @dragend="vm.paneDragEnd" title="拖动整块对话框到另一侧" style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;margin-left:-6px;border-radius:7px;color:var(--text3);cursor:grab;flex:0 0 auto;" data-hv="0"><i class="ph ph-dots-six-vertical" style="font-size:16px;"></i></span></template>
-              <i class="ph ph-chat-circle" style="font-size:20px;color:var(--accent-ink);"></i>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">聊天</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">收集与判断</span>
-              <div style="flex:1"></div>
-              <button @click="vm.toggleTodayPanel" :style="vm.todayPillStyle" title="今日待办">
-                <i class="ph ph-sun-horizon" style="font-size:14px;"></i>今日待办<template v-if="vm.todayCount>0"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent);color:var(--accent-contrast);font:700 10px/16px var(--font);"><span class="lx-mono">{{ vm.todayCount }}</span></span></template>
-                <i :class="`ph ${vm.todayOpen?'ph-caret-up':'ph-caret-down'}`" style="font-size:11px;opacity:.6;"></i>
-              </button>
-              <span :style="vm.modeChipStyle"><i :class="`ph ${vm.modeIcon}`" style="font-size:13px;"></i>{{ vm.modeLabel }}</span>
-            </div>
-            <template v-if="vm.todayOpen">
-              <div @click="vm.closeTodayPanel" style="position:absolute;inset:57px 0 0 0;z-index:13;"></div>
-              <div style="position:absolute;top:62px;right:16px;width:340px;max-width:calc(100% - 32px);max-height:62%;background:var(--panel);border:1px solid var(--line2);border-radius:14px;box-shadow:var(--shadow-lg);z-index:14;display:flex;flex-direction:column;overflow:hidden;animation:lx-pop .18s ease;">
-                <div style="display:flex;align-items:center;gap:8px;padding:13px 15px;border-bottom:1px solid var(--line);flex:0 0 auto;">
-                  <i class="ph ph-sun-horizon" style="color:var(--accent-ink);font-size:17px;"></i>
-                  <span style="font:600 14px/1 var(--display);color:var(--text);">今日待办</span>
-                  <span style="font:600 11.5px/1 var(--font);color:var(--text3);">{{ vm.todaySubtitle }}</span>
-                  <div style="flex:1"></div>
-                  <button @click="vm.refreshToday" :disabled="vm.todayLoading" title="刷新" style="width:28px;height:28px;border:0;border-radius:8px;background:var(--mid);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;"><i :class="`ph ph-arrows-clockwise ${vm.todayLoading?'lx-spin':''}`" style="font-size:14px;"></i></button>
-                </div>
-                <div style="flex:1;min-height:0;overflow:auto;padding:6px;">
-                  <template v-if="vm.todayLoading && !vm.todayItems.length"><div style="display:flex;flex-direction:column;align-items:center;gap:9px;color:var(--text3);padding:34px 12px;"><i class="ph ph-circle-notch lx-spin" style="font-size:22px;"></i><div style="font:500 12px/1 var(--font);">正在加载今日待办…</div></div></template>
-                  <template v-else-if="vm.todayError"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:30px 14px;text-align:center;"><i class="ph ph-warning-circle" style="font-size:24px;color:var(--danger);"></i><div style="font:500 12.5px/1.5 var(--font);color:var(--danger);">{{ vm.todayError }}</div><button @click="vm.refreshToday" style="height:32px;padding:0 15px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">重试</button></div></template>
-                  <template v-else-if="vm.todayItems.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:34px 14px;text-align:center;"><i class="ph ph-confetti" style="font-size:26px;color:var(--accent-ink);"></i><div style="font:500 13px/1.6 var(--font);">今天没有到期或计划的待办<br/>享受专注的一天 🎉</div></div></template>
-                  <template v-else>
-                    <template v-for="(t, __itd) in vm.todayItems" :key="__itd">
-                      <a @click="t.open" style="display:flex;gap:10px;padding:10px 11px;border-radius:10px;cursor:pointer;" data-hv="0">
-                        <span :style="`width:9px;height:9px;border-radius:50%;margin-top:5px;flex:0 0 auto;background:${t.dot};`"></span>
-                        <span style="flex:1;min-width:0;">
-                          <span :style="`display:block;font:600 13px/1.4 var(--font);color:${t.done?'var(--text3)':'var(--text)'};${t.done?'text-decoration:line-through;':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ t.title }}</span>
-                          <span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);margin-top:2px;">{{ t.progress }}</span>
-                        </span>
-                        <i class="ph ph-caret-right" style="font-size:13px;color:var(--text3);align-self:center;flex:0 0 auto;"></i>
-                      </a>
-                    </template>
-                  </template>
-                </div>
-              </div>
-            </template>
-            <div id="lx-msgs" style="flex:1;min-height:0;overflow:auto;padding:26px 26px;display:flex;flex-direction:column;gap:17px;">
-              <template v-for="(m, __i11) in vm.messages" :key="__i11">
-                <template v-if="m.isSys"><div style="align-self:center;font:500 12px/1.5 var(--font);color:var(--text3);background:var(--mid);padding:6px 13px;border-radius:20px;">{{ m.text }}</div></template>
-                <template v-if="m.isUser"><div style="align-self:flex-end;max-width:78%;display:flex;flex-direction:column;align-items:flex-end;gap:5px;animation:lx-fade .25s ease;"><template v-if="m.hasRefs"><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;"><template v-for="(r, __i12) in m.refs" :key="__i12"><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 11px/1 var(--font);"><i class="ph ph-at" style="font-size:11px;"></i>{{ r }}</span></template></div></template><div :title="m.time||''" style="background:var(--accent);color:var(--accent-contrast);padding:10px 14px;border-radius:15px 15px 5px 15px;font:500 14px/1.55 var(--font);box-shadow:var(--shadow);white-space:pre-wrap;">{{ m.text }}</div><template v-if="m.refId"><span @click="m.openRef" style="display:inline-flex;align-items:center;gap:4px;font:600 11px/1 var(--font);color:var(--accent-ink);cursor:pointer;padding:2px 4px;"><i class="ph ph-arrow-elbow-down-right" style="font-size:11px;"></i>已生成 · 查看</span></template></div></template>
-                <template v-if="m.isAgentText"><div style="align-self:flex-start;max-width:82%;display:flex;gap:9px;animation:lx-fade .25s ease;"><span style="width:26px;height:26px;flex:0 0 auto;border-radius:9px;background:var(--accent);color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 13px/1 var(--display);margin-top:2px;">灵</span><div :title="m.time||''" :style="`background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:5px 15px 15px 15px;font:500 14px/1.6 var(--font);color:${m.isErr?'var(--danger)':'var(--text)'};box-shadow:var(--shadow);white-space:pre-wrap;`">{{ m.text }}<span v-if="m.streaming" style="display:inline-block;margin-left:1px;color:var(--accent-ink);animation:lx-blink 1s steps(1) infinite;">▍</span></div></div></template>
-                <template v-if="m.isTask">
-                  <div style="align-self:flex-start;max-width:82%;display:flex;flex-direction:column;gap:8px;animation:lx-fade .28s ease;">
-                    <details style="align-self:flex-start;"><summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 11.5px/1 var(--font);"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>任务<i class="ph ph-caret-down" style="font-size:11px;opacity:.6;"></i></summary><div style="margin-top:6px;font:500 12.5px/1.55 var(--font);color:var(--text2);background:var(--mid);border-radius:10px;padding:9px 12px;max-width:430px;">{{ m.reason }}</div></details>
-                    <div @click="m.open" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);cursor:pointer;" data-hv="2">
-                      <div style="display:flex;gap:10px;align-items:flex-start;"><span style="width:18px;height:18px;border-radius:6px;border:2px solid var(--accent);margin-top:1px;flex:0 0 auto;"></span><div style="flex:1;min-width:0;"><div style="font:600 14.5px/1.45 var(--font);color:var(--text);">{{ m.title }}</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"><template v-for="(c, __i13) in m.chips" :key="__i13"><span style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:var(--r-sm);background:var(--mid);color:var(--text2);font:600 11.5px/1 var(--font);"><i :class="`ph ${c.i}`" style="font-size:12px;"></i>{{ c.t }}</span></template></div></div></div>
-                      <div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--line);display:flex;align-items:center;gap:6px;font:500 11.5px/1 var(--font);color:var(--text3);"><i class="ph ph-check-circle" style="color:var(--accent);font-size:14px;"></i>已进入 Todo 数据库 · 点击查看详情与来源<span style="flex:1"></span><button @click.stop="m.undo" title="撤销这次判断" style="border:0;background:transparent;color:var(--text3);font:600 11.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 4px;"><i class="ph ph-arrow-counter-clockwise"></i>撤销</button></div>
-                    </div>
-                  </div>
-                </template>
-                <template v-if="m.isIdea">
-                  <div style="align-self:flex-start;max-width:82%;display:flex;flex-direction:column;gap:8px;animation:lx-fade .28s ease;">
-                    <details style="align-self:flex-start;"><summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--idea-bg);color:var(--idea);font:600 11.5px/1 var(--font);"><span style="width:6px;height:6px;border-radius:50%;background:var(--idea);"></span>待澄清<i class="ph ph-caret-down" style="font-size:11px;opacity:.6;"></i></summary><div style="margin-top:6px;font:500 12.5px/1.55 var(--font);color:var(--text2);background:var(--mid);border-radius:10px;padding:9px 12px;max-width:430px;">{{ m.reason }}</div></details>
-                    <div style="background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--idea);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);">
-                      <div style="font:600 14.5px/1.45 var(--font);color:var(--text);">{{ m.title }}</div>
-                      <div style="margin-top:9px;background:var(--idea-bg);border-radius:10px;padding:9px 12px;font:500 12.5px/1.5 var(--font);color:var(--text2);"><b style="color:var(--idea);">建议下一步：</b>{{ m.suggest }}</div>
-                      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;"><button @click="m.open" style="height:30px;padding:0 13px;border:1px solid var(--accent);border-radius:var(--r-sm);background:transparent;color:var(--accent-ink);font:600 12.5px/1 var(--font);cursor:pointer;">去澄清</button><span style="flex:1"></span><button @click.stop="m.undo" title="撤销这次判断" style="border:0;background:transparent;color:var(--text3);font:600 11.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-arrow-counter-clockwise"></i>撤销</button></div>
-                    </div>
-                  </div>
-                </template>
-                <template v-if="m.isNono">
-                  <div style="align-self:flex-start;max-width:82%;display:flex;flex-direction:column;gap:8px;animation:lx-fade .28s ease;">
-                    <details style="align-self:flex-start;"><summary style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--nono-bg);color:var(--nono);font:600 11.5px/1 var(--font);"><span style="width:6px;height:6px;border-radius:50%;background:var(--nono);"></span>非 todo<i class="ph ph-caret-down" style="font-size:11px;opacity:.6;"></i></summary><div style="margin-top:6px;font:500 12.5px/1.55 var(--font);color:var(--text2);background:var(--mid);border-radius:10px;padding:9px 12px;max-width:430px;">{{ m.reason }}</div></details>
-                    <div style="background:var(--nono-bg);border:1px dashed var(--line2);border-radius:var(--r);padding:13px;">
-                      <div style="font:500 14px/1.5 var(--font);color:var(--text2);">{{ m.text }}</div>
-                      <div style="margin-top:8px;display:flex;align-items:center;gap:6px;font:500 11.5px/1 var(--font);color:var(--text3);"><i class="ph ph-tray"></i>未进入 todo 主系统 · 已隔离保存<span style="flex:1"></span><button @click.stop="m.undo" title="撤销这次判断" style="border:0;background:transparent;color:var(--text3);font:600 11.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-arrow-counter-clockwise"></i>撤销</button></div>
-                    </div>
-                  </div>
-                </template>
-                <template v-if="m.isPlan">
-                  <div style="align-self:flex-start;max-width:82%;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:15px;box-shadow:var(--shadow);animation:lx-fade .28s ease;">
-                    <div style="font:600 14px/1.3 var(--display);color:var(--text);">{{ m.planTitle }}</div>
-                    <div style="font:500 11.5px/1.4 var(--font);color:var(--text3);margin-top:3px;">{{ m.planSub }}</div>
-                    <div style="display:flex;flex-direction:column;gap:9px;margin-top:13px;">
-                      <template v-for="(p, __i14) in m.plan" :key="__i14"><div style="display:flex;align-items:center;gap:10px;"><span style="width:20px;height:20px;border-radius:6px;background:var(--accent-bg);color:var(--accent-ink);font:700 11px/1 var(--font);display:flex;align-items:center;justify-content:center;flex:0 0 auto;">{{ p.n }}</span><span style="flex:1;font:500 13.5px/1.4 var(--font);color:var(--text);">{{ p.t }}</span><span style="padding:3px 8px;border-radius:var(--r-sm);background:var(--mid);color:var(--text2);font:600 11px/1 var(--font);">{{ p.d }}</span></div></template>
-                    </div>
-                    <div style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line);display:flex;align-items:center;gap:6px;font:500 11px/1 var(--font);color:var(--text3);"><i class="ph ph-shield-check" style="color:var(--accent);font-size:13px;"></i>{{ m.planNote }}<span style="flex:1"></span><button v-if="!m.committed" @click="m.commitPlan" style="height:28px;padding:0 12px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-contrast);font:600 11.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-play"></i>开始执行</button><span v-else style="display:inline-flex;align-items:center;gap:4px;color:var(--accent-ink);font:600 11px/1 var(--font);"><i class="ph ph-check-circle"></i>已加入今日计划</span></div>
-                  </div>
-                </template>
-                <template v-if="m.isError">
-                  <div style="align-self:flex-start;max-width:82%;background:var(--danger-bg);border-left:3px solid var(--danger);border-radius:var(--r);padding:13px 15px;display:flex;flex-direction:column;gap:9px;animation:lx-fade .28s ease;">
-                    <div style="display:flex;align-items:center;gap:8px;font:600 13px/1 var(--font);color:var(--danger);"><i class="ph ph-warning-circle" style="font-size:16px;"></i>AI 生成失败 · {{ m.errType }}</div>
-                    <div style="font:500 12.5px/1.5 var(--font);color:var(--text2);">未静默失败 — 原始输入已保存，可重试，异常已记录到内部后台。</div>
-                    <div style="display:flex;align-items:center;gap:9px;">
-                      <button @click="m.retry" style="height:30px;padding:0 13px;border:0;border-radius:8px;background:var(--danger);color:var(--accent-contrast);font:600 12.5px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrow-clockwise"></i>重试</button>
-                      <template v-if="m.retrying"><span style="font:500 11.5px/1 var(--font);color:var(--text3);">重试中…</span></template>
-                    </div>
-                  </div>
-                </template>
-              </template>
-              <template v-if="vm.thinking"><div style="align-self:flex-start;display:flex;gap:9px;animation:lx-fade .2s ease;"><span style="width:26px;height:26px;flex:0 0 auto;border-radius:9px;background:var(--accent);color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 13px/1 var(--display);margin-top:2px;opacity:.85;">灵</span><div style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:var(--mid);border-radius:5px 14px 14px 14px;max-width:100%;"><span style="display:inline-flex;gap:4px;flex:0 0 auto;"><span style="width:5px;height:5px;border-radius:50%;background:var(--accent-ink);animation:lx-pulse 1s infinite;"></span><span style="width:5px;height:5px;border-radius:50%;background:var(--accent-ink);animation:lx-pulse 1s infinite .2s;"></span><span style="width:5px;height:5px;border-radius:50%;background:var(--accent-ink);animation:lx-pulse 1s infinite .4s;"></span></span><span class="lx-think">{{ vm.thinkText }}</span></div></div></template>
-            </div>
-            <div style="padding:14px 18px 18px;border-top:1px solid var(--line);background:var(--panel);position:relative;">
-              <template v-if="vm.mentionOpen">
-                <div style="position:absolute;left:18px;right:18px;bottom:calc(100% - 8px);background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow-lg);overflow:hidden;max-height:236px;overflow-y:auto;z-index:6;">
-                  <div style="padding:9px 13px 6px;font:700 10.5px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;">提及 · 人 / 时间 / 文档</div>
-                  <template v-for="(mi, __i15) in vm.mentionItems" :key="__i15">
-                    <template v-if="mi.groupHead"><div style="padding:8px 13px 4px;font:600 10px/1 var(--font);letter-spacing:.06em;color:var(--text3);">{{ mi.groupHead }}</div></template>
-                    <a @click="mi.pick" :style="`display:flex;align-items:center;gap:10px;padding:9px 13px;cursor:pointer;background:${mi.bg};`" data-hv="0"><i :class="`ph ${mi.icon}`" style="font-size:16px;color:var(--accent-ink);"></i><span style="flex:1;min-width:0;font:600 13px/1.3 var(--font);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ mi.label }}</span><span style="font:600 10.5px/1 var(--font);color:var(--text3);padding:3px 7px;border-radius:6px;background:var(--mid);">{{ mi.typeLabel }}</span></a>
-                  </template>
-                  <template v-if="vm.noMention"><div style="padding:12px 13px;font:500 12.5px/1 var(--font);color:var(--text3);">没有匹配的人 / 时间 / 文档</div></template>
-                </div>
-              </template>
-              <template v-if="vm.showQuickPrompts">
-                <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;animation:lx-fade .3s ease;">
-                  <template v-for="(q, __iq) in vm.quickPrompts" :key="__iq"><button @click="q.run" style="display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--line2);border-radius:20px;background:var(--panel);color:var(--text2);font:500 12.5px/1 var(--font);cursor:pointer;" data-hv="2"><i :class="`ph ${q.icon}`" style="font-size:13px;color:var(--accent-ink);"></i>{{ q.label }}</button></template>
-                </div>
-              </template>
-              <div style="border:1px solid var(--line2);border-radius:var(--r);background:var(--bg);padding:11px 12px;display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow);">
-                <template v-if="vm.hasPendingRefs"><div style="display:flex;flex-wrap:wrap;gap:6px;"><template v-for="(r, __i16) in vm.pendingRefs" :key="__i16"><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 5px 4px 10px;border-radius:20px;background:var(--accent-bg);color:var(--accent-ink);font:600 12px/1 var(--font);"><i class="ph ph-at" style="font-size:12px;"></i>{{ r.label }}<button @click="r.remove" style="border:0;background:transparent;color:var(--accent-ink);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:2px;border-radius:50%;font-size:12px;">&times;</button></span></template></div></template>
-                <textarea id="lx-composer" rows="1" @input="vm.onComposerInput" @keydown="vm.sendKey" @compositionstart="vm.onCompStart" @compositionend="vm.onCompEnd" placeholder="输入想法、任务，或用 @ 提及人 / 时间 / 文档…（Shift+Enter 换行）" style="border:0;background:transparent;color:var(--text);font:500 14px/1.5 var(--font);resize:none;max-height:120px;overflow-y:auto;"></textarea>
-                <div style="display:flex;align-items:center;gap:9px;">
-                  <button @click="vm.atButton" title="引用任务 / 项目" style="width:30px;height:30px;border:0;border-radius:8px;background:var(--mid);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;"><i class="ph ph-at"></i></button>
-                  <span style="font:500 11.5px/1 var(--font);color:var(--text3);">@ 引用 · Enter 发送</span>
-                  <div style="flex:1"></div>
-                  <button @click="vm.send" style="height:33px;padding:0 15px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-contrast);display:flex;align-items:center;gap:6px;font:600 13px/1 var(--font);cursor:pointer;box-shadow:var(--shadow);">发送<i class="ph ph-paper-plane-tilt"></i></button>
-                </div>
-              </div>
-            </div>
-          </template>
+          <template v-if="vm.isChat"><ChatView :workspace="vm.workspace" :privacy="vm.privacy" :openTask="openTask" :openIdea="openIdea" :openNon="openNon" :afterSend="afterSend" :setWorkspace="setWorkspace" :togglePrivacy="togglePrivacy" /></template>
           <template v-if="vm.isDatabase"><DatabaseView :workspace="vm.workspace" :privacy="vm.privacy" :openTask="openTask" /></template>
           <template v-if="vm.isClarify"><ClarifyView :workspace="vm.workspace" :privacy="vm.privacy" /></template>
           <template v-if="vm.isNonTodo"><NonTodoView :workspace="vm.workspace" :privacy="vm.privacy" /></template>
@@ -463,6 +287,7 @@ import ClarifyView from './app/views/ClarifyView.vue';
 import NonTodoView from './app/views/NonTodoView.vue';
 import ProjectsView from './app/views/ProjectsView.vue';
 import DatabaseView from './app/views/DatabaseView.vue';
+import ChatView from './app/views/ChatView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1428,7 +1253,7 @@ class Component {
 
 export default {
   name: 'LinXApp',
-  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView, ProjectsView, DatabaseView },
+  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView, ProjectsView, DatabaseView, ChatView },
   setup() {
     const inst = new Component();
     inst.state = reactive(inst.state);
@@ -1478,7 +1303,15 @@ export default {
     onMounted(() => { if (inst.componentDidMount) inst.componentDidMount(); });
     onUpdated(() => { if (inst.componentDidUpdate) inst.componentDidUpdate(); });
     onBeforeUnmount(() => { if (inst.componentWillUnmount) inst.componentWillUnmount(); });
-    return { vm, openTask: (id) => inst.openTask(id) };
+    return {
+      vm,
+      openTask: (id) => inst.openTask(id),
+      openIdea: (id) => inst.setState({ view: 'clarify', selIdeaId: id, mobilePane: 'main' }),
+      openNon: (id) => inst.setState({ view: 'nontodo', selNonId: id, mobilePane: 'main' }),
+      afterSend: () => inst.loadState(),
+      setWorkspace: (ws) => { inst.setState({ workspace: ws }); api.updateSettings({ workspaceMode: ws }).catch(() => {}) },
+      togglePrivacy: () => inst.setState(s => ({ privacy: !s.privacy }), () => api.updateSettings({ privacyMode: inst.state.privacy }).catch(() => {})),
+    };
   }
 };
 </script>
