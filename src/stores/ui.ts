@@ -25,7 +25,7 @@ export const useUiStore = defineStore('ui', () => {
   async function markAllRead() { try { await api.markAllNotificationsRead(); await loadNotifs() } catch { /* ignore */ } }
   function toggleNotif() { notifOpen.value = !notifOpen.value; if (notifOpen.value) loadNotifs() }
   function closeNotif() { notifOpen.value = false }
-  function openSearch() { searchOpen.value = true; searchQuery.value = ''; paletteIndex.value = 0 }
+  function openSearch() { searchOpen.value = true; paletteIndex.value = 0 }
   function closeSearch() { searchOpen.value = false }
 
   // 从 appSettings 载入 theme/workspace/privacy（登录后调）

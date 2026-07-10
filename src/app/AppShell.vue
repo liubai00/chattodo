@@ -65,11 +65,11 @@ watch(() => ui.searchOpen, (open) => { if (open) nextTick(() => searchInput.valu
 const SEARCH_LABELS: Record<string, string> = { task: '任务', idea: '待澄清', nono: '非 todo', project: '项目' }
 const paletteGroups = computed(() => {
   const groups: Array<{ name: string; items: any[] }> = []
-  if (!ui.searchQuery) groups.push({ name: '前往', items: NAV.map(([k, n, ic]) => ({ icon: ic, label: `前往 · ${n}`, run: () => { go(k); ui.closeSearch() } })) })
+  if (!ui.searchQuery) groups.push({ name: '前往', items: NAV.map(([k, n, ic]) => ({ icon: ic, label: `前往 · ${n}`, run: () => { go(k); ui.searchQuery = ''; ui.closeSearch() } })) })
   if (searchResults.value.length) {
     const byType: Record<string, any[]> = {}
     for (const r of searchResults.value) { const t = r.type || 'other'; (byType[t] ||= []).push(r) }
-    for (const t of Object.keys(byType)) groups.push({ name: SEARCH_LABELS[t] || t, items: byType[t].map((r) => ({ icon: r.icon || 'ph-at', label: r.title || '', subtitle: r.subtitle || '', run: () => { executeSearch(r); ui.closeSearch() } })) })
+    for (const t of Object.keys(byType)) groups.push({ name: SEARCH_LABELS[t] || t, items: byType[t].map((r) => ({ icon: r.icon || 'ph-at', label: r.title || '', subtitle: r.subtitle || '', run: () => { executeSearch(r); ui.searchQuery = ''; ui.closeSearch() } })) })
   }
   return groups
 })
@@ -82,14 +82,14 @@ function executeSearch(r: any) {
 function flatIndex(gi: number, ii: number): number { let n = 0; for (let i = 0; i < gi; i++) n += paletteGroups.value[i].items.length; return n + ii }
 function paletteKey(e: KeyboardEvent) {
   const items = paletteGroups.value.flatMap((g) => g.items)
-  if (e.key === 'Escape') { e.preventDefault(); ui.closeSearch(); return }
   if (e.key === 'ArrowDown') { e.preventDefault(); ui.paletteIndex = Math.min((ui.paletteIndex || 0) + 1, Math.max(0, items.length - 1)); return }
   if (e.key === 'ArrowUp') { e.preventDefault(); ui.paletteIndex = Math.max((ui.paletteIndex || 0) - 1, 0); return }
   if (e.key === 'Enter') { e.preventDefault(); const it = items[ui.paletteIndex || 0] || items[0]; if (it) it.run() }
 }
 function onGlobalKey(e: KeyboardEvent) {
-  if (e.key === 'Escape' && ui.searchOpen) { e.preventDefault(); ui.closeSearch(); return }
-  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); ui.openSearch() }
+  // capture 阶段（在 input 之前）处理，stopPropagation 阻止 input 默认行为(ESC 失焦)
+  if (e.key === 'Escape' && ui.searchOpen) { e.preventDefault(); e.stopPropagation(); ui.closeSearch(); return }
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); e.stopPropagation(); ui.openSearch() }
 }
 
 const NAV: Array<[string, string, string]> = [
@@ -140,9 +140,9 @@ onMounted(async () => {
     await ui.load(); applyTheme(ui.theme); ui.loadNotifs(); events.connect(); subscribeEvents()
   }
   booting.value = false
-  window.addEventListener('keydown', onGlobalKey)
+  window.addEventListener('keydown', onGlobalKey, true)
 })
-onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydown', onGlobalKey) })
+onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydown', onGlobalKey, true) })
 </script>
 
 <template>
