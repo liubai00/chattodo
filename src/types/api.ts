@@ -3,7 +3,7 @@
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
 export type Workspace = 'work' | 'personal'
-export type Role = 'admin' | 'member'
+export type Role = 'admin' | 'member' | 'viewer'
 
 export interface User {
   id: string

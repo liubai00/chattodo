@@ -94,7 +94,7 @@
             <div style="flex:1;margin:10px;border:2px dashed var(--accent);border-radius:16px;background:var(--accent-bg);opacity:.6;display:flex;align-items:center;justify-content:center;"><span style="font:600 13px/1 var(--font);color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px;">放到右侧<i class="ph ph-arrow-line-right"></i></span></div>
           </div>
         </template>
-        <aside v-if="!vm.isFriends && !vm.isClarify && !vm.isNonTodo" id="lx-mid" :style="vm.midStyle">
+        <aside v-if="!vm.isFriends && !vm.isClarify && !vm.isNonTodo && !vm.isProjects" id="lx-mid" :style="vm.midStyle">
           <template v-if="vm.isChat">
             <div style="padding:15px 16px 13px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px;">
               <div style="display:flex;align-items:center;gap:8px;">
@@ -177,19 +177,6 @@
             <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);"><div style="font:600 16px/1.2 var(--display);color:var(--text);">内部后台</div><div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;">测试用户 · 只读观察</div></div>
             <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:2px;">
               <template v-for="(u, __i9) in vm.userList" :key="__i9"><a @click="u.select" :style="`display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:10px;cursor:pointer;background:${u.bg};`" data-hv="0"><span style="width:30px;height:30px;flex:0 0 auto;border-radius:50%;background:var(--surface-active);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font);">{{ u.initial }}</span><span style="flex:1;min-width:0;"><span style="display:block;font:600 13px/1.3 var(--font);color:var(--text);">{{ u.name }}</span><span style="display:block;font:500 11px/1.2 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ u.email }}</span></span></a></template>
-            </div>
-          </template>
-          <template v-if="vm.isProjects">
-            <div style="padding:16px 16px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;"><div style="flex:1;"><div style="font:600 16px/1.2 var(--display);color:var(--text);">项目</div><div style="font:500 12px/1.4 var(--font);color:var(--text3);margin-top:3px;">按项目组织任务与进度</div></div><template v-if="vm.canEdit"><button @click="vm.toggleNewProj" title="新建项目" style="width:30px;height:30px;border:0;border-radius:9px;background:var(--accent-bg);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;"><i class="ph ph-plus"></i></button></template></div>
-            <template v-if="vm.newProjOpen">
-              <div style="padding:10px 12px;border-bottom:1px solid var(--line);display:flex;gap:7px;animation:lx-fade .2s ease;">
-                <input :value="vm.newProjName" @input="vm.onNewProjName" @keydown="vm.newProjKey" placeholder="项目名称（回车创建）" style="flex:1;min-width:0;border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg);color:var(--text);font:500 13px/1 var(--font);"/>
-                <button @click="vm.submitNewProj" style="height:34px;padding:0 12px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-contrast);font:600 12.5px/1 var(--font);cursor:pointer;">创建</button>
-              </div>
-            </template>
-            <div style="flex:1;overflow:auto;padding:10px 10px;display:flex;flex-direction:column;gap:4px;">
-              <template v-for="(p, __i10) in vm.projList" :key="__i10"><a @click="p.select" :style="`display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:11px;cursor:pointer;background:${p.bg};`" data-hv="0"><div style="display:flex;align-items:center;gap:8px;"><span :style="`width:9px;height:9px;border-radius:3px;background:${p.color};flex:0 0 auto;`"></span><span style="flex:1;min-width:0;font:600 13.5px/1.3 var(--font);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</span><span style="font:600 11px/1 var(--font);color:var(--text3);">{{ p.done }}/{{ p.count }}</span></div><div style="height:5px;border-radius:3px;background:var(--mid);overflow:hidden;"><div :style="`height:100%;width:${p.pct}%;background:${p.color};border-radius:3px;`"></div></div></a></template>
-              <template v-if="vm.projList.length===0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:36px 12px;text-align:center;"><i class="ph ph-folders" style="font-size:24px;"></i><div style="font:500 12px/1.6 var(--font);">还没有项目<br/>点右上角 + 创建后，聊天里提到项目名会自动归属</div></div></template>
             </div>
           </template>
           <template v-if="vm.showAdminDenied">
@@ -445,24 +432,7 @@
               </div>
             </div>
           </template>
-          <template v-if="vm.isProjects">
-            <div style="height:57px;flex:0 0 57px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;padding:0 18px;background:var(--panel);">
-              <span :style="`width:12px;height:12px;border-radius:4px;background:${vm.spColor};flex:0 0 auto;`"></span>
-              <span style="font:600 16px/1 var(--display);color:var(--text);">{{ vm.spName }}</span>
-              <span style="font:500 12.5px/1 var(--font);color:var(--text3);">{{ vm.spDone }}/{{ vm.spCount }} 完成</span>
-              <div style="flex:1"></div>
-              <span :style="vm.modeChipStyle"><i :class="`ph ${vm.modeIcon}`" style="font-size:13px;"></i>{{ vm.modeLabel }}</span>
-            </div>
-            <div style="flex:1;overflow:auto;padding:22px;">
-              <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px;">
-                <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);"><div style="font:500 13.5px/1.6 var(--font);color:var(--text2);">{{ vm.spDesc }}</div><div style="margin-top:14px;display:flex;align-items:center;gap:12px;"><div style="flex:1;height:8px;border-radius:4px;background:var(--mid);overflow:hidden;"><div :style="`height:100%;width:${vm.spPct}%;background:${vm.spColor};border-radius:4px;`"></div></div><span style="font:600 13px/1 var(--font);color:var(--text);">{{ vm.spPct }}%</span></div></div>
-                <div style="font:700 11px/1 var(--font);letter-spacing:.08em;color:var(--text3);text-transform:uppercase;">项目任务 · {{ vm.spCount }}</div>
-                <div v-stagger style="display:flex;flex-direction:column;gap:8px;">
-                  <template v-for="(t, __i28) in vm.spTasks" :key="__i28"><div @click="t.open" style="display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;cursor:pointer;box-shadow:var(--shadow);" data-hv="2"><span :style="`width:8px;height:8px;border-radius:50%;background:${t.assigneeColor};flex:0 0 auto;`"></span><div style="flex:1;min-width:0;"><div :style="`font:600 13.5px/1.4 var(--font);color:${t.titleColor};${t.titleDeco}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ t.title }}</div><div style="font:500 11px/1 var(--font);color:var(--text3);margin-top:3px;">{{ t.statusLabel }} · <span class="lx-mono">{{ t.due }}</span></div></div><span :style="t.prioStyle">{{ t.prio }}</span><span :style="`width:24px;height:24px;border-radius:50%;background:${t.assigneeColor};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 11px/1 var(--font);flex:0 0 auto;`">{{ t.assigneeInitial }}</span></div></template>
-                </div>
-              </div>
-            </div>
-          </template>
+          <template v-if="vm.isProjects"><ProjectsView :workspace="vm.workspace" :privacy="vm.privacy" :openTask="openTask" /></template>
           <template v-if="vm.showAdminDenied">
             <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px;text-align:center;">
               <div style="width:56px;height:56px;border-radius:16px;background:var(--danger-bg);color:var(--danger);display:flex;align-items:center;justify-content:center;font-size:26px;"><i class="ph ph-lock-key"></i></div>
@@ -583,6 +553,7 @@ import AgentView from './app/views/AgentView.vue';
 import FriendsView from './app/views/FriendsView.vue';
 import ClarifyView from './app/views/ClarifyView.vue';
 import NonTodoView from './app/views/NonTodoView.vue';
+import ProjectsView from './app/views/ProjectsView.vue';
 import { shouldSendOnEnter, isComposingEvent } from './lib/keyboard.js';
 import { expandTimeTokens } from './lib/timeTokens.js';
 import gsap from 'gsap';
@@ -1548,7 +1519,7 @@ class Component {
 
 export default {
   name: 'LinXApp',
-  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView },
+  components: { SettingsView, AgentView, FriendsView, ClarifyView, NonTodoView, ProjectsView },
   setup() {
     const inst = new Component();
     inst.state = reactive(inst.state);
@@ -1598,7 +1569,7 @@ export default {
     onMounted(() => { if (inst.componentDidMount) inst.componentDidMount(); });
     onUpdated(() => { if (inst.componentDidUpdate) inst.componentDidUpdate(); });
     onBeforeUnmount(() => { if (inst.componentWillUnmount) inst.componentWillUnmount(); });
-    return { vm };
+    return { vm, openTask: (id) => inst.openTask(id) };
   }
 };
 </script>
