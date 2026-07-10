@@ -99,6 +99,7 @@ function onGlobalKey(e: KeyboardEvent) {
   if (_gPending) { _gPending = false; if (_gTimer) clearTimeout(_gTimer); const map: Record<string, string> = { c: 'chat', d: 'database', p: 'projects', f: 'friends', s: 'settings', l: 'clarify', a: 'agent', t: 'nontodo' }; if (map[k]) { e.preventDefault(); go(map[k]) } return }
   if (k === 'g') { _gPending = true; if (_gTimer) clearTimeout(_gTimer); _gTimer = setTimeout(() => { _gPending = false }, 900) }
 }
+function onResize() { ui.setMobile(window.innerWidth < 820) }
 
 const NAV: Array<[string, string, string]> = [
   ['chat', '聊天', 'ph-chat-circle'], ['database', 'Todo 数据库', 'ph-table'], ['projects', '项目', 'ph-folders'],
@@ -148,13 +149,15 @@ onMounted(async () => {
     await ui.load(); applyTheme(ui.theme); ui.loadNotifs(); events.connect(); subscribeEvents()
   }
   booting.value = false
+  onResize()
+  window.addEventListener('resize', onResize)
   window.addEventListener('keydown', onGlobalKey, true)
 })
-onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydown', onGlobalKey, true) })
+onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydown', onGlobalKey, true); window.removeEventListener('resize', onResize) })
 </script>
 
 <template>
-  <div id="lx-root" class="flex h-screen w-full overflow-hidden" style="background:var(--bg);color:var(--text);font-family:var(--font);">
+  <div id="lx-root" class="flex h-screen w-full overflow-hidden" :class="{'flex-col': ui.isMobile}" style="background:var(--bg);color:var(--text);font-family:var(--font);">
     <!-- 启动中 -->
     <div v-if="booting" class="flex h-full w-full items-center justify-center text-[var(--text3)]">加载中…</div>
 
@@ -179,7 +182,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
 
     <!-- 壳：rail + 视图区 -->
     <template v-else>
-      <nav class="flex flex-none flex-col items-center gap-[6px] bg-[var(--rail)] px-[9px] py-3" style="width:64px;">
+      <nav v-if="!ui.isMobile" class="flex flex-none flex-col items-center gap-[6px] bg-[var(--rail)] px-[9px] py-3" style="width:64px;">
         <div class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--accent)] text-[19px] font-semibold text-[var(--accent-contrast)]" style="font-family:var(--display);box-shadow:var(--shadow);">灵</div>
         <button @click="ui.openSearch()" title="搜索 (⌘K)" class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--mid)] text-[18px] text-[var(--text2)]" style="border:0;cursor:pointer;" data-hv="1"><i class="ph ph-magnifying-glass"></i></button>
         <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" class="flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-[12px] text-[22px]" :style="view===n[0]?'background:var(--accent-bg);color:var(--accent-ink);':'color:var(--text2);background:transparent;'" data-hv="0"><i :class="`ph ${n[2]}`"></i></a>
@@ -191,13 +194,23 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <button @click="logout" title="退出登录" class="mt-1 flex h-[34px] w-[34px] items-center justify-center rounded-full text-[15px] text-[var(--text3)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-sign-out"></i></button>
       </nav>
 
+      <!-- 移动端顶栏 -->
+      <div v-if="ui.isMobile" class="flex flex-none items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-2">
+        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-semibold text-[var(--accent-contrast)]">灵</div>
+        <span class="text-sm font-bold text-[var(--text)]">LinX 灵信</span>
+        <div class="flex-1"></div>
+        <button @click="ui.openSearch()" title="搜索" class="flex h-8 w-8 items-center justify-center rounded-lg text-[16px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-magnifying-glass"></i></button>
+        <button @click="ui.toggleNotif()" title="通知" class="relative flex h-8 w-8 items-center justify-center rounded-lg text-[16px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-bell"></i><span v-if="hasUnread" class="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--danger)]"></span></button>
+        <button @click="ui.toggleTheme()" title="主题" class="flex h-8 w-8 items-center justify-center rounded-lg text-[16px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i :class="`ph ${ui.theme==='dark'?'ph-sun':'ph-moon'}`"></i></button>
+        <button @click="logout" title="登出" class="flex h-8 w-8 items-center justify-center rounded-lg text-[15px] text-[var(--text3)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-sign-out"></i></button>
+      </div>
       <div class="relative min-w-0 flex-1">
-        <ChatView v-if="view==='chat'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :openIdea="openIdea" :openNon="openNon" :afterSend="afterSend" :setWorkspace="ui.setWorkspace" :togglePrivacy="ui.togglePrivacy" />
-        <DatabaseView v-else-if="view==='database'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" />
-        <ProjectsView v-else-if="view==='projects'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" />
+        <ChatView v-if="view==='chat'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :openIdea="openIdea" :openNon="openNon" :afterSend="afterSend" :setWorkspace="ui.setWorkspace" :togglePrivacy="ui.togglePrivacy" :isMobile="ui.isMobile" />
+        <DatabaseView v-else-if="view==='database'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :isMobile="ui.isMobile" />
+        <ProjectsView v-else-if="view==='projects'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :isMobile="ui.isMobile" />
         <FriendsView v-else-if="view==='friends'" />
-        <ClarifyView v-else-if="view==='clarify'" :workspace="ui.workspace" :privacy="ui.privacy" />
-        <NonTodoView v-else-if="view==='nontodo'" :workspace="ui.workspace" :privacy="ui.privacy" />
+        <ClarifyView v-else-if="view==='clarify'" :workspace="ui.workspace" :privacy="ui.privacy" :isMobile="ui.isMobile" />
+        <NonTodoView v-else-if="view==='nontodo'" :workspace="ui.workspace" :privacy="ui.privacy" :isMobile="ui.isMobile" />
         <AgentView v-else-if="view==='agent'" />
         <SettingsView v-else-if="view==='settings'" />
         <div v-else class="flex flex-1 items-center justify-center text-[var(--text3)]">未知视图</div>
@@ -205,6 +218,11 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <!-- 任务详情浮层 -->
         <TaskDetailView v-if="ui.detailId" :taskId="ui.detailId" :afterChange="afterSend" @close="ui.closeDetail()" />
       </div>
+
+      <!-- 移动端底栏 -->
+      <nav v-if="ui.isMobile" class="flex flex-none items-center justify-around border-t border-[var(--line)] bg-[var(--panel)] py-1">
+        <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" class="flex flex-col items-center gap-0.5 px-1 py-1" :style="view===n[0]?'color:var(--accent-ink);':'color:var(--text3);'"><i :class="`ph ${n[2]}`" class="text-[18px]"></i><span class="text-[9px] font-medium">{{ n[1].slice(0,2) }}</span></a>
+      </nav>
 
       <!-- 通知面板 -->
       <template v-if="ui.notifOpen">

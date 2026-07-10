@@ -16,7 +16,7 @@ interface NonItem { id: string; title: string; text: string; raw: string; reason
 
 const DEST_LABEL: Record<Dest, string> = { copy: '建议复制', export: '建议导出', archive: '建议归档', discard: '建议删除' }
 
-const props = defineProps<{ workspace: Workspace; privacy: boolean }>()
+const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
 const toast = useToast()
 const loading = ref(true)
 const nonTodos = ref<NonItem[]>([])
@@ -96,7 +96,7 @@ function exportNon() {
 <template>
   <div class="flex h-full flex-col">
     <!-- 57px 头栏 -->
-    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]">
+    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]"><button v-if="isMobile && !!selId" @click="selId = null" class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-caret-left"></i></button>
       <i class="ph ph-tray text-[19px] text-[var(--nono)]"></i>
       <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">非 todo 隔离区</span>
       <span class="text-[12.5px] font-medium text-[var(--text3)]">不参与任务与计划</span>
@@ -106,7 +106,7 @@ function exportNon() {
 
     <div class="flex min-h-0 flex-1">
       <!-- 列表 -->
-      <div class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" style="width:280px;flex:0 0 280px;">
+      <div v-if="!isMobile || !selId" class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:280px;flex:0 0 280px;'">
         <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
         <template v-else>
           <a v-for="n in visNons" :key="n.id" @click="select(n.id)" :class="['flex cursor-pointer flex-col gap-1 p-[11px_12px]', n.id === selNon?.id ? 'bg-[var(--accent-bg)]' : '']" data-hv="0">
@@ -121,7 +121,7 @@ function exportNon() {
       </div>
 
       <!-- 详情 -->
-      <div class="flex-1 overflow-auto px-6 py-[30px]">
+      <div v-if="!isMobile || !!selId" class="flex-1 overflow-auto px-6 py-[30px]">
         <div v-if="!loading && selNon" class="mx-auto flex max-w-[640px] flex-col gap-[18px]" style="animation: lx-pop .3s ease;">
           <div class="text-[22px] font-semibold leading-relaxed text-[var(--text2)]" style="font-family: var(--display)">{{ selNon.title }}</div>
           <div class="rounded-xl border border-dashed border-[var(--line2)] bg-[var(--nono-bg)] p-[14px_16px]">

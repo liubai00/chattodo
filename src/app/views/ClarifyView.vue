@@ -13,7 +13,7 @@ type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
 interface IdeaItem { id: string; title: string; raw: string; suggest: string; reason: string; scope: Scope; gen: string }
 
-const props = defineProps<{ workspace: Workspace; privacy: boolean }>()
+const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
 const toast = useToast()
 const loading = ref(true)
 const ideas = ref<IdeaItem[]>([])
@@ -70,7 +70,7 @@ function discardIdea(id: string) {
 <template>
   <div class="flex h-full flex-col">
     <!-- 57px 头栏 -->
-    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]">
+    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]"><button v-if="isMobile && !!selId" @click="selId = null" class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-caret-left"></i></button>
       <i class="ph ph-lightbulb text-[19px] text-[var(--accent-ink)]"></i>
       <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">待澄清区</span>
       <span class="text-[12.5px] font-medium text-[var(--text3)]">补充后转为正式任务</span>
@@ -80,7 +80,7 @@ function discardIdea(id: string) {
 
     <div class="flex min-h-0 flex-1">
       <!-- 列表 -->
-      <div class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" style="width:280px;flex:0 0 280px;">
+      <div v-if="!isMobile || !selId" class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:280px;flex:0 0 280px;'">
         <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
         <template v-else>
           <a v-for="i in visIdeas" :key="i.id" @click="select(i.id)" :class="['flex cursor-pointer flex-col gap-1 p-[11px_12px]', i.id === selIdea?.id ? 'bg-[var(--accent-bg)]' : '']" data-hv="0">
@@ -95,7 +95,7 @@ function discardIdea(id: string) {
       </div>
 
       <!-- 详情 -->
-      <div class="flex-1 overflow-auto px-6 py-[30px]">
+      <div v-if="!isMobile || !!selId" class="flex-1 overflow-auto px-6 py-[30px]">
         <div v-if="!loading && selIdea" class="mx-auto flex max-w-[640px] flex-col gap-[18px]" style="animation: lx-pop .3s ease;">
           <div class="text-[22px] font-semibold leading-relaxed text-[var(--text)]" style="font-family: var(--display)">{{ selIdea.title }}</div>
           <div class="rounded-xl border-l-[3px] border-[var(--idea)] bg-[var(--idea-bg)] p-[14px_16px]">
