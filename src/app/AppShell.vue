@@ -88,6 +88,7 @@ function paletteKey(e: KeyboardEvent) {
   if (e.key === 'Enter') { e.preventDefault(); const it = items[ui.paletteIndex || 0] || items[0]; if (it) it.run() }
 }
 function onGlobalKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && ui.searchOpen) { e.preventDefault(); ui.closeSearch(); return }
   if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); ui.openSearch() }
 }
 
