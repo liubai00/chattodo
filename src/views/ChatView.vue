@@ -5,14 +5,22 @@
 // 跨视图状态(tasks/ideas/nonTodos/agent/autoRules/friends/team)经 onSendComplete(legacy loadState)刷新。
 // 详情面板/今日胶囊保持 legacy(小 gap)。消息动作 undo/commitPlan/open/retry。
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { api } from '@/lib/api'
+import { AuthAPI } from '@/modules/auth/api'
+import { AppAPI } from '@/modules/app/api'
+import { TasksAPI } from '@/modules/tasks/api'
+import { ChatAPI } from '@/modules/chat/api'
+import { ClarifyAPI } from '@/modules/clarify/api'
+import { NonTodoAPI } from '@/modules/nontodo/api'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue, lxPad } from '@/lib/format'
-import { expandTimeTokens } from '@/lib/timeTokens'
-import { isComposingEvent, shouldSendOnEnter } from '@/lib/keyboard'
+import { lxFmtDue, lxPad } from '@/shared/utils/format'
+import { expandTimeTokens } from '@/shared/utils/timeTokens'
+import { isComposingEvent, shouldSendOnEnter } from '@/shared/utils/keyboard'
 import Button from '@/components/ui/button/Button.vue'
 import { usePane } from '@/shared/composables/usePane'
 import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
+// 本视图跨 auth/app/tasks/chat/clarify/nontodo 六域：显式合并所需域 API
+// （保持 api.xxx 调用语法，去 @/lib/api 聚合依赖；方法实现与聚合 api 完全一致）
+const api = { ...AuthAPI, ...AppAPI, ...TasksAPI, ...ChatAPI, ...ClarifyAPI, ...NonTodoAPI }
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'

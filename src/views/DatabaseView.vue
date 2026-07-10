@@ -5,15 +5,19 @@
 // 详情面板(子任务/评论/动态/协作)保持 legacy(全局浮层)，本视图只管列表。FLIP 动画已补回(flipBoard + data-flip-id)。
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '@/lib/api'
+import { AuthAPI } from '@/modules/auth/api'
+import { AppAPI } from '@/modules/app/api'
+import { TasksAPI } from '@/modules/tasks/api'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue } from '@/lib/format'
+import { lxFmtDue } from '@/shared/utils/format'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
 import { useFlip } from '@/motion'
 import { usePane } from '@/shared/composables/usePane'
 import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
+// 本视图跨 auth/app/tasks 三域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
+const api = { ...AuthAPI, ...AppAPI, ...TasksAPI }
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'

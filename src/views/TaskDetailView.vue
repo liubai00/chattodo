@@ -4,11 +4,14 @@
 // patchTask/toggleSub/addSub/addComment/assignTask/inviteMember/inviteAll/moveOut/leaveCollab。
 // afterChange 回调(legacy loadState)刷新跨视图；emit close。
 import { ref, reactive, computed, watch } from 'vue'
-import { api } from '@/lib/api'
+import { AuthAPI } from '@/modules/auth/api'
+import { TasksAPI } from '@/modules/tasks/api'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue } from '@/lib/format'
-import { expandTimeTokens } from '@/lib/timeTokens'
+import { lxFmtDue } from '@/shared/utils/format'
+import { expandTimeTokens } from '@/shared/utils/timeTokens'
 import Button from '@/components/ui/button/Button.vue'
+// 本视图跨 auth/tasks 两域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
+const api = { ...AuthAPI, ...TasksAPI }
 
 type TaskStatus = 'todo' | 'in_progress' | 'done'
 type Scope = 'work' | 'personal' | 'mixed'

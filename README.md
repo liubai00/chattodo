@@ -55,27 +55,29 @@ PGlite（进程内 WASM Postgres）数据目录注意点：
 
 ## 目录结构（前端）
 
+四层 + 业务域 modules 架构（P10 收敛；依赖方向与「新增功能落点」checklist 见 [`docs/architecture.md`](./docs/architecture.md)）：
+
 ```
 src/
-  app/
-    Root.vue            # RouterView 出口
-    AppShell.vue        # 应用壳：登录屏 + 侧栏 + 视图 switch + toast + 详情面板
-    router.ts           # hash 路由，8 视图 + catch-all
-    views/              # ChatView / DatabaseView / ProjectsView / FriendsView /
-                        # ClarifyView / NonTodoView / AgentView / SettingsView / TaskDetailView
-    composables/        # usePane（分栏拖拽 resize）等
+  infrastructure/       # 底层：request/（HTTP+token） router/（路由表+实例）
+  shared/               # 跨域共享：utils/ composables/ enums/ constants/
+  modules/              # 业务域切片（api + composable）：auth admin app tasks clarify
+                        #   nontodo agent settings chat friends notifications
+  components/           # ui/（ShadCN 原子） base/（通用块） business/（领域组件）
+  views/                # 薄页面：Chat/Database/Projects/Friends/Clarify/NonTodo/Agent/Settings/TaskDetail
+  app/                  # 应用壳：AppShell.vue + Root.vue（router.ts 为兼容 re-export）
   stores/               # Pinia: auth / ui / events / toast
-  lib/                  # api.ts（后端客户端）/ keyboard.ts / timeTokens.ts / theme.ts / format.ts / utils.ts
+  lib/                  # 兼容层：api.ts（聚合 api） + utils/format/... re-export（P11 删）
+  composables/          # 兼容层 re-export（P11 删）
   motion/               # GSAP 指令与 FLIP
-  components/ui/        # shadcn-vue 基础组件
-  types/api.ts          # 领域类型
+  types/api.ts          # 领域类型（枚举 re-export 自 shared/enums）
 admin/
   Admin.vue             # 监控后台（独立入口，构建到 dist/admin/，由 nginx 挂在 /todo/admin/）
 ```
 
 ## 路由
 
-hash 模式，路由表见 [`src/app/router.ts`](./src/app/router.ts)：
+hash 模式，路由表见 [`src/infrastructure/router/index.ts`](./src/infrastructure/router/index.ts)：
 
 | 路径 | 名称 | 说明 |
 |------|------|------|
@@ -93,6 +95,8 @@ hash 模式，路由表见 [`src/app/router.ts`](./src/app/router.ts)：
 ## 重构状态
 
 前端已完成 **P3–P5** 绞杀式迁移：从旧的 253KB `App.vue`（React-in-Vue 状态机）逐步迁移到 **TS + Pinia + Router + Tailwind v4 + shadcn-vue**，8 个视图 + 详情面板 + 应用壳全部 TS 化，遗留 `App.vue` / Component 类 / 路由桥接已删除，`type-check` 与 `build` 全绿。
+
+**P7 工程化**（README/api.ts/Vitest/CI/路由懒加载）+ **P9 组件分层**（ui→base→business→views）+ **P10 全栈分层收敛**（2026-07-11）：建立 `infrastructure / shared / modules / views` 四层架构，API 按业务域拆入 `modules/*/api.ts`（youlai 风格对象），域 composable 下沉（friends/agent/settings），router 迁入 `infrastructure/router`，views 迁出 `app/views/`；旧路径留 re-export 兼容层（P11 删）。详见 [`docs/architecture.md`](./docs/architecture.md)。`type-check` + `test(15)` + `build` 全绿。
 
 补齐的桌面端一致性能力：通知面板 + 未读徽标、搜索 ⌘K 命令面板、快捷键、FLIP 看板拖拽动效、今日待办胶囊、跨视图深选、分栏 resize。
 

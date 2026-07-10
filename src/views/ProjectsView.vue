@@ -4,9 +4,11 @@
 // (点击任务 -> 旧 App openTask 设 detailId 取详情)。2 列：项目列表+新建 | 选中项目任务列表。
 // 任务行只用 fmtTask 子集(assignee 色/首字母、title+titleColor/deco、statusLabel、due、prio)。
 import { ref, computed, onMounted, watch } from 'vue'
-import { api } from '@/lib/api'
+import { AuthAPI } from '@/modules/auth/api'
+import { AppAPI } from '@/modules/app/api'
+import { TasksAPI } from '@/modules/tasks/api'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue } from '@/lib/format'
+import { lxFmtDue } from '@/shared/utils/format'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
@@ -15,6 +17,8 @@ import SectionLabel from '@/components/base/SectionLabel.vue'
 import { useRoute } from 'vue-router'
 import { usePane } from '@/shared/composables/usePane'
 import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
+// 本视图跨 auth/app/tasks 三域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
+const api = { ...AuthAPI, ...AppAPI, ...TasksAPI }
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'

@@ -4,15 +4,18 @@
 // 旧 App 中栏 clarify 列表块移除、aside 对 clarify 隐藏（main 内 2 列：列表 | 详情）。
 // convertIdea/discardIdea 乐观移除+失败回滚（与旧 App 一致）。toast 经 useToast。
 import { ref, computed, onMounted, watch } from 'vue'
-import { api } from '@/lib/api'
+import { AppAPI } from '@/modules/app/api'
+import { ClarifyAPI } from '@/modules/clarify/api'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue } from '@/lib/format'
+import { lxFmtDue } from '@/shared/utils/format'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
 import { useRoute } from 'vue-router'
 import { usePane } from '@/shared/composables/usePane'
 import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
+// 本视图跨 app/clarify 两域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
+const api = { ...AppAPI, ...ClarifyAPI }
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
