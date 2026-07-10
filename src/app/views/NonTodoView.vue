@@ -8,6 +8,8 @@ import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import ViewHeader from '@/components/base/ViewHeader.vue'
+import LoadingState from '@/components/base/LoadingState.vue'
 import { useRoute } from 'vue-router'
 import { usePane } from '@/app/composables/usePane'
 
@@ -101,18 +103,14 @@ function exportNon() {
 <template>
   <div class="flex h-full flex-col">
     <!-- 57px 头栏 -->
-    <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]"><button v-if="isMobile && !!selId" @click="selId = null" class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-caret-left"></i></button>
-      <i class="ph ph-tray text-[19px] text-[var(--nono)]"></i>
-      <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">非 todo 隔离区</span>
-      <span class="text-[12.5px] font-medium text-[var(--text3)]">不参与任务与计划</span>
-      <div class="flex-1"></div>
+    <ViewHeader :show-back="isMobile && !!selId" @back="selId = null" icon="ph-tray" icon-color="var(--nono)" title="非 todo 隔离区">不参与任务与计划<template #trailing>
       <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--mid)] px-[11px] py-1.5 text-xs font-semibold text-[var(--text2)]"><i :class="`ph ${modeIcon}`" style="font-size:13px;"></i>{{ modeLabel }}</span>
-    </div>
+    </template></ViewHeader>
 
     <div class="flex min-h-0 flex-1">
       <!-- 列表 -->
       <div v-if="!isMobile || !selId" class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : `width:${leftW}px;flex:0 0 ${leftW}px;`">
-        <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
+        <LoadingState v-if="loading" class="flex-1" />
         <template v-else>
           <a v-for="n in visNons" :key="n.id" @click="select(n.id)" :class="['flex cursor-pointer flex-col gap-1 p-[11px_12px]', n.id === selNon?.id ? 'bg-[var(--accent-bg)]' : '']" data-hv="0">
             <span class="text-[13.5px] font-semibold leading-snug text-[var(--text)]">{{ n.title }}</span>

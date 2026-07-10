@@ -12,6 +12,8 @@ import { useEventsStore } from '@/stores/events'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
+import PageBody from '@/components/base/PageBody.vue'
+import ContentCard from '@/components/base/ContentCard.vue'
 import Input from '@/components/ui/input/Input.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 
@@ -198,7 +200,7 @@ const seg = (on: boolean) => on
   <div class="flex h-full flex-col">
     <ViewHeader icon="ph-gear" title="设置">{{ setName }}</ViewHeader>
 
-    <div :class="['flex-1 overflow-auto', isMobile ? 'px-4 py-5' : 'px-6 py-[30px]']">
+    <PageBody :is-mobile="isMobile">
       <LoadingState v-if="loading" class="h-full" />
       <div v-else class="mx-auto flex max-w-[600px] flex-col gap-4">
         <!-- section 标签栏（in-content，替代旧中栏导航） -->
@@ -287,7 +289,7 @@ const seg = (on: boolean) => on
             </div>
             <Button variant="outline" size="sm" @click="ownAiOpen = !ownAiOpen">{{ ownAiOpen ? '收起' : '使用自己的 Key' }}</Button>
           </div>
-          <div v-if="ownAiOpen" class="flex flex-col gap-[14px] rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-[18px] shadow-md">
+          <ContentCard v-if="ownAiOpen" class="gap-[14px]">
             <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">服务商预设</span>
               <select :value="s.aiPreset" @change="pickAiPreset(AI_PRESETS.find(p => p.name === ($event.target as HTMLSelectElement).value)!)" class="cursor-pointer rounded-[10px] border border-[var(--line2)] bg-[var(--bg)] px-3 py-2.5 text-[13.5px] font-medium text-[var(--text)]">
                 <option v-for="o in aiPresetOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
@@ -303,12 +305,12 @@ const seg = (on: boolean) => on
               <Button v-if="aiOwnActive" variant="outline" size="sm" @click="clearOwnAi">恢复团队配置</Button>
               <span class="text-[11.5px] font-medium text-[var(--text3)] leading-snug">只影响你自己的 AI 调用 · Key 不回显</span>
             </div>
-          </div>
+          </ContentCard>
         </template>
 
         <!-- AI（管理员：团队配置） -->
         <template v-if="section === 'ai' && canAdmin">
-          <div class="flex flex-col gap-[14px] rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-[18px] shadow-md">
+          <ContentCard class="gap-[14px]">
             <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">服务商预设</span>
               <select :value="s.aiPreset" @change="pickAiPreset(AI_PRESETS.find(p => p.name === ($event.target as HTMLSelectElement).value)!)" class="cursor-pointer rounded-[10px] border border-[var(--line2)] bg-[var(--bg)] px-3 py-2.5 text-[13.5px] font-medium text-[var(--text)]">
                 <option v-for="o in aiPresetOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
@@ -322,7 +324,7 @@ const seg = (on: boolean) => on
               <div class="flex items-center gap-[14px] pt-0.5"><div class="flex-1"><div class="text-[13px] font-semibold text-[var(--text)]">失败兜底</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">模型调用失败时自动回退规则版，不丢输入</div></div><Switch :model-value="s.aiFallback !== false" @update:model-value="(v) => setAiField('aiFallback', v)" /></div>
             </template>
             <div v-else class="rounded-xl bg-[var(--mid)] p-3 text-xs font-medium text-[var(--text3)] leading-relaxed">规则版为离线关键词分类，无需 API Key。切换到其他服务商即可接入真实模型（支持任意 OpenAI 兼容服务）。</div>
-          </div>
+          </ContentCard>
           <div class="flex items-center gap-[14px] rounded-[14px] border border-[var(--line)] bg-[var(--panel)] px-[18px] py-4 shadow-md">
             <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">连接状态</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">用一条样例验证服务商 / 模型 / Key</div></div>
             <span v-if="s.aiTested" class="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-bg)] px-[11px] py-[5px] text-[11.5px] font-semibold text-[var(--accent-ink)]"><span class="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"></span>可用</span>
@@ -370,6 +372,6 @@ const seg = (on: boolean) => on
         </template>
 
       </div>
-    </div>
+    </PageBody>
   </div>
 </template>

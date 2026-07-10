@@ -8,6 +8,10 @@ import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import ViewHeader from '@/components/base/ViewHeader.vue'
+import LoadingState from '@/components/base/LoadingState.vue'
+import ContentCard from '@/components/base/ContentCard.vue'
+import SectionLabel from '@/components/base/SectionLabel.vue'
 import { useRoute } from 'vue-router'
 import { usePane } from '@/app/composables/usePane'
 
@@ -131,7 +135,7 @@ function submitNewProject() {
         <Button size="sm" @click="submitNewProject">创建</Button>
       </div>
       <div class="flex flex-1 flex-col gap-1 overflow-auto p-[10px]">
-        <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
+        <LoadingState v-if="loading" class="flex-1" />
         <template v-else>
           <a v-for="p in projList" :key="p.id" @click="selectProject(p.id)" :style="`display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:11px;cursor:pointer;background:${p.bg};`" data-hv="0">
             <div class="flex items-center gap-2">
@@ -152,23 +156,19 @@ function submitNewProject() {
     <div v-if="!isMobile" @mousedown="startResize" title="拖动调整宽度" class="flex-none cursor-col-resize" style="width:5px;position:relative;z-index:6;"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div>
     <!-- 详情列 -->
     <div v-if="!isMobile || !!selId" class="flex flex-1 flex-col">
-      <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]"><button v-if="isMobile && !!selId" @click="selId = null" class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-caret-left"></i></button>
-        <span :style="`width:12px;height:12px;border-radius:4px;background:${selProject?.color || 'var(--accent)'};flex:0 0 auto;`"></span>
-        <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">{{ selProject?.name || '' }}</span>
-        <span class="text-[12.5px] font-medium text-[var(--text3)]">{{ spDone }}/{{ spTasks.length }} 完成</span>
-        <div class="flex-1"></div>
+      <ViewHeader :show-back="isMobile && !!selId" @back="selId = null" :title="selProject?.name || ''"><template #icon><span :style="`width:12px;height:12px;border-radius:4px;background:${selProject?.color || 'var(--accent)'};flex:0 0 auto;`"></span></template>{{ spDone }}/{{ spTasks.length }} 完成<template #trailing>
         <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--mid)] px-[11px] py-1.5 text-xs font-semibold text-[var(--text2)]"><i :class="`ph ${modeIcon}`" style="font-size:13px;"></i>{{ modeLabel }}</span>
-      </div>
+      </template></ViewHeader>
       <div class="flex-1 overflow-auto p-[22px]">
         <div v-if="!loading && selProject" class="mx-auto flex max-w-[720px] flex-col gap-[18px]">
-          <div class="rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-[18px] shadow-md">
+          <ContentCard>
             <div class="text-[13.5px] font-medium leading-relaxed text-[var(--text2)]">{{ selProject.desc || '（无描述）' }}</div>
             <div class="mt-[14px] flex items-center gap-3">
               <div class="h-2 flex-1 overflow-hidden rounded-[4px] bg-[var(--mid)]"><div :style="`height:100%;width:${spPct}%;background:${selProject.color};border-radius:4px;`"></div></div>
               <span class="text-[13px] font-semibold text-[var(--text)]">{{ spPct }}%</span>
             </div>
-          </div>
-          <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text3)]">项目任务 · {{ spTasks.length }}</div>
+          </ContentCard>
+          <SectionLabel class="mb-0">项目任务 · {{ spTasks.length }}</SectionLabel>
           <div v-stagger class="flex flex-col gap-2">
             <div v-for="t in spTasks" :key="t.title" @click="t.open" class="flex cursor-pointer items-center gap-[11px] rounded-[11px] border border-[var(--line)] bg-[var(--panel)] p-3 shadow-md" data-hv="2">
               <span :style="`width:8px;height:8px;border-radius:50%;background:${t.assigneeColor};flex:0 0 auto;`"></span>
