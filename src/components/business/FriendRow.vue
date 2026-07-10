@@ -5,7 +5,7 @@ import { computed } from 'vue'
 import Button from '@/components/ui/button/Button.vue'
 import ListRow from '@/components/base/ListRow.vue'
 import { lxFmtDue } from '@/lib/format'
-import type { FriendItem } from '@/composables/useFriends'
+import type { FriendItem } from '@/modules/friends/composables/useFriends'
 
 type FriendRowVariant = 'incoming' | 'outgoing' | 'accepted'
 const props = defineProps<{ friend: FriendItem; variant: FriendRowVariant }>()

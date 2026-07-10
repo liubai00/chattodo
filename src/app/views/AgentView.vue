@@ -8,7 +8,7 @@ import PageBody from '@/components/base/PageBody.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
 import TabPills from '@/components/base/TabPills.vue'
 import AgentSectionPanel from '@/components/business/AgentSectionPanel.vue'
-import { useAgentConfig, AGENT_DEFS } from '@/composables/useAgentConfig'
+import { useAgentConfig, AGENT_DEFS } from '@/modules/agent/composables/useAgentConfig'
 
 defineProps<{ isMobile?: boolean }>()
 const toast = useToast()

@@ -8,7 +8,7 @@ import LoadingState from '@/components/base/LoadingState.vue'
 import FriendAddForm from '@/components/business/FriendAddForm.vue'
 import FriendListSection from '@/components/business/FriendListSection.vue'
 import FriendRow from '@/components/business/FriendRow.vue'
-import { useFriends, type FriendItem } from '@/composables/useFriends'
+import { useFriends, type FriendItem } from '@/modules/friends/composables/useFriends'
 
 defineProps<{ isMobile?: boolean }>()
 const toast = useToast()

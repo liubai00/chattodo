@@ -4,7 +4,7 @@
 import ContentCard from '@/components/base/ContentCard.vue'
 import SectionLabel from '@/components/base/SectionLabel.vue'
 import AutoRuleItem from '@/components/business/AutoRuleItem.vue'
-import type { AgentSectionDef } from '@/composables/useAgentConfig'
+import type { AgentSectionDef } from '@/modules/agent/composables/useAgentConfig'
 import type { AutoRule } from '@/types/api'
 
 defineProps<{
