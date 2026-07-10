@@ -12,7 +12,8 @@ import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
 import { useFlip } from '@/motion'
-import { usePane } from '@/app/composables/usePane'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -33,7 +34,7 @@ const STATUS_ORDER: Record<TaskStatus, number> = { todo: 0, in_progress: 1, done
 const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
 const router = useRouter()
 const toast = useToast()
-const { width: dbNavW, startResize } = usePane({ key: 'lx_pane_db', def: 200, min: 160, max: 360 })
+const { width: dbNavW, startResize } = usePane({ key: STORAGE_KEYS.PANE_DB, def: 200, min: 160, max: 360 })
 
 const loading = ref(true)
 const myName = ref('')

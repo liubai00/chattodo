@@ -11,7 +11,8 @@ import { lxFmtDue, lxPad } from '@/lib/format'
 import { expandTimeTokens } from '@/lib/timeTokens'
 import { isComposingEvent, shouldSendOnEnter } from '@/lib/keyboard'
 import Button from '@/components/ui/button/Button.vue'
-import { usePane } from '@/app/composables/usePane'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -34,7 +35,7 @@ const props = defineProps<{
   isMobile?: boolean
 }>()
 const toast = useToast()
-const { width: leftW, startResize } = usePane({ key: 'lx_pane_chat', def: 304 })
+const { width: leftW, startResize } = usePane({ key: STORAGE_KEYS.PANE_CHAT, def: 304 })
 
 const loading = ref(true)
 const myName = ref('')

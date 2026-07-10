@@ -1,7 +1,2 @@
-import { type ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-
-/** 合并 Tailwind 类名（clsx 条件拼接 + tailwind-merge 去重冲突）。 */
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+// P10-2 兼容层：cn 已迁至 @/shared/utils/cn。此 re-export 仅为旧 import 路径零破坏，P11 删除。
+export * from '@/shared/utils/cn'

@@ -5,8 +5,10 @@ import { ref } from 'vue'
 import { api } from '@/lib/api'
 import { applyTheme } from '@/lib/theme'
 
-export type Theme = 'light' | 'dark'
-export type Workspace = 'work' | 'personal'
+import type { Theme } from '@/shared/enums/theme'
+import type { Workspace } from '@/shared/enums/workspace'
+
+export type { Theme, Workspace }
 
 export const useUiStore = defineStore('ui', () => {
   const theme = ref<Theme>('light')

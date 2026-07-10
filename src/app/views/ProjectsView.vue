@@ -13,7 +13,8 @@ import LoadingState from '@/components/base/LoadingState.vue'
 import ContentCard from '@/components/base/ContentCard.vue'
 import SectionLabel from '@/components/base/SectionLabel.vue'
 import { useRoute } from 'vue-router'
-import { usePane } from '@/app/composables/usePane'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -30,7 +31,7 @@ const STATUS_LABEL: Record<TaskStatus, string> = { todo: '待办', in_progress: 
 const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
 const toast = useToast()
 const route = useRoute()
-const { width: leftW, startResize } = usePane({ key: 'lx_pane_projects', def: 280, max: 480 })
+const { width: leftW, startResize } = usePane({ key: STORAGE_KEYS.PANE_PROJECTS, def: 280, max: 480 })
 const loading = ref(true)
 const myName = ref('')
 const canEdit = ref(false)

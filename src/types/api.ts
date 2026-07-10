@@ -1,8 +1,9 @@
 // API 实体类型。基于旧 App.vue 的字段使用推断；Phase 3 迁移各视图时按需补全/修正。
 // 未确定的字段标 optional；访问到未声明字段时再补，避免现在过度臆断。
 
-export type TaskStatus = 'todo' | 'in_progress' | 'done'
-export type Workspace = 'work' | 'personal'
+import type { TaskStatus } from '@/shared/enums/task-status'
+import type { Workspace } from '@/shared/enums/workspace'
+export type { TaskStatus, Workspace }
 export type Role = 'admin' | 'member' | 'viewer'
 
 export interface User {

@@ -11,7 +11,8 @@ import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
 import { useRoute } from 'vue-router'
-import { usePane } from '@/app/composables/usePane'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -23,7 +24,7 @@ const DEST_LABEL: Record<Dest, string> = { copy: '建议复制', export: '建议
 const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
 const toast = useToast()
 const route = useRoute()
-const { width: leftW, startResize } = usePane({ key: 'lx_pane_nontodo', def: 280, max: 480 })
+const { width: leftW, startResize } = usePane({ key: STORAGE_KEYS.PANE_NONTODO, def: 280, max: 480 })
 const loading = ref(true)
 const nonTodos = ref<NonItem[]>([])
 const selId = ref<string | null>(null)
