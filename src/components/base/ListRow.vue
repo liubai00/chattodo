@@ -11,7 +11,7 @@ const props = defineProps<{ variant?: 'solid' | 'dashed'; class?: HTMLAttributes
   <div :class="cn('flex items-center gap-3 rounded-xl bg-[var(--panel)]',
     props.variant === 'dashed'
       ? 'border border-dashed border-[var(--line2)] p-[11px_14px]'
-      : 'border border-[var(--line)] p-3 shadow-md',
+      : 'border border-[var(--line)] p-3',
     props.class)">
     <slot name="leading" />
     <div v-if="$slots.default" class="min-w-0 flex-1"><slot /></div>
