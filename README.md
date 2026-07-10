@@ -1,58 +1,103 @@
-# Chattodo · AI 想法处理器（Web 前端原型）
+# LinX 灵信 · Chattodo（Web 前端）
 
-基于 *AI Todo MVP Kickoff Brief* 的第一版前端原型。核心理念：
-**这不是信息管理系统，而是 todo 类想法处理器。** 信息可以进来，但只有行动能留在主系统里。
+> AI 原生的想法处理器：信息可以进来，但只有行动能留在主系统里。
+> 自然语言输入即自动 triage —— 明确 todo 进数据库、模糊 todo 进待澄清、非 todo 进隔离输出。
 
-> 当前为纯前端原型：使用内存中的 mock 数据 + 规则版 triage（`LocalRuleProvider` 的占位实现），
-> 用于快速验证产品闭环与视觉方向。刷新页面会回到初始数据，后续接入服务端与真实 LLM。
+本仓库为 chattodo 的 **Web 前端**（Vue 3 单页应用）。后端（Fastify + PGlite）位于 [`./server`](./server)，前端通过 Vite 代理 `/api` -> `http://localhost:8787`。
 
-## 快速开始
+## 技术栈
+
+- **Vue 3** `<script setup>` + **TypeScript**（严格模式，禁止 `any`）
+- **Vite 5** 构建（两个独立入口：主站 `index.html` + 监控后台 `admin/index.html`）
+- **Pinia 3** 状态管理（auth / ui / events / toast）
+- **Vue Router 5**（**hash 模式**，`#/chat`、`#/database` 等，避开生产 `/todo/` 下的 nginx history fallback 配置）
+- **Tailwind CSS v4**（`@tailwindcss/vite`，`@theme inline` 映射 Attio 设计令牌，无 preflight 以兼容遗留内联样式）
+- **shadcn-vue / reka-ui** 基础组件
+- **GSAP**（`src/motion/`：v-fade / v-stagger 指令、路由过渡、FLIP 看板拖拽动效）
+
+## 前置要求
+
+- **Node.js ≥ 22.12**（22.9 会触发若干依赖的 `EBADENGINE`，且 Vite 热重载偶发 `Cannot find package '@tailwindcss/vite'`；建议升级到 22.12 / 22.18）。
+- 本环境直连 `registry.npmjs.org` 会 `ECONNRESET`，统一走 npmmirror。
+
+## 安装
 
 ```bash
-npm install
-npm run dev      # http://localhost:5173
-npm run build    # 生产构建
+npm install --registry=https://registry.npmmirror.com --legacy-peer-deps
 ```
 
-## 已实现
+> `--legacy-peer-deps`：reka-ui / pinia3 / vue-router5 的 peer 范围较宽，加此参数避免无谓的 peer 冲突。
 
-三栏布局：**左侧导航 · 中间主区域 · 右侧常驻聊天框**，并做了基础响应式。
+## 前端脚本
 
-- **工作台 Dashboard** — 今日/Inbox/未完成/隔离 四项统计、一键「接下来两小时计划」、最近待澄清、今日任务。
-- **常驻聊天框 Chat Dock** — 自然语言输入即自动 triage：
-  - 明确 todo → 进入 Todo 数据库
-  - 模糊 todo → 进入 Todo Inbox，给出建议下一步
-  - 非 todo → 进入隔离输出，明确提示「未进入主系统」
-  - 问「接下来两小时做什么」→ 只基于可见 Task 生成计划
-- **Todo Inbox** — 待澄清想法，可转任务 / 归档 / 丢弃。
-- **Todo 数据库** — 全部 / 今日 / 未完成 / 已完成 视图，表格化字段，勾选完成。
-- **NonTodo 隔离输出** — 琥珀色视觉区分，可复制 / 导出 / 手动转 todo（需显式触发）/ 删除。
-- **Agent 设置** — soul / memory / preferences / workingStyle / privacyRules / followup 表单。
-- **App 设置** — 空间切换、隐私模式、默认视图、AI 可见范围。
-- **隐私模式** — 顶部明确状态；开启后主系统与隔离区均按 workspace 范围过滤，计划只读可见内容。
+```bash
+npm run dev          # 开发服务器 http://localhost:3000（PORT 可覆盖）
+npm run type-check   # vue-tsc --noEmit 类型检查
+npm run build        # 生产构建 -> dist/（主站）+ dist/admin/（后台）
+npm run preview      # 预览构建产物
+npm run test         # Vitest 单元测试（见下）
+```
 
-## 视觉方向
+## 后端
 
-- 极简、内容优先、类 Notion 但避免工具栏拥挤。
-- Todo 主系统：绿色/蓝色稳定色。
-- NonTodo 隔离区：琥珀色，刻意不像任务。
+```bash
+cd server
+npm install --registry=https://registry.npmmirror.com --legacy-peer-deps
+npm run dev          # http://localhost:8787
+```
 
-## 目录结构
+PGlite（进程内 WASM Postgres）数据目录注意点：
+
+- 无 `DATABASE_URL` 时使用 PGlite，目录由 `server/.env` 的 `PGLITE_DIR` 指定。
+- 原始 `./data/pgdata` 目录曾损坏（PGlite 在 `_pg_initdb` 处中止），现以 `./data/pgdata-fresh` 工作，`.env` 已指向它。
+- 重新初始化数据：`node src/db/bootstrap.js`（建表 + 从 Sqlite 迁移或注入 demo）。
+- Demo 登录：邮箱 `demo@linx.team` / 密码 `linx2026`（登录接口字段为 `email`）。
+
+## 目录结构（前端）
 
 ```
 src/
-  lib/
-    triage.js      # 规则版输入分类（task / todo_idea / non_todo）
-    planning.js    # plan_next_block：只读可见 Task
-    seed.js        # mock 种子数据
-    utils.js       # 时间/范围/优先级格式化
-  store.jsx        # 内存状态 + 动作 + 隐私过滤
-  components/      # Sidebar / Topbar / ChatDock / chips
-  pages/           # Dashboard / Inbox / Database / NonTodo / Agent / App 设置
+  app/
+    Root.vue            # RouterView 出口
+    AppShell.vue        # 应用壳：登录屏 + 侧栏 + 视图 switch + toast + 详情面板
+    router.ts           # hash 路由，8 视图 + catch-all
+    views/              # ChatView / DatabaseView / ProjectsView / FriendsView /
+                        # ClarifyView / NonTodoView / AgentView / SettingsView / TaskDetailView
+    composables/        # usePane（分栏拖拽 resize）等
+  stores/               # Pinia: auth / ui / events / toast
+  lib/                  # api.ts（后端客户端）/ keyboard.ts / timeTokens.ts / theme.ts / format.ts / utils.ts
+  motion/               # GSAP 指令与 FLIP
+  components/ui/        # shadcn-vue 基础组件
+  types/api.ts          # 领域类型
+admin/
+  Admin.vue             # 监控后台（独立入口，构建到 dist/admin/，由 nginx 挂在 /todo/admin/）
 ```
 
-## 下一步（对照 brief）
+## 路由
 
-- 接入服务端 API（`GET /api/state`、`POST /api/capture`、`POST /api/chat` …）替换内存 store。
-- 用真实 LLM provider 替换 `LocalRuleProvider`。
-- CLI 客户端复用同一套服务层。
+hash 模式，路由表见 [`src/app/router.ts`](./src/app/router.ts)：
+
+| 路径 | 名称 | 说明 |
+|------|------|------|
+| `#/chat` | chat | 常驻聊天 + 任务（默认首页） |
+| `#/database` | database | Todo 数据库（看板 / 表格） |
+| `#/projects/:selId?` | projects | 项目 |
+| `#/friends` | friends | 好友 |
+| `#/clarify/:selId?` | clarify | 待澄清想法 |
+| `#/nontodo/:selId?` | nontodo | 非 todo 隔离输出 |
+| `#/agent` | agent | Agent 设置 |
+| `#/settings` | settings | 应用设置 |
+
+`:selId?` 为跨视图深选参数（从其它视图跳转时自动选中对应条目）。
+
+## 重构状态
+
+前端已完成 **P3–P5** 绞杀式迁移：从旧的 253KB `App.vue`（React-in-Vue 状态机）逐步迁移到 **TS + Pinia + Router + Tailwind v4 + shadcn-vue**，8 个视图 + 详情面板 + 应用壳全部 TS 化，遗留 `App.vue` / Component 类 / 路由桥接已删除，`type-check` 与 `build` 全绿。
+
+补齐的桌面端一致性能力：通知面板 + 未读徽标、搜索 ⌘K 命令面板、快捷键、FLIP 看板拖拽动效、今日待办胶囊、跨视图深选、分栏 resize。
+
+移动端布局第一版已铺全部视图但 **暂停**（代码全 gate 在 `isMobile` 后，桌面端零影响），待桌面端收尾后集中做一轮。
+
+## 构建体积
+
+（详见 [P7-5] 路由级懒加载拆分构建产物后的 chunk 数据。）
