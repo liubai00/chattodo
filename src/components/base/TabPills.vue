@@ -1,15 +1,16 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends string">
 // 内容内标签栏（pill 切换）：v-model 控制激活项。替代各视图 inline :style 按钮组。
+// 泛型 T 让 modelValue 可收窄为字符串字面量联合（如 AgentSection），避免 string 回灌丢类型。
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
 
-interface TabItem { id: string; label: string }
+interface TabItem<T extends string> { id: T; label: string }
 const props = defineProps<{
-  items: TabItem[]
-  modelValue: string
+  items: TabItem<T>[]
+  modelValue: T
   class?: HTMLAttributes['class']
 }>()
-const emit = defineEmits<{ 'update:modelValue': [id: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [id: T] }>()
 </script>
 
 <template>
