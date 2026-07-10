@@ -1,24 +1,19 @@
 // Framework-agnostic client for the Chattodo backend.
 // Dev: relative '/api' via the Vite proxy. Prod (/todo/): set VITE_API_BASE at build.
+//
+// P10-1：底层 HTTP（token / fetch / JSON / 错误）已抽到 @/infrastructure/request。
+// 本文件保留：api 聚合对象、流式 chatStream、SSE subscribeEvents，以及 setToken/getToken/req
+// 的 re-export，维持 `import { api } from '@/lib/api'` 等旧路径零破坏（admin/ 仍用相对路径引入）。
 import type {
   User, Settings, Agent, AiConfig, Task, Subtask, Comment, TaskDetail,
   Idea, NonTodo, Conversation, Message, ChatResponse,
   Friend, FriendLists, Invite, Notification, Project, TeamUser, AutoRule, SearchResult,
 } from '@/types/api'
+import { request, apiUrl, getToken, setToken } from '@/infrastructure/request'
 
-const BASE = import.meta.env.VITE_API_BASE || '/api'
-
-let TOKEN = ''
-try { TOKEN = localStorage.getItem('lx_token') || '' } catch { /* ignore */ }
-
-export function setToken(t: string | null | undefined): void {
-  TOKEN = t || ''
-  try {
-    if (TOKEN) localStorage.setItem('lx_token', TOKEN)
-    else localStorage.removeItem('lx_token')
-  } catch { /* ignore */ }
-}
-export function getToken(): string { return TOKEN }
+// 旧路径兼容：setToken / getToken / req 仍可从 '@/lib/api' 直接导入。
+export { setToken, getToken }
+export { request as req }
 
 export interface ChatStreamHandlers {
   onStatus?: (s: { intent?: string }) => void
@@ -116,103 +111,84 @@ export interface ApiClient {
   subscribeEvents(onEvent: (e: ServerEvent) => void): () => void
 }
 
-async function req<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = {}
-  if (body !== undefined) headers['content-type'] = 'application/json'
-  if (TOKEN) headers.authorization = 'Bearer ' + TOKEN
-  const res = await fetch(BASE + path, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) {
-    let msg = res.statusText
-    try { msg = (await res.json()).error || msg } catch { /* ignore */ }
-    const err = new Error(msg) as Error & { status: number }
-    err.status = res.status
-    throw err
-  }
-  return (res.status === 204 ? null : await res.json()) as T
-}
-
 export const api: ApiClient = {
-  register: (name, email, password) => req<User>('POST', '/auth/register', { name, email, password }),
-  login: (email, password) => req<{ token: string; user?: User }>('POST', '/auth/login', { email, password }),
-  logout: () => req<null>('POST', '/auth/logout'),
-  me: () => req<User>('GET', '/auth/me'),
-  updateMe: (patch) => req<User>('PATCH', '/auth/me', patch),
-  changePassword: (oldPassword, newPassword) => req<unknown>('POST', '/auth/password', { oldPassword, newPassword }),
+  register: (name, email, password) => request<User>('POST', '/auth/register', { name, email, password }),
+  login: (email, password) => request<{ token: string; user?: User }>('POST', '/auth/login', { email, password }),
+  logout: () => request<null>('POST', '/auth/logout'),
+  me: () => request<User>('GET', '/auth/me'),
+  updateMe: (patch) => request<User>('PATCH', '/auth/me', patch),
+  changePassword: (oldPassword, newPassword) => request<unknown>('POST', '/auth/password', { oldPassword, newPassword }),
 
-  exportData: () => req<unknown>('GET', '/export'),
-  clearData: () => req<unknown>('POST', '/data/clear'),
-  adminOverview: () => req<{ users: unknown[]; records: unknown[]; [k: string]: unknown }>('GET', '/admin/overview'),
-  adminUser: (id) => req<unknown>('GET', `/admin/users/${id}`),
+  exportData: () => request<unknown>('GET', '/export'),
+  clearData: () => request<unknown>('POST', '/data/clear'),
+  adminOverview: () => request<{ users: unknown[]; records: unknown[]; [k: string]: unknown }>('GET', '/admin/overview'),
+  adminUser: (id) => request<unknown>('GET', `/admin/users/${id}`),
 
-  getState: () => req<unknown>('GET', '/state'),
-  capture: (text, source = 'chat') => req<Task | Idea | NonTodo>('POST', '/capture', { text, source }),
-  chat: (message, mentions, conversationId) => req<ChatResponse>('POST', '/chat', { message, ...(mentions && mentions.length ? { mentions } : {}), ...(conversationId ? { conversationId } : {}) }),
+  getState: () => request<unknown>('GET', '/state'),
+  capture: (text, source = 'chat') => request<Task | Idea | NonTodo>('POST', '/capture', { text, source }),
+  chat: (message, mentions, conversationId) => request<ChatResponse>('POST', '/chat', { message, ...(mentions && mentions.length ? { mentions } : {}), ...(conversationId ? { conversationId } : {}) }),
   chatStream,
-  plan: (blockMinutes) => req<{ items?: unknown[]; [k: string]: unknown }>('POST', '/plan', blockMinutes ? { blockMinutes } : {}),
+  plan: (blockMinutes) => request<{ items?: unknown[]; [k: string]: unknown }>('POST', '/plan', blockMinutes ? { blockMinutes } : {}),
 
-  listTasks: (params = {}) => req<Task[]>('GET', '/tasks' + toQuery(params)),
-  createTask: (data) => req<Task>('POST', '/tasks', data),
-  getTask: (id) => req<Task>('GET', `/tasks/${id}`),
-  updateTask: (id, patch) => req<Task>('PATCH', `/tasks/${id}`, patch),
-  taskDone: (id) => req<Task>('POST', `/tasks/${id}/done`),
-  taskReopen: (id) => req<Task>('POST', `/tasks/${id}/reopen`),
-  taskMoveOut: (id) => req<unknown>('POST', `/tasks/${id}/move-out`),
-  deleteTask: (id) => req<null>('DELETE', `/tasks/${id}`),
-  getTaskDetail: (id) => req<TaskDetail>('GET', `/tasks/${id}/detail`),
-  addSubtask: (id, text) => req<Subtask>('POST', `/tasks/${id}/subtasks`, { text }),
-  toggleSubtask: (id) => req<Subtask>('PATCH', `/subtasks/${id}`),
-  addComment: (id, text, author) => req<Comment>('POST', `/tasks/${id}/comments`, { text, author }),
+  listTasks: (params = {}) => request<Task[]>('GET', '/tasks' + toQuery(params)),
+  createTask: (data) => request<Task>('POST', '/tasks', data),
+  getTask: (id) => request<Task>('GET', `/tasks/${id}`),
+  updateTask: (id, patch) => request<Task>('PATCH', `/tasks/${id}`, patch),
+  taskDone: (id) => request<Task>('POST', `/tasks/${id}/done`),
+  taskReopen: (id) => request<Task>('POST', `/tasks/${id}/reopen`),
+  taskMoveOut: (id) => request<unknown>('POST', `/tasks/${id}/move-out`),
+  deleteTask: (id) => request<null>('DELETE', `/tasks/${id}`),
+  getTaskDetail: (id) => request<TaskDetail>('GET', `/tasks/${id}/detail`),
+  addSubtask: (id, text) => request<Subtask>('POST', `/tasks/${id}/subtasks`, { text }),
+  toggleSubtask: (id) => request<Subtask>('PATCH', `/subtasks/${id}`),
+  addComment: (id, text, author) => request<Comment>('POST', `/tasks/${id}/comments`, { text, author }),
 
-  ideaConvert: (id) => req<unknown>('POST', `/todo-ideas/${id}/convert`),
-  ideaArchive: (id) => req<unknown>('POST', `/todo-ideas/${id}/archive`),
-  ideaDiscard: (id) => req<unknown>('POST', `/todo-ideas/${id}/discard`),
+  ideaConvert: (id) => request<unknown>('POST', `/todo-ideas/${id}/convert`),
+  ideaArchive: (id) => request<unknown>('POST', `/todo-ideas/${id}/archive`),
+  ideaDiscard: (id) => request<unknown>('POST', `/todo-ideas/${id}/discard`),
 
-  nonToTodo: (id) => req<unknown>('POST', `/non-todo-outputs/${id}/convert-to-todo`),
-  nonDiscard: (id) => req<unknown>('POST', `/non-todo-outputs/${id}/discard`),
+  nonToTodo: (id) => request<unknown>('POST', `/non-todo-outputs/${id}/convert-to-todo`),
+  nonDiscard: (id) => request<unknown>('POST', `/non-todo-outputs/${id}/discard`),
 
-  getAgent: () => req<Agent>('GET', '/agent'),
-  updateAgent: (patch) => req<Agent>('PUT', '/agent', patch),
-  getSettings: () => req<Settings>('GET', '/settings'),
-  updateSettings: (patch) => req<Settings>('PUT', '/settings', patch),
+  getAgent: () => request<Agent>('GET', '/agent'),
+  updateAgent: (patch) => request<Agent>('PUT', '/agent', patch),
+  getSettings: () => request<Settings>('GET', '/settings'),
+  updateSettings: (patch) => request<Settings>('PUT', '/settings', patch),
 
-  search: (q) => req<SearchResult[]>('GET', `/search?q=${encodeURIComponent(q || '')}`),
-  mentions: (q) => req<User[]>('GET', `/mentions?q=${encodeURIComponent(q || '')}`),
+  search: (q) => request<SearchResult[]>('GET', `/search?q=${encodeURIComponent(q || '')}`),
+  mentions: (q) => request<User[]>('GET', `/mentions?q=${encodeURIComponent(q || '')}`),
 
-  notifications: () => req<Notification[]>('GET', '/notifications'),
-  markAllNotificationsRead: () => req<null>('POST', '/notifications/read-all'),
+  notifications: () => request<Notification[]>('GET', '/notifications'),
+  markAllNotificationsRead: () => request<null>('POST', '/notifications/read-all'),
 
-  getAiConfig: () => req<AiConfig>('GET', '/ai/config'),
-  updateAiConfig: (patch) => req<AiConfig>('PUT', '/ai/config', patch),
-  updateOwnAiConfig: (patch) => req<AiConfig>('PUT', '/ai/config/own', patch),
-  clearOwnAiConfig: () => req<null>('DELETE', '/ai/config/own'),
-  testAiConfig: (draft) => req<{ ok: boolean; error?: string; [k: string]: unknown }>('POST', '/ai/test', draft || {}),
+  getAiConfig: () => request<AiConfig>('GET', '/ai/config'),
+  updateAiConfig: (patch) => request<AiConfig>('PUT', '/ai/config', patch),
+  updateOwnAiConfig: (patch) => request<AiConfig>('PUT', '/ai/config/own', patch),
+  clearOwnAiConfig: () => request<null>('DELETE', '/ai/config/own'),
+  testAiConfig: (draft) => request<{ ok: boolean; error?: string; [k: string]: unknown }>('POST', '/ai/test', draft || {}),
 
-  createProject: (name, description) => req<Project>('POST', '/projects', { name, description }),
-  team: () => req<{ users: TeamUser[] }>('GET', '/team'),
-  commitPlan: (items) => req<unknown>('POST', '/plan/commit', { items }),
+  createProject: (name, description) => request<Project>('POST', '/projects', { name, description }),
+  team: () => request<{ users: TeamUser[] }>('GET', '/team'),
+  commitPlan: (items) => request<unknown>('POST', '/plan/commit', { items }),
 
-  conversations: () => req<{ conversations: Conversation[] }>('GET', '/conversations'),
-  createConversation: (title) => req<Conversation>('POST', '/conversations', title ? { title } : {}),
-  conversationMessages: (id) => req<Message[]>(`GET`, `/conversations/${id}/messages`),
-  renameConversation: (id, title) => req<Conversation>('PATCH', `/conversations/${id}`, { title }),
-  deleteConversation: (id) => req<null>('DELETE', `/conversations/${id}`),
+  conversations: () => request<{ conversations: Conversation[] }>('GET', '/conversations'),
+  createConversation: (title) => request<Conversation>('POST', '/conversations', title ? { title } : {}),
+  conversationMessages: (id) => request<Message[]>(`GET`, `/conversations/${id}/messages`),
+  renameConversation: (id, title) => request<Conversation>('PATCH', `/conversations/${id}`, { title }),
+  deleteConversation: (id) => request<null>('DELETE', `/conversations/${id}`),
 
-  friends: () => req<FriendLists>('GET', '/friends'),
-  friendRequest: (email) => req<unknown>('POST', '/friends/request', { email }),
-  friendRespond: (id, accept) => req<unknown>('POST', `/friends/${id}/respond`, { accept }),
-  friendRemove: (id) => req<null>('DELETE', `/friends/${id}`),
+  friends: () => request<FriendLists>('GET', '/friends'),
+  friendRequest: (email) => request<unknown>('POST', '/friends/request', { email }),
+  friendRespond: (id, accept) => request<unknown>('POST', `/friends/${id}/respond`, { accept }),
+  friendRemove: (id) => request<null>('DELETE', `/friends/${id}`),
 
-  inviteCollab: (taskId, userId, force) => req<unknown>('POST', `/tasks/${taskId}/invite`, force ? { userId, force: true } : { userId }),
-  myInvites: () => req<Invite[]>('GET', '/invites'),
+  inviteCollab: (taskId, userId, force) => request<unknown>('POST', `/tasks/${taskId}/invite`, force ? { userId, force: true } : { userId }),
+  myInvites: () => request<Invite[]>('GET', '/invites'),
   // mode: true/'accept' | false/'decline' | 'follow'（仅关注）
-  respondInvite: (id, mode, remind = true) => req<unknown>('POST', `/invites/${id}/respond`, mode === 'follow' ? { follow: true, remind } : { accept: mode === true || mode === 'accept', remind }),
-  leaveTask: (taskId) => req<null>('POST', `/tasks/${taskId}/leave`),
-  autoRules: () => req<{ rules: AutoRule[] }>('GET', '/auto-rules'),
-  deleteAutoRule: (id) => req<null>('DELETE', `/auto-rules/${id}`),
+  respondInvite: (id, mode, remind = true) => request<unknown>('POST', `/invites/${id}/respond`, mode === 'follow' ? { follow: true, remind } : { accept: mode === true || mode === 'accept', remind }),
+  leaveTask: (taskId) => request<null>('POST', `/tasks/${taskId}/leave`),
+  autoRules: () => request<{ rules: AutoRule[] }>('GET', '/auto-rules'),
+  deleteAutoRule: (id) => request<null>('DELETE', `/auto-rules/${id}`),
   subscribeEvents,
 }
 
@@ -221,9 +197,10 @@ export const api: ApiClient = {
 // stream is unavailable or breaks before `done` - caller falls back to api.chat.
 async function chatStream(message: string, handlers: ChatStreamHandlers = {}, mentions: string[] = [], conversationId: string | null = null): Promise<ChatResponse> {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
-  if (TOKEN) headers.authorization = 'Bearer ' + TOKEN
+  const token = getToken()
+  if (token) headers.authorization = 'Bearer ' + token
   const body = { message, ...(mentions && mentions.length ? { mentions } : {}), ...(conversationId ? { conversationId } : {}) }
-  const res = await fetch(BASE + '/chat/stream', { method: 'POST', headers, body: JSON.stringify(body) })
+  const res = await fetch(apiUrl + '/chat/stream', { method: 'POST', headers, body: JSON.stringify(body) })
   if (!res.ok || !res.body || !res.body.getReader) {
     const err = new Error('stream unavailable') as Error & { status: number }
     err.status = res.status
@@ -266,8 +243,9 @@ function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
       try {
         ctrl = new AbortController()
         const headers: Record<string, string> = {}
-        if (TOKEN) headers.authorization = 'Bearer ' + TOKEN
-        const res = await fetch(BASE + '/events', { headers, signal: ctrl.signal })
+        const token = getToken()
+        if (token) headers.authorization = 'Bearer ' + token
+        const res = await fetch(apiUrl + '/events', { headers, signal: ctrl.signal })
         if (!res.ok || !res.body || !res.body.getReader) throw new Error('events unavailable')
         const reader = res.body.getReader()
         const dec = new TextDecoder()
@@ -303,5 +281,3 @@ function toQuery(params: Record<string, unknown>): string {
     .join('&')
   return qs ? `?${qs}` : ''
 }
-
-export { req }
