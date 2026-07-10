@@ -123,7 +123,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub() })
         <button @click="logout" title="退出登录" class="mt-1 flex h-[34px] w-[34px] items-center justify-center rounded-full text-[15px] text-[var(--text3)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-sign-out"></i></button>
       </nav>
 
-      <div class="relative flex min-w-0 flex-1">
+      <div class="relative min-w-0 flex-1">
         <ChatView v-if="view==='chat'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :openIdea="openIdea" :openNon="openNon" :afterSend="afterSend" :setWorkspace="ui.setWorkspace" :togglePrivacy="ui.togglePrivacy" />
         <DatabaseView v-else-if="view==='database'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" />
         <ProjectsView v-else-if="view==='projects'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" />

@@ -76,7 +76,7 @@ function buildMessages(chatRows: any[]): RawMsg[] {
 // ---- 会话 ----
 function loadConversations() { api.conversations().then((r: any) => { conversations.value = r.conversations || [] }).catch(() => {}) }
 function newConversation() { api.createConversation().then((c: any) => { conversations.value = [c, ...conversations.value]; activeConversationId.value = c.id; rawMessages.value = [] }).catch((e: any) => toast.flash('新建失败：' + e.message)) }
-function switchConversation(id: string) { activeConversationId.value = id; api.conversationMessages(id).then((r: any) => { rawMessages.value = buildMessages(r); nextTick(scrollMsgs) }).catch(() => {}) }
+function switchConversation(id: string) { activeConversationId.value = id; api.conversationMessages(id).then((r: any) => { rawMessages.value = buildMessages(r.chat || []); nextTick(scrollMsgs) }).catch(() => {}) }
 function deleteConversationUi(id: string) { const wasActive = activeConversationId.value === id; api.deleteConversation(id).then(() => { const rest = conversations.value.filter((c) => c.id !== id); conversations.value = rest; if (wasActive) { if (rest.length) switchConversation(rest[0].id); else load() } toast.flash('已删除对话') }).catch((e: any) => toast.flash('删除失败：' + e.message)) }
 
 const conversationList = computed(() => conversations.value.map((c) => ({ id: c.id, title: c.title || '新对话', preview: (c.lastText || '还没有消息').replace(/\s+/g, ' ').slice(0, 30), time: lxFmtDue(c.updatedAt), active: c.id === activeConversationId.value, open: () => switchConversation(c.id), remove: () => deleteConversationUi(c.id) })))
