@@ -87,8 +87,6 @@ function paletteKey(e: KeyboardEvent) {
   if (e.key === 'Enter') { e.preventDefault(); const it = items[ui.paletteIndex || 0] || items[0]; if (it) it.run() }
 }
 function onGlobalKey(e: KeyboardEvent) {
-  // capture 阶段（在 input 之前）处理，stopPropagation 阻止 input 默认行为(ESC 失焦)
-  if (e.key === 'Escape' && ui.searchOpen) { e.preventDefault(); e.stopPropagation(); ui.closeSearch(); return }
   if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); e.stopPropagation(); ui.openSearch() }
 }
 
@@ -212,9 +210,9 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
 
       <!-- 搜索面板 ⌘K -->
       <template v-if="ui.searchOpen">
-        <div @click="ui.closeSearch()" class="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" style="background:var(--overlay-scrim);">
+        <div @click="ui.closeSearch()" @keydown.esc.prevent.stop="ui.closeSearch()" class="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" style="background:var(--overlay-scrim);">
           <div @click.stop class="w-[560px] max-w-[90vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="box-shadow:var(--shadow-lg);animation:lx-pop .18s ease;">
-            <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input ref="searchInput" :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown.esc.prevent.stop="ui.closeSearch()" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
+            <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input ref="searchInput" :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
             <div class="max-h-[52vh] overflow-auto p-[6px_0]">
               <template v-for="(g, gi) in paletteGroups" :key="gi">
                 <div class="px-[18px] pb-[5px] pt-[9px] text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--text3)]">{{ g.name }}</div>
