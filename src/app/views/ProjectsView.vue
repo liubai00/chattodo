@@ -3,11 +3,12 @@
 // workspace/privacy 经 prop 传入(visible 过滤+modeChip)；openTask 经稳定回调 prop 传入
 // (点击任务 -> 旧 App openTask 设 detailId 取详情)。2 列：项目列表+新建 | 选中项目任务列表。
 // 任务行只用 fmtTask 子集(assignee 色/首字母、title+titleColor/deco、statusLabel、due、prio)。
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import { useRoute } from 'vue-router'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -23,6 +24,7 @@ const STATUS_LABEL: Record<TaskStatus, string> = { todo: '待办', in_progress: 
 
 const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
 const toast = useToast()
+const route = useRoute()
 const loading = ref(true)
 const myName = ref('')
 const canEdit = ref(false)
@@ -90,7 +92,7 @@ async function load() {
     const ps = ((st as any).projects || []) as any[]
     projects.value = ps.map((p, idx) => ({ id: p.id, name: p.name, desc: p.description || '', color: PROJ_COLORS[idx % 4] }))
     tasks.value = (((st as any).tasks || []) as any[]).map(mapTask)
-    selId.value = null
+    selId.value = typeof route.params.selId === 'string' ? route.params.selId : null
   } catch {
     toast.flash('加载项目失败，请刷新重试')
   } finally {
@@ -100,6 +102,7 @@ async function load() {
 onMounted(load)
 
 function selectProject(id: string) { selId.value = id }
+watch(() => route.params.selId, (sid) => { selId.value = typeof sid === 'string' ? sid : null })
 function submitNewProject() {
   const name = newProjName.value.trim()
   if (!name) { toast.flash('请输入项目名称'); return }

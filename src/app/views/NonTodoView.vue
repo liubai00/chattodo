@@ -3,11 +3,12 @@
 // 挂载取 getState(nonTodoOutputs)，本地持有 nonTodos + selId。workspace/privacy 经 prop 传入
 // （visible 过滤 + modeChip）。5 动作：转 todo / 复制 / 导出 Markdown / 归档 / 删除
 // （归档与删除都走 nonDiscard，仅 toast 文案不同；与旧 App 一致）。toast 经 useToast。
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import { useRoute } from 'vue-router'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -18,6 +19,7 @@ const DEST_LABEL: Record<Dest, string> = { copy: '建议复制', export: '建议
 
 const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
 const toast = useToast()
+const route = useRoute()
 const loading = ref(true)
 const nonTodos = ref<NonItem[]>([])
 const selId = ref<string | null>(null)
@@ -40,7 +42,7 @@ async function load() {
   try {
     const st = await api.getState()
     nonTodos.value = (((st as any).nonTodoOutputs || []) as any[]).map(mapNon)
-    selId.value = null
+    selId.value = typeof route.params.selId === 'string' ? route.params.selId : null
   } catch {
     toast.flash('加载隔离区失败，请刷新重试')
   } finally {
@@ -50,6 +52,7 @@ async function load() {
 onMounted(load)
 
 function select(id: string) { selId.value = id }
+watch(() => route.params.selId, (sid) => { selId.value = typeof sid === 'string' ? sid : null })
 
 function nonConvert(id: string) {
   const n = nonTodos.value.find((x) => x.id === id)

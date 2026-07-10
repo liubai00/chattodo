@@ -2,7 +2,7 @@
 // P4c-step2：新应用壳(TS)。替代 legacy App.vue 的壳职能。
 // 用 auth/ui/events store；登录屏(未authed) + rail(nav+theme+avatar+logout) + 视图switch(按route.name) + toast + TaskDetailView。
 // 暂缓(记为 gap，路由可逆、legacy 留 fallback)：通知面板/搜索⌘K/快捷键/移动端布局/pane 拖拽。
-// chat 的 openIdea/openNon 暂只导航不深选(跨视图选择 gap)。
+// openIdea/openNon/搜索结果 经路由参数 :selId 深选(跨视图选中 idea/non/project)。
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -75,9 +75,9 @@ const paletteGroups = computed(() => {
 })
 function executeSearch(r: any) {
   if (r.type === 'task') openTask(r.id)
-  else if (r.type === 'idea') router.push({ name: 'clarify' })
-  else if (r.type === 'nono') router.push({ name: 'nontodo' })
-  else if (r.type === 'project') router.push({ name: 'projects' })
+  else if (r.type === 'idea') router.push({ name: 'clarify', params: { selId: r.id } })
+  else if (r.type === 'nono') router.push({ name: 'nontodo', params: { selId: r.id } })
+  else if (r.type === 'project') router.push({ name: 'projects', params: { selId: r.id } })
 }
 function flatIndex(gi: number, ii: number): number { let n = 0; for (let i = 0; i < gi; i++) n += paletteGroups.value[i].items.length; return n + ii }
 function paletteKey(e: KeyboardEvent) {
@@ -109,8 +109,8 @@ const NAV: Array<[string, string, string]> = [
 
 // 视图回调（从 store）
 const openTask = (id: string) => ui.openTask(id)
-const openIdea = (_id: string) => router.push({ name: 'clarify' })   // 暂只导航，不深选(gap)
-const openNon = (_id: string) => router.push({ name: 'nontodo' })
+const openIdea = (id: string) => router.push({ name: 'clarify', params: { selId: id } })
+const openNon = (id: string) => router.push({ name: 'nontodo', params: { selId: id } })
 const afterSend = () => ui.load()   // 刷新壳状态；视图自身按需 remount 刷新
 
 function go(v: string) { router.push({ name: v }) }

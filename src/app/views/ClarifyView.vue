@@ -3,11 +3,12 @@
 // 本地持有 ideas + selId。workspace/privacy 经 prop 传入（用于 visible 过滤 + modeChip）。
 // 旧 App 中栏 clarify 列表块移除、aside 对 clarify 隐藏（main 内 2 列：列表 | 详情）。
 // convertIdea/discardIdea 乐观移除+失败回滚（与旧 App 一致）。toast 经 useToast。
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { api } from '@/lib/api'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
+import { useRoute } from 'vue-router'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -15,6 +16,7 @@ interface IdeaItem { id: string; title: string; raw: string; suggest: string; re
 
 const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
 const toast = useToast()
+const route = useRoute()
 const loading = ref(true)
 const ideas = ref<IdeaItem[]>([])
 const selId = ref<string | null>(null)
@@ -36,7 +38,7 @@ async function load() {
   try {
     const st = await api.getState()
     ideas.value = (((st as any).todoIdeas || []) as any[]).filter((i) => i.status === 'clarifying').map(mapIdea)
-    selId.value = null
+    selId.value = typeof route.params.selId === 'string' ? route.params.selId : null
   } catch {
     toast.flash('加载待澄清区失败，请刷新重试')
   } finally {
@@ -46,6 +48,7 @@ async function load() {
 onMounted(load)
 
 function select(id: string) { selId.value = id }
+watch(() => route.params.selId, (sid) => { selId.value = typeof sid === 'string' ? sid : null })
 
 function convertIdea(id: string) {
   const it = ideas.value.find((x) => x.id === id)
