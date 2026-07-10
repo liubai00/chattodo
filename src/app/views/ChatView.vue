@@ -11,6 +11,7 @@ import { lxFmtDue, lxPad } from '@/lib/format'
 import { expandTimeTokens } from '@/lib/timeTokens'
 import { isComposingEvent, shouldSendOnEnter } from '@/lib/keyboard'
 import Button from '@/components/ui/button/Button.vue'
+import { usePane } from '@/app/composables/usePane'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -33,6 +34,7 @@ const props = defineProps<{
   isMobile?: boolean
 }>()
 const toast = useToast()
+const { width: leftW, startResize } = usePane({ key: 'lx_pane_chat', def: 304 })
 
 const loading = ref(true)
 const myName = ref('')
@@ -312,7 +314,7 @@ onMounted(load)
   <div class="relative flex h-full min-h-0">
     <div v-if="todayOpen" @click="closeTodayPanel" style="position:absolute;inset:0;z-index:13;"></div>
     <!-- 中栏：工作区 + 会话 + 收集箱 -->
-    <div v-if="!isMobile || showList" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:304px;flex:0 0 304px;'">
+    <div v-if="!isMobile || showList" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : `width:${leftW}px;flex:0 0 ${leftW}px;`">
       <div class="flex flex-col gap-3 border-b border-[var(--line)] p-[15px_16px_13px]">
         <div class="flex items-center gap-2">
           <div class="inline-flex gap-0.5 rounded-[9px] bg-[var(--mid)] p-[3px]">
@@ -383,6 +385,7 @@ onMounted(load)
       </div>
     </div>
 
+    <div v-if="!isMobile" @mousedown="startResize" title="拖动调整宽度" class="flex-none cursor-col-resize" style="width:5px;position:relative;z-index:6;"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div>
     <!-- 主区：消息流 + composer -->
     <div v-if="!isMobile || !showList" class="flex flex-1 flex-col">
       <div v-if="isMobile" class="flex h-[44px] flex-none items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3"><button @click="showList = true" class="flex h-8 w-8 items-center justify-center rounded-lg text-[18px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-list"></i></button><span class="text-sm font-semibold text-[var(--text)]">对话</span><div class="flex-1"></div><span class="text-[11px] font-medium text-[var(--text3)]">{{ modeLabel }}</span></div>

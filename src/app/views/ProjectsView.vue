@@ -9,6 +9,7 @@ import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
 import { useRoute } from 'vue-router'
+import { usePane } from '@/app/composables/usePane'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -25,6 +26,7 @@ const STATUS_LABEL: Record<TaskStatus, string> = { todo: '待办', in_progress: 
 const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
 const toast = useToast()
 const route = useRoute()
+const { width: leftW, startResize } = usePane({ key: 'lx_pane_projects', def: 280, max: 480 })
 const loading = ref(true)
 const myName = ref('')
 const canEdit = ref(false)
@@ -119,7 +121,7 @@ function submitNewProject() {
 <template>
   <div class="flex h-full min-h-0">
     <!-- 列表列 -->
-    <div v-if="!isMobile || !selId" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:280px;flex:0 0 280px;'">
+    <div v-if="!isMobile || !selId" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : `width:${leftW}px;flex:0 0 ${leftW}px;`">
       <div class="flex items-center gap-2 border-b border-[var(--line)] p-4 pb-3">
         <div class="flex-1"><div class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">项目</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">按项目组织任务与进度</div></div>
         <button v-if="canEdit" @click="newProjOpen = !newProjOpen" title="新建项目" class="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-[var(--accent-bg)] text-[16px] text-[var(--accent-ink)]" style="border:0;cursor:pointer;"><i class="ph ph-plus"></i></button>
@@ -147,6 +149,7 @@ function submitNewProject() {
       </div>
     </div>
 
+    <div v-if="!isMobile" @mousedown="startResize" title="拖动调整宽度" class="flex-none cursor-col-resize" style="width:5px;position:relative;z-index:6;"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div>
     <!-- 详情列 -->
     <div v-if="!isMobile || !!selId" class="flex flex-1 flex-col">
       <div class="flex h-[57px] flex-none items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]"><button v-if="isMobile && !!selId" @click="selId = null" class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-caret-left"></i></button>

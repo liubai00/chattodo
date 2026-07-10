@@ -10,6 +10,7 @@ import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
 import { useFlip } from '@/motion'
+import { usePane } from '@/app/composables/usePane'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -30,6 +31,7 @@ const STATUS_ORDER: Record<TaskStatus, number> = { todo: 0, in_progress: 1, done
 const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
 const router = useRouter()
 const toast = useToast()
+const { width: dbNavW, startResize } = usePane({ key: 'lx_pane_db', def: 200, min: 160, max: 360 })
 
 const loading = ref(true)
 const myName = ref('')
@@ -258,7 +260,7 @@ onMounted(load)
 <template>
   <div class="flex h-full min-h-0">
     <!-- dbViews 导航列 -->
-    <div v-if="!isMobile" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" style="width:200px;flex:0 0 200px;">
+    <div v-if="!isMobile" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="`width:${dbNavW}px;flex:0 0 ${dbNavW}px;`">
       <div class="border-b border-[var(--line)] p-4 pb-3"><div class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">Todo 数据库</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">全部任务与进度</div></div>
       <div class="flex flex-1 flex-col gap-1 overflow-auto p-[10px]">
         <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
@@ -268,6 +270,7 @@ onMounted(load)
       </div>
     </div>
 
+    <div v-if="!isMobile" @mousedown="startResize" title="拖动调整宽度" class="flex-none cursor-col-resize" style="width:5px;position:relative;z-index:6;"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div>
     <!-- 主区 -->
     <div class="flex flex-1 flex-col">
       <!-- 移动端 dbViews 横向 chips -->

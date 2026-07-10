@@ -9,6 +9,7 @@ import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/lib/format'
 import Button from '@/components/ui/button/Button.vue'
 import { useRoute } from 'vue-router'
+import { usePane } from '@/app/composables/usePane'
 
 type Workspace = 'work' | 'personal'
 type Scope = Workspace | 'mixed'
@@ -20,6 +21,7 @@ const DEST_LABEL: Record<Dest, string> = { copy: '建议复制', export: '建议
 const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
 const toast = useToast()
 const route = useRoute()
+const { width: leftW, startResize } = usePane({ key: 'lx_pane_nontodo', def: 280, max: 480 })
 const loading = ref(true)
 const nonTodos = ref<NonItem[]>([])
 const selId = ref<string | null>(null)
@@ -109,7 +111,7 @@ function exportNon() {
 
     <div class="flex min-h-0 flex-1">
       <!-- 列表 -->
-      <div v-if="!isMobile || !selId" class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:280px;flex:0 0 280px;'">
+      <div v-if="!isMobile || !selId" class="flex flex-col overflow-auto border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : `width:${leftW}px;flex:0 0 ${leftW}px;`">
         <div v-if="loading" class="flex flex-1 items-center justify-center text-[var(--text3)]">加载中…</div>
         <template v-else>
           <a v-for="n in visNons" :key="n.id" @click="select(n.id)" :class="['flex cursor-pointer flex-col gap-1 p-[11px_12px]', n.id === selNon?.id ? 'bg-[var(--accent-bg)]' : '']" data-hv="0">
@@ -124,6 +126,7 @@ function exportNon() {
       </div>
 
       <!-- 详情 -->
+      <div v-if="!isMobile" @mousedown="startResize" title="拖动调整宽度" class="flex-none cursor-col-resize" style="width:5px;position:relative;z-index:6;"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div>
       <div v-if="!isMobile || !!selId" class="flex-1 overflow-auto px-6 py-[30px]">
         <div v-if="!loading && selNon" class="mx-auto flex max-w-[640px] flex-col gap-[18px]" style="animation: lx-pop .3s ease;">
           <div class="text-[22px] font-semibold leading-relaxed text-[var(--text2)]" style="font-family: var(--display)">{{ selNon.title }}</div>
