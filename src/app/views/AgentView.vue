@@ -10,7 +10,7 @@ import Button from '@/components/ui/button/Button.vue'
 import type { Agent, AutoRule } from '@/types/api'
 
 type AgentSection = 'soul' | 'memory' | 'preferences' | 'workingStyle' | 'privacyRules' | 'followup'
-const props = defineProps<{ section: AgentSection }>()
+const section = ref<AgentSection>('soul')
 
 const toast = useToast()
 const loading = ref(true)
@@ -32,11 +32,11 @@ const FIELD_MAP: Record<AgentSection, string> = {
   workingStyle: 'workingStyle', privacyRules: 'privacyRules', followup: 'defaultFollowupStrategy',
 }
 
-const agCur = computed(() => AGENT_DEFS.find((d) => d[0] === props.section) || AGENT_DEFS[0])
+const agCur = computed(() => AGENT_DEFS.find((d) => d[0] === section.value) || AGENT_DEFS[0])
 const agName = computed(() => agCur.value[1])
 const agDesc = computed(() => agCur.value[3])
-const agValue = computed(() => agent[props.section] || '')
-const isMemorySection = computed(() => props.section === 'memory')
+const agValue = computed(() => agent[section.value] || '')
+const isMemorySection = computed(() => section.value === 'memory')
 
 async function load() {
   loading.value = true
@@ -61,8 +61,8 @@ onMounted(load)
 // textarea 失焦时保存（@change，避免逐键调 API；与旧 App 一致）
 function onAgent(e: Event) {
   const val = (e.target as HTMLTextAreaElement).value
-  ;(agent as any)[props.section] = val
-  const col = FIELD_MAP[props.section]
+  ;(agent as any)[section.value] = val
+  const col = FIELD_MAP[section.value]
   api.updateAgent({ [col]: val } as any).catch(() => {})
 }
 function saveAgent() { toast.flash('Agent 配置已保存') }
@@ -85,6 +85,10 @@ function deleteRule(id: string) {
     <div class="flex-1 overflow-auto px-6 py-[30px]">
       <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
       <div v-else class="mx-auto flex max-w-[680px] flex-col gap-4">
+        <!-- section 标签栏（in-content，替代旧中栏导航） -->
+        <div class="flex flex-wrap gap-1 rounded-[10px] bg-[var(--mid)] p-[3px]">
+          <button v-for="d in AGENT_DEFS" :key="d[0]" @click="section = d[0]" :style="`border:0;padding:7px 13px;border-radius:7px;cursor:pointer;font:${section===d[0]?'600':'500'} 12.5px/1 var(--font);${section===d[0]?'background:var(--panel);color:var(--text);box-shadow:var(--shadow);':'background:transparent;color:var(--text2);'}`">{{ d[1] }}</button>
+        </div>
         <div class="rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-[18px] shadow-md">
           <div class="text-[15px] font-semibold text-[var(--text)]" style="font-family: var(--display)">{{ agName }}</div>
           <div class="mt-1 text-[12.5px] font-medium leading-snug text-[var(--text3)]">{{ agDesc }}</div>

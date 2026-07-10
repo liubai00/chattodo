@@ -14,7 +14,8 @@ import Input from '@/components/ui/input/Input.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 
 type Section = 'account' | 'general' | 'ai' | 'notifications' | 'privacy' | 'data'
-const props = defineProps<{ section: Section }>()
+const section = ref<Section>('account')
+const SET_SECTIONS: Array<[Section, string]> = [['account', '账号'], ['general', '通用'], ['ai', 'AI 接入'], ['notifications', '通知'], ['privacy', '隐私与安全'], ['data', '数据']]
 
 const toast = useToast()
 const events = useEventsStore()
@@ -52,7 +53,7 @@ const sAccountName = computed(() => user.accountName || user.name)
 const aiIsRule = computed(() => s.aiProvider === 'rule')
 const aiPresetHint = computed(() => (AI_PRESETS.find((p) => p.name === s.aiPreset) || {}).hint || '')
 const aiOwnActive = computed(() => aiSource.value === 'own')
-const setName = computed(() => (({ account: '账号', general: '通用', ai: 'AI 接入', notifications: '通知', privacy: '隐私与安全', data: '数据' }) as Record<Section, string>)[props.section])
+const setName = computed(() => (({ account: '账号', general: '通用', ai: 'AI 接入', notifications: '通知', privacy: '隐私与安全', data: '数据' }) as Record<Section, string>)[section.value])
 const viewOptions = [{ value: 'chat', label: '聊天' }, { value: 'database', label: 'Todo 数据库' }, { value: 'projects', label: '项目' }]
 const aiPresetOptions = AI_PRESETS.map((p) => ({ value: p.name, label: p.name }))
 
@@ -202,6 +203,10 @@ const seg = (on: boolean) => on
     <div class="flex-1 overflow-auto px-6 py-[30px]">
       <div v-if="loading" class="flex h-full items-center justify-center text-[var(--text3)]">加载中…</div>
       <div v-else class="mx-auto flex max-w-[600px] flex-col gap-4">
+        <!-- section 标签栏（in-content，替代旧中栏导航） -->
+        <div class="flex flex-wrap gap-1 rounded-[10px] bg-[var(--mid)] p-[3px]">
+          <button v-for="s in SET_SECTIONS" :key="s[0]" @click="section = s[0]" :style="`border:0;padding:7px 13px;border-radius:7px;cursor:pointer;font:${section===s[0]?'600':'500'} 12.5px/1 var(--font);${section===s[0]?'background:var(--panel);color:var(--text);box-shadow:var(--shadow);':'background:transparent;color:var(--text2);'}`">{{ s[1] }}</button>
+        </div>
 
         <!-- 账号 -->
         <template v-if="section === 'account'">
