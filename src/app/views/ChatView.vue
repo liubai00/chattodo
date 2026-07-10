@@ -18,7 +18,7 @@ type TaskStatus = 'todo' | 'in_progress' | 'done'
 
 interface RawMsg { id: string; role: string; kind?: string; text?: string; title?: string; reason?: string; suggest?: string; chips?: any[]; refId?: string; refType?: string; refs?: string[]; time?: string; isErr?: boolean; streaming?: boolean; errType?: string; retryText?: string; planTitle?: string; planSub?: string; planNote?: string; plan?: any[]; committed?: boolean; retrying?: boolean; intent?: string }
 interface FeedItem { id: string; kind: string; title: string; time: string; refId: string }
-interface TaskLite { id: string; title: string; status: TaskStatus; project: string; due: string; priority: number; scope: Scope; assignee: string | null; collabFrom: string | null }
+interface TaskLite { id: string; title: string; status: TaskStatus; project: string; due: string; priority: number; scope: Scope; assignee: string | null; collabFrom: string | null; today: boolean }
 interface IdeaLite { id: string; title: string; reason: string; suggest: string; scope: Scope }
 interface NonLite { id: string; title: string; reason: string; scope: Scope }
 
@@ -53,13 +53,17 @@ const pendingRefs = ref<any[]>([])
 const mentions = ref<any[]>([])
 const composer = ref<string>('')
 const showList = ref(false)
+const todayOpen = ref(false)
+const todayLoading = ref(false)
+const todayError = ref('')
+const todayItems = ref<any[]>([])
 let _seq = 100
 let _composing = false as boolean
 let _thinkTimer: ReturnType<typeof setTimeout> | null = null
 
 function visible(scope: Scope): boolean { return !props.privacy || scope === props.workspace || scope === 'mixed' }
 function projName(pid: string | null | undefined): string { if (!pid) return '收件箱'; return pid }
-function mapTask(t: any): TaskLite { return { id: t.id, title: t.title, status: t.status, project: t.collabFrom ? '协作' : projName(t.projectId), due: lxFmtDue(t.dueAt), priority: t.priority || 3, scope: (t.privacyScope || 'work') as Scope, assignee: t.assignee || null, collabFrom: t.collabFrom || null } }
+function mapTask(t: any): TaskLite { return { id: t.id, title: t.title, status: t.status, project: t.collabFrom ? '协作' : projName(t.projectId), due: lxFmtDue(t.dueAt), priority: t.priority || 3, scope: (t.privacyScope || 'work') as Scope, assignee: t.assignee || null, collabFrom: t.collabFrom || null, today: !!t.today } }
 function mapIdea(i: any): IdeaLite { return { id: i.id, title: i.title, reason: i.aiReason || '', suggest: i.suggestedNextAction || '', scope: (i.privacyScope || 'work') as Scope } }
 function mapNon(n: any): NonLite { return { id: n.id, title: n.title, reason: n.reason || '', scope: (n.privacyScope || 'work') as Scope } }
 
@@ -252,6 +256,31 @@ const quickPrompts = [
 function runQuickPrompt(label: string) { composer.value = label; const el = document.getElementById('lx-composer') as HTMLTextAreaElement | null; if (el) el.value = label; send(label) }
 const modeLabel = computed(() => (props.workspace === 'work' ? '工作' : '个人') + (props.privacy ? ' · 隐私' : ''))
 
+// ---- 今日待办胶囊（迁移时省略，现补回）----
+const todayCount = computed(() => tasks.value.filter((t) => t.today && t.status !== 'done').length)
+const todaySubtitle = computed(() => todayLoading.value ? '加载中…' : (todayError.value ? '加载失败' : `${todayItems.value.filter((t) => t.status !== 'done').length} 条未完成`))
+const todayPillStyle = computed(() => 'display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:16px;font:600 12px/1 var(--font);cursor:pointer;' + (todayOpen.value ? 'border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent-ink);' : 'border:1px solid var(--line2);background:var(--panel);color:var(--text2);'))
+function todayProgress(t: any): string {
+  const sl = ({ todo: '待办', in_progress: '进行中', done: '已完成' } as Record<string, string>)[t.status] || '待办'
+  const when = t.dueAt ? ('截止 ' + lxFmtDue(t.dueAt)) : t.plannedAt ? ('计划 ' + lxFmtDue(t.plannedAt)) : '未排期'
+  const parts = [sl, when, 'P' + (t.priority || 3)]
+  if (t.collabFrom) parts.unshift('协作·来自' + t.collabFrom)
+  return parts.join(' · ')
+}
+const todayList = computed(() => todayItems.value.map((t) => ({ title: t.title, progress: todayProgress(t), done: t.status === 'done', dot: t.status === 'done' ? 'var(--text3)' : t.status === 'in_progress' ? 'var(--idea)' : 'var(--accent)', open: () => { todayOpen.value = false; props.openTask(t.id) } })))
+function toggleTodayPanel() { todayOpen.value = !todayOpen.value; if (todayOpen.value) loadToday() }
+function closeTodayPanel() { todayOpen.value = false }
+function refreshToday() { loadToday() }
+function loadToday() {
+  todayLoading.value = true; todayError.value = ''
+  const rank = (t: any) => { const m: Record<string, number> = { in_progress: 0, todo: 1, done: 2 }; return m[t.status] != null ? m[t.status] : 1 }
+  api.listTasks({ view: 'today' }).then((list: any) => {
+    const arr = Array.isArray(list) ? list : (list.tasks || [])
+    const items = arr.filter((t: any) => t.status !== 'archived').sort((a: any, b: any) => rank(a) - rank(b) || (String(a.dueAt || a.plannedAt || '9999') < String(b.dueAt || b.plannedAt || '9999') ? -1 : 1))
+    todayItems.value = items; todayLoading.value = false
+  }).catch((e: any) => { todayLoading.value = false; todayError.value = (e && e.message) || '加载失败，请重试' })
+}
+
 function scrollMsgs(force?: boolean) { const b = document.getElementById('lx-msgs'); if (!b) return; if (force || b.scrollHeight - b.scrollTop - b.clientHeight < 180) b.scrollTop = b.scrollHeight }
 
 async function load() {
@@ -280,7 +309,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="flex h-full min-h-0">
+  <div class="relative flex h-full min-h-0">
+    <div v-if="todayOpen" @click="closeTodayPanel" style="position:absolute;inset:0;z-index:13;"></div>
     <!-- 中栏：工作区 + 会话 + 收集箱 -->
     <div v-if="!isMobile || showList" class="flex flex-col border-r border-[var(--line)] bg-[var(--panel)]" :style="isMobile ? 'flex:1;width:100%;' : 'width:304px;flex:0 0 304px;'">
       <div class="flex flex-col gap-3 border-b border-[var(--line)] p-[15px_16px_13px]">
@@ -295,6 +325,38 @@ onMounted(load)
         <div class="flex items-center gap-2 rounded-[9px] bg-[var(--mid)] px-[11px] py-2">
           <i class="ph ph-magnifying-glass text-[15px] text-[var(--text3)]"></i>
           <input v-model="feedQuery" placeholder="搜索收集内容" class="min-w-0 flex-1 border-0 bg-transparent text-[13px] font-medium text-[var(--text)]" />
+        </div>
+        <div class="relative flex-none">
+          <button @click="toggleTodayPanel" :style="todayPillStyle" title="今日待办">
+            <i class="ph ph-sun-horizon" style="font-size:14px;"></i>今日待办<template v-if="todayCount>0"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent);color:var(--accent-contrast);font:700 10px/16px var(--font);"><span class="lx-mono">{{ todayCount }}</span></span></template>
+            <i :class="`ph ${todayOpen?'ph-caret-up':'ph-caret-down'}`" style="font-size:11px;opacity:.6;"></i>
+          </button>
+          <template v-if="todayOpen">
+            <div style="position:absolute;top:calc(100% + 6px);left:0;width:340px;max-width:calc(100vw - 32px);max-height:62vh;background:var(--panel);border:1px solid var(--line2);border-radius:14px;box-shadow:var(--shadow-lg);z-index:14;display:flex;flex-direction:column;overflow:hidden;animation:lx-pop .18s ease;">
+              <div style="display:flex;align-items:center;gap:8px;padding:13px 15px;border-bottom:1px solid var(--line);flex:0 0 auto;">
+                <i class="ph ph-sun-horizon" style="color:var(--accent-ink);font-size:17px;"></i>
+                <span style="font:600 14px/1 var(--display);color:var(--text);">今日待办</span>
+                <span style="font:600 11.5px/1 var(--font);color:var(--text3);">{{ todaySubtitle }}</span>
+                <div style="flex:1"></div>
+                <button @click="refreshToday" :disabled="todayLoading" title="刷新" style="width:28px;height:28px;border:0;border-radius:8px;background:var(--mid);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;"><i :class="`ph ph-arrows-clockwise ${todayLoading?'lx-spin':''}`" style="font-size:14px;"></i></button>
+              </div>
+              <div style="flex:1;min-height:0;overflow:auto;padding:6px;">
+                <div v-if="todayLoading && !todayList.length" style="display:flex;flex-direction:column;align-items:center;gap:9px;color:var(--text3);padding:34px 12px;"><i class="ph ph-circle-notch lx-spin" style="font-size:22px;"></i><div style="font:500 12px/1 var(--font);">正在加载今日待办…</div></div>
+                <div v-else-if="todayError" style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:30px 14px;text-align:center;"><i class="ph ph-warning-circle" style="font-size:24px;color:var(--danger);"></i><div style="font:500 12.5px/1.5 var(--font);color:var(--danger);">{{ todayError }}</div><button @click="refreshToday" style="height:32px;padding:0 15px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">重试</button></div>
+                <div v-else-if="todayList.length===0" style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);padding:34px 14px;text-align:center;"><i class="ph ph-confetti" style="font-size:26px;color:var(--accent-ink);"></i><div style="font:500 13px/1.6 var(--font);">今天没有到期或计划的待办<br/>享受专注的一天 🎉</div></div>
+                <template v-else>
+                  <a v-for="(t, i) in todayList" :key="i" @click="t.open" style="display:flex;gap:10px;padding:10px 11px;border-radius:10px;cursor:pointer;" data-hv="0">
+                    <span :style="`width:9px;height:9px;border-radius:50%;margin-top:5px;flex:0 0 auto;background:${t.dot};`"></span>
+                    <span style="flex:1;min-width:0;">
+                      <span :style="`display:block;font:600 13px/1.4 var(--font);color:${t.done?'var(--text3)':'var(--text)'};${t.done?'text-decoration:line-through;':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`">{{ t.title }}</span>
+                      <span style="display:block;font:500 11.5px/1.4 var(--font);color:var(--text3);margin-top:2px;">{{ t.progress }}</span>
+                    </span>
+                    <i class="ph ph-caret-right" style="font-size:13px;color:var(--text3);align-self:center;flex:0 0 auto;"></i>
+                  </a>
+                </template>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
       <div class="flex items-center justify-between px-[17px] pb-[7px] pt-[11px]">
