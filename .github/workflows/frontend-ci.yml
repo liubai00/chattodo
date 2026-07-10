@@ -1,0 +1,51 @@
+name: frontend-ci
+
+# 前端持续集成：类型检查 + 单元测试 + 生产构建。
+# 不跑后端（server/）、不跑 e2e。
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'admin/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.*'
+      - 'tsconfig.json'
+      - 'vitest.config.*'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'admin/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.*'
+      - 'tsconfig.json'
+      - 'vitest.config.*'
+      - '.github/workflows/frontend-ci.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # 22.x 最新版满足 @babel/parser / unplugin 等对 22.12+/22.18+ 的引擎要求（EBADENGINE 仅为告警）。
+          node-version: '22'
+          cache: 'npm'
+
+      # 本项目通过 npmmirror 安装（registry.npmjs.org 在部分环境 ECONNRESET），并需 --legacy-peer-deps。
+      - name: Install dependencies
+        run: npm install --registry=https://registry.npmmirror.com --legacy-peer-deps
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
