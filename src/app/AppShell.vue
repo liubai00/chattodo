@@ -3,7 +3,7 @@
 // 用 auth/ui/events store；登录屏(未authed) + rail(nav+theme+avatar+logout) + 视图switch(按route.name) + toast + TaskDetailView。
 // 暂缓(记为 gap，路由可逆、legacy 留 fallback)：通知面板/搜索⌘K/快捷键/移动端布局/pane 拖拽。
 // chat 的 openIdea/openNon 暂只导航不深选(跨视图选择 gap)。
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -51,6 +51,43 @@ async function followInvite(r: string) { await api.respondInvite(r, 'follow').ca
 async function declineInvite(r: string) { await api.respondInvite(r, 'decline').catch(() => {}); ui.loadNotifs(); toast.flash('已婉拒') }
 async function acceptFriend(r: string) { await api.friendRespond(r, true).catch(() => {}); ui.loadNotifs(); toast.flash('已成为好友') }
 async function declineFriend(r: string) { await api.friendRespond(r, false).catch(() => {}); ui.loadNotifs(); toast.flash('已拒绝') }
+
+// 搜索 ⌘K
+const searchResults = ref<any[]>([])
+let _searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => ui.searchQuery, (q) => {
+  if (_searchTimer) clearTimeout(_searchTimer)
+  if (!(q || '').trim()) { searchResults.value = []; return }
+  _searchTimer = setTimeout(async () => { try { searchResults.value = await api.search(q.trim()) } catch { searchResults.value = [] } }, 250)
+})
+const SEARCH_LABELS: Record<string, string> = { task: '任务', idea: '待澄清', nono: '非 todo', project: '项目' }
+const paletteGroups = computed(() => {
+  const groups: Array<{ name: string; items: any[] }> = []
+  if (!ui.searchQuery) groups.push({ name: '前往', items: NAV.map(([k, n, ic]) => ({ icon: ic, label: `前往 · ${n}`, run: () => { go(k); ui.closeSearch() } })) })
+  if (searchResults.value.length) {
+    const byType: Record<string, any[]> = {}
+    for (const r of searchResults.value) { const t = r.type || 'other'; (byType[t] ||= []).push(r) }
+    for (const t of Object.keys(byType)) groups.push({ name: SEARCH_LABELS[t] || t, items: byType[t].map((r) => ({ icon: r.icon || 'ph-at', label: r.title || '', subtitle: r.subtitle || '', run: () => { executeSearch(r); ui.closeSearch() } })) })
+  }
+  return groups
+})
+function executeSearch(r: any) {
+  if (r.type === 'task') openTask(r.id)
+  else if (r.type === 'idea') router.push({ name: 'clarify' })
+  else if (r.type === 'nono') router.push({ name: 'nontodo' })
+  else if (r.type === 'project') router.push({ name: 'projects' })
+}
+function flatIndex(gi: number, ii: number): number { let n = 0; for (let i = 0; i < gi; i++) n += paletteGroups.value[i].items.length; return n + ii }
+function paletteKey(e: KeyboardEvent) {
+  const items = paletteGroups.value.flatMap((g) => g.items)
+  if (e.key === 'Escape') { e.preventDefault(); ui.closeSearch(); return }
+  if (e.key === 'ArrowDown') { e.preventDefault(); ui.paletteIndex = Math.min((ui.paletteIndex || 0) + 1, Math.max(0, items.length - 1)); return }
+  if (e.key === 'ArrowUp') { e.preventDefault(); ui.paletteIndex = Math.max((ui.paletteIndex || 0) - 1, 0); return }
+  if (e.key === 'Enter') { e.preventDefault(); const it = items[ui.paletteIndex || 0] || items[0]; if (it) it.run() }
+}
+function onGlobalKey(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); ui.openSearch() }
+}
 
 const NAV: Array<[string, string, string]> = [
   ['chat', '聊天', 'ph-chat-circle'], ['database', 'Todo 数据库', 'ph-table'], ['projects', '项目', 'ph-folders'],
@@ -100,8 +137,9 @@ onMounted(async () => {
     await ui.load(); applyTheme(ui.theme); ui.loadNotifs(); events.connect(); subscribeEvents()
   }
   booting.value = false
+  window.addEventListener('keydown', onGlobalKey)
 })
-onBeforeUnmount(() => { if (_unsub) _unsub() })
+onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydown', onGlobalKey) })
 </script>
 
 <template>
@@ -132,6 +170,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub() })
     <template v-else>
       <nav class="flex flex-none flex-col items-center gap-[6px] bg-[var(--rail)] px-[9px] py-3" style="width:64px;">
         <div class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--accent)] text-[19px] font-semibold text-[var(--accent-contrast)]" style="font-family:var(--display);box-shadow:var(--shadow);">灵</div>
+        <button @click="ui.openSearch()" title="搜索 (⌘K)" class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--mid)] text-[18px] text-[var(--text2)]" style="border:0;cursor:pointer;" data-hv="1"><i class="ph ph-magnifying-glass"></i></button>
         <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" class="flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-[12px] text-[22px]" :style="view===n[0]?'background:var(--accent-bg);color:var(--accent-ink);':'color:var(--text2);background:transparent;'" data-hv="0"><i :class="`ph ${n[2]}`"></i></a>
         <div class="flex-1"></div>
         <a v-if="auth.canAdmin" :href="adminUrl" title="监控后台" class="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] text-[22px] text-[var(--text2)]" style="text-decoration:none;" data-hv="0"><i class="ph ph-chart-line-up"></i></a>
@@ -164,6 +203,23 @@ onBeforeUnmount(() => { if (_unsub) _unsub() })
           <div class="max-h-[360px] overflow-auto">
             <div v-for="(n, i) in notifList" :key="i" class="flex gap-[11px] border-b border-[var(--line)] px-4 py-3"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-relaxed text-[var(--text)]">{{ n.text }}</div><div class="mt-[3px] text-[11px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ n.time }}</span></div><template v-if="n.isInvite && !n.wasInvite"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptInvite(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受并提醒我</button><button @click="followInvite(n.actionRef)" title="不进我的任务库，只接收进展通知" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">仅关注</button><button @click="declineInvite(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq && !n.wasFriendReq"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptFriend(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受好友</button><button @click="declineFriend(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div>
             <div v-if="notifList.length === 0" class="flex flex-col items-center gap-2 px-4 py-[30px] text-center text-[var(--text3)]"><i class="ph ph-bell-slash text-[22px]"></i><div class="text-xs font-medium">暂无通知</div></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 搜索面板 ⌘K -->
+      <template v-if="ui.searchOpen">
+        <div @click="ui.closeSearch()" class="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" style="background:var(--overlay-scrim);">
+          <div @click.stop class="w-[560px] max-w-[90vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="box-shadow:var(--shadow-lg);animation:lx-pop .18s ease;">
+            <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
+            <div class="max-h-[52vh] overflow-auto p-[6px_0]">
+              <template v-for="(g, gi) in paletteGroups" :key="gi">
+                <div class="px-[18px] pb-[5px] pt-[9px] text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--text3)]">{{ g.name }}</div>
+                <template v-for="(it, ii) in g.items" :key="ii"><a @click="it.run" class="flex cursor-pointer items-center gap-[11px] px-[18px] py-[10px]" :style="`background:${flatIndex(gi,ii)===ui.paletteIndex?'var(--mid)':'transparent'};`" data-hv="0"><i :class="`ph ${it.icon}`" class="text-[17px] text-[var(--accent-ink)]"></i><span class="flex-1 truncate text-[13.5px] font-semibold text-[var(--text)]">{{ it.label }}</span></a></template>
+              </template>
+              <div v-if="paletteGroups.length === 0" class="px-[18px] py-6 text-center text-[13px] font-medium text-[var(--text3)]">没有匹配的结果</div>
+            </div>
+            <div class="flex gap-[14px] border-t border-[var(--line)] px-[18px] py-[10px] text-[11px] font-medium text-[var(--text3)]"><span>↑↓ 选择</span><span>↵ 执行</span><span>esc 关闭</span></div>
           </div>
         </div>
       </template>

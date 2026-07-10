@@ -17,11 +17,16 @@ export const useUiStore = defineStore('ui', () => {
   const detailId = ref<string | null>(null)
   const notifOpen = ref(false)
   const notifs = ref<any[]>([])
+  const searchOpen = ref(false)
+  const searchQuery = ref('')
+  const paletteIndex = ref(0)
 
   async function loadNotifs() { try { notifs.value = await api.notifications() } catch { /* ignore */ } }
   async function markAllRead() { try { await api.markAllNotificationsRead(); await loadNotifs() } catch { /* ignore */ } }
   function toggleNotif() { notifOpen.value = !notifOpen.value; if (notifOpen.value) loadNotifs() }
   function closeNotif() { notifOpen.value = false }
+  function openSearch() { searchOpen.value = true; searchQuery.value = ''; paletteIndex.value = 0 }
+  function closeSearch() { searchOpen.value = false }
 
   // 从 appSettings 载入 theme/workspace/privacy（登录后调）
   async function load() {
@@ -47,5 +52,5 @@ export const useUiStore = defineStore('ui', () => {
   function closeDetail() { detailId.value = null }
   function setMobile(m: boolean) { isMobile.value = m }
 
-  return { theme, workspace, privacy, view, isMobile, detailId, notifOpen, notifs, load, toggleTheme, setWorkspace, togglePrivacy, go, openTask, closeDetail, setMobile, loadNotifs, markAllRead, toggleNotif, closeNotif }
+  return { theme, workspace, privacy, view, isMobile, detailId, notifOpen, notifs, searchOpen, searchQuery, paletteIndex, load, toggleTheme, setWorkspace, togglePrivacy, go, openTask, closeDetail, setMobile, loadNotifs, markAllRead, toggleNotif, closeNotif, openSearch, closeSearch }
 })
