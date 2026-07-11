@@ -16,6 +16,12 @@ import type { ServerEvent } from '@/modules/chat/api'
 import type { Notification, SearchResult } from '@/types/api'
 import { lxFmtDue } from '@/shared/utils/format'
 import { applyTheme } from '@/shared/utils/theme'
+import { cn } from '@/shared/utils/cn'
+import Button from '@/components/ui/button/Button.vue'
+import Input from '@/components/ui/input/Input.vue'
+import Card from '@/components/ui/card/Card.vue'
+import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import IconButton from '@/components/base/IconButton.vue'
 // AppShell 跨 tasks/friends/app 三域：显式合并所需域 API（保持 api.xxx 调用语法，import 来自 modules）。
 const api = { ...TasksAPI, ...FriendsAPI, ...AppAPI }
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
@@ -172,19 +178,19 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
 
     <!-- 登录屏 -->
     <div v-else-if="!auth.authed" class="flex h-full w-full items-center justify-center p-6" style="background:radial-gradient(120% 90% at 50% 0%, var(--surface-base) 0%, var(--bg) 60%);">
-      <div class="flex w-[400px] max-w-full flex-col gap-[22px]" style="animation:lx-pop .4s ease;">
+      <div v-fade class="flex w-[400px] max-w-full flex-col gap-[22px]">
         <div class="flex flex-col items-center gap-[14px]">
           <div class="flex h-[52px] w-[52px] items-center justify-center rounded-[15px] bg-[var(--accent)] text-[26px] font-semibold text-[var(--accent-contrast)]" style="font-family:var(--display);box-shadow:var(--shadow-md);">灵</div>
           <div class="text-center"><div class="text-[24px] font-semibold text-[var(--text)]" style="font-family:var(--display);">登录 LinX 灵信</div><div class="mt-[5px] text-[13.5px] font-medium text-[var(--text3)]">AI 原生 todo · 内部测试版</div></div>
         </div>
-        <div class="flex flex-col gap-[14px] rounded-[18px] border border-[var(--line)] bg-[var(--panel)] p-6" style="box-shadow:var(--shadow);">
-          <label v-if="authMode === 'register'" class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">显示名称</span><input v-model="authName" placeholder="你的名字" class="rounded-[10px] border border-[var(--line2)] bg-[var(--bg)] px-[13px] py-[11px] text-sm font-medium text-[var(--text)]" /></label>
-          <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">邮箱</span><input v-model="authEmail" @keydown.enter="submitAuth" type="email" placeholder="you@team.com" class="rounded-[10px] border border-[var(--line2)] bg-[var(--bg)] px-[13px] py-[11px] text-sm font-medium text-[var(--text)]" /></label>
-          <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">密码</span><input v-model="authPassword" @keydown.enter="submitAuth" type="password" :placeholder="authMode==='register'?'至少 8 位':'输入密码'" class="rounded-[10px] border border-[var(--line2)] bg-[var(--bg)] px-[13px] py-[11px] text-sm font-medium text-[var(--text)]" /></label>
+        <Card class="gap-[14px] rounded-[18px] border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+          <label v-if="authMode === 'register'" class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">显示名称</span><Input v-model="authName" placeholder="你的名字" class="h-11 rounded-[10px] border-[var(--line2)] bg-[var(--bg)] px-[13px] text-sm font-medium" /></label>
+          <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">邮箱</span><Input v-model="authEmail" @keydown.enter="submitAuth" type="email" placeholder="you@team.com" class="h-11 rounded-[10px] border-[var(--line2)] bg-[var(--bg)] px-[13px] text-sm font-medium" /></label>
+          <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">密码</span><Input v-model="authPassword" @keydown.enter="submitAuth" type="password" :placeholder="authMode==='register'?'至少 8 位':'输入密码'" class="h-11 rounded-[10px] border-[var(--line2)] bg-[var(--bg)] px-[13px] text-sm font-medium" /></label>
           <div v-if="authError" class="rounded-[9px] bg-[var(--danger-bg)] px-3 py-[9px] text-[12.5px] font-medium text-[var(--danger)]">{{ authError }}</div>
-          <button @click="submitAuth" :disabled="authBusy" class="mt-1 flex h-11 items-center justify-center gap-[7px] rounded-[11px] bg-[var(--accent)] text-[14.5px] font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;box-shadow:var(--shadow);">{{ authBusy ? '请稍候…' : (authMode === 'register' ? '注册并进入' : '登录') }} <i class="ph ph-arrow-right"></i></button>
+          <Button @click="submitAuth" :disabled="authBusy" class="mt-1 h-11 gap-[7px] rounded-[11px] text-[14.5px] font-semibold shadow-[var(--shadow)]">{{ authBusy ? '请稍候…' : (authMode === 'register' ? '注册并进入' : '登录') }} <i class="ph ph-arrow-right"></i></Button>
           <div class="text-center text-[12.5px] font-medium text-[var(--text3)]">{{ authMode === 'register' ? '已有账号？' : '还没有账号？' }}<span @click="authMode = authMode === 'register' ? 'login' : 'register'" class="ml-[5px] cursor-pointer font-semibold text-[var(--accent-ink)]">{{ authMode === 'register' ? '去登录' : '注册新账号' }}</span></div>
-        </div>
+        </Card>
         <div class="text-center text-xs font-medium leading-relaxed text-[var(--text3)]">你的数据仅自己可见 · 首个注册账号为管理员</div>
       </div>
     </div>
@@ -193,14 +199,30 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
     <template v-else>
       <nav v-if="!ui.isMobile" class="flex flex-none flex-col items-center gap-[6px] bg-[var(--rail)] px-[9px] py-3" style="width:64px;">
         <div class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--accent)] text-[19px] font-semibold text-[var(--accent-contrast)]" style="font-family:var(--display);box-shadow:var(--shadow);">灵</div>
-        <button @click="ui.openSearch()" title="搜索 (⌘K)" class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--mid)] text-[18px] text-[var(--text2)]" style="border:0;cursor:pointer;" data-hv="1"><i class="ph ph-magnifying-glass"></i></button>
-        <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" class="flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-[12px] text-[22px]" :style="view===n[0]?'background:var(--accent-bg);color:var(--accent-ink);':'color:var(--text2);background:transparent;'" data-hv="0"><i :class="`ph ${n[2]}`"></i></a>
+        <IconButton icon="ph-magnifying-glass" label="搜索 (⌘K)" variant="subtle" size="md" class="mb-2" @click="ui.openSearch()" />
+        <TooltipProvider :delay-duration="400">
+          <Tooltip v-for="n in NAV" :key="n[0]">
+            <TooltipTrigger class="w-full">
+              <button
+                @click="go(n[0])"
+                :aria-label="n[1]"
+                :class="cn(
+                  'flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-[12px] text-[22px] transition-colors duration-[160ms] border-0',
+                  view === n[0]
+                    ? 'bg-[var(--accent-bg)] text-[var(--accent-ink)]'
+                    : 'text-[var(--text2)] hover:bg-[var(--mid)] hover:text-[var(--text)] bg-transparent',
+                )"
+              ><i :class="['ph', n[2]]"></i></button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{{ n[1] }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div class="flex-1"></div>
-        <a v-if="auth.canAdmin" :href="adminUrl" title="监控后台" class="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] text-[22px] text-[var(--text2)]" style="text-decoration:none;" data-hv="0"><i class="ph ph-chart-line-up"></i></a>
-        <button @click="ui.toggleNotif()" title="通知" class="relative mt-1 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] text-[19px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;" data-hv="0"><i class="ph ph-bell"></i><span v-if="hasUnread" class="absolute right-[5px] top-[5px] flex h-[15px] min-w-[15px] items-center justify-center rounded-[8px] bg-[var(--danger)] px-[3px] text-[9px] font-bold text-[var(--accent-contrast)]"><span class="lx-mono">{{ unread }}</span></span></button>
-        <button @click="ui.toggleTheme()" :title="ui.theme==='dark'?'切换明亮':'切换深色'" class="mt-1 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] text-[18px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;" data-hv="0"><i :class="`ph ${ui.theme==='dark'?'ph-sun':'ph-moon'}`"></i></button>
-        <div :title="auth.user.name" class="mt-1.5 flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-full bg-[var(--surface-active)] text-[13px] font-semibold text-[var(--text-secondary)]" @click="go('settings')">{{ meBig }}</div>
-        <button @click="logout" title="退出登录" class="mt-1 flex h-[34px] w-[34px] items-center justify-center rounded-full text-[15px] text-[var(--text3)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-sign-out"></i></button>
+        <a v-if="auth.canAdmin" :href="adminUrl" title="监控后台" class="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] text-[22px] text-[var(--text2)] no-underline transition-colors duration-[160ms] hover:bg-[var(--mid)] hover:text-[var(--text)]"><i class="ph ph-chart-line-up"></i></a>
+        <IconButton icon="ph-bell" label="通知" variant="ghost" size="sm" class="relative mt-1" @click="ui.toggleNotif()"><span v-if="hasUnread" class="absolute right-[5px] top-[5px] flex h-[15px] min-w-[15px] items-center justify-center rounded-[8px] bg-[var(--danger)] px-[3px] text-[9px] font-bold text-[var(--accent-contrast)]"><span class="lx-mono">{{ unread }}</span></span></IconButton>
+        <IconButton :icon="ui.theme==='dark'?'ph-sun':'ph-moon'" :label="ui.theme==='dark'?'切换明亮':'切换深色'" variant="ghost" size="sm" class="mt-1" @click="ui.toggleTheme()" />
+        <div :title="auth.user.name" class="mt-1.5 flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-full bg-[var(--surface-active)] text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-[160ms] hover:bg-[var(--mid)]" @click="go('settings')">{{ meBig }}</div>
+        <IconButton icon="ph-sign-out" label="退出登录" variant="ghost" size="sm" class="mt-1" @click="logout" />
       </nav>
 
       <!-- 移动端顶栏 -->
@@ -208,10 +230,10 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-semibold text-[var(--accent-contrast)]">灵</div>
         <span class="text-sm font-bold text-[var(--text)]">LinX 灵信</span>
         <div class="flex-1"></div>
-        <button @click="ui.openSearch()" title="搜索" class="flex h-8 w-8 items-center justify-center rounded-lg text-[16px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-magnifying-glass"></i></button>
-        <button @click="ui.toggleNotif()" title="通知" class="relative flex h-8 w-8 items-center justify-center rounded-lg text-[16px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-bell"></i><span v-if="hasUnread" class="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--danger)]"></span></button>
-        <button @click="ui.toggleTheme()" title="主题" class="flex h-8 w-8 items-center justify-center rounded-lg text-[16px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;"><i :class="`ph ${ui.theme==='dark'?'ph-sun':'ph-moon'}`"></i></button>
-        <button @click="logout" title="登出" class="flex h-8 w-8 items-center justify-center rounded-lg text-[15px] text-[var(--text3)]" style="border:0;background:transparent;cursor:pointer;"><i class="ph ph-sign-out"></i></button>
+        <IconButton icon="ph-magnifying-glass" label="搜索" variant="ghost" size="sm" @click="ui.openSearch()" />
+        <IconButton icon="ph-bell" label="通知" variant="ghost" size="sm" class="relative" @click="ui.toggleNotif()"><span v-if="hasUnread" class="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--danger)]"></span></IconButton>
+        <IconButton :icon="ui.theme==='dark'?'ph-sun':'ph-moon'" label="主题" variant="ghost" size="sm" @click="ui.toggleTheme()" />
+        <IconButton icon="ph-sign-out" label="登出" variant="ghost" size="sm" @click="logout" />
       </div>
       <div class="relative min-w-0 flex-1">
         <ChatView v-if="view==='chat'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :openIdea="openIdea" :openNon="openNon" :afterSend="afterSend" :setWorkspace="ui.setWorkspace" :togglePrivacy="ui.togglePrivacy" :isMobile="ui.isMobile" />
@@ -230,13 +252,13 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
 
       <!-- 移动端底栏 -->
       <nav v-if="ui.isMobile" class="flex flex-none items-center justify-around border-t border-[var(--line)] bg-[var(--panel)] py-1">
-        <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" class="flex flex-col items-center gap-0.5 px-1 py-1" :style="view===n[0]?'color:var(--accent-ink);':'color:var(--text3);'"><i :class="`ph ${n[2]}`" class="text-[18px]"></i><span class="text-[9px] font-medium">{{ n[1].slice(0,2) }}</span></a>
+        <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" :class="cn('flex flex-col items-center gap-0.5 px-1 py-1 cursor-pointer', view === n[0] ? 'text-[var(--accent-ink)]' : 'text-[var(--text3)]')"><i :class="['ph', n[2]]" class="text-[18px]"></i><span class="text-[9px] font-medium">{{ n[1].slice(0,2) }}</span></a>
       </nav>
 
       <!-- 通知面板 -->
       <template v-if="ui.notifOpen">
         <div @click="ui.closeNotif()" class="fixed inset-0 z-40"></div>
-        <div class="fixed bottom-4 z-[41] w-[340px] max-w-[80vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="left:74px;box-shadow:var(--shadow-lg);animation:lx-pop .2s ease;">
+        <div class="fixed bottom-4 z-[41] w-[340px] max-w-[80vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]" style="left:74px;box-shadow:var(--shadow-md);animation:lx-pop .18s ease;">
           <div class="flex items-center gap-2 border-b border-[var(--line)] px-4 py-[14px]"><i class="ph ph-bell text-[var(--accent-ink)]"></i><span class="text-sm font-semibold text-[var(--text)]" style="font-family:var(--display);">通知</span><div class="flex-1"></div><button @click="ui.markAllRead()" class="text-[11.5px] font-semibold text-[var(--accent-ink)]" style="border:0;background:transparent;cursor:pointer;">全部已读</button></div>
           <div class="max-h-[360px] overflow-auto">
             <div v-for="(n, i) in notifList" :key="i" class="flex gap-[11px] border-b border-[var(--line)] px-4 py-3"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-relaxed text-[var(--text)]">{{ n.text }}</div><div class="mt-[3px] text-[11px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ n.time }}</span></div><template v-if="n.isInvite && !n.wasInvite"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptInvite(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受并提醒我</button><button @click="followInvite(n.actionRef)" title="不进我的任务库，只接收进展通知" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">仅关注</button><button @click="declineInvite(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq && !n.wasFriendReq"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptFriend(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受好友</button><button @click="declineFriend(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div>
@@ -248,7 +270,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
       <!-- 搜索面板 ⌘K -->
       <template v-if="ui.searchOpen">
         <div @click="ui.closeSearch()" @keydown.esc.prevent.stop="ui.closeSearch()" class="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" style="background:var(--overlay-scrim);">
-          <div @click.stop class="w-[560px] max-w-[90vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="box-shadow:var(--shadow-lg);animation:lx-pop .18s ease;">
+          <div @click.stop class="w-[560px] max-w-[90vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]" style="box-shadow:var(--shadow-md);animation:lx-pop .18s ease;">
             <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input ref="searchInput" :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
             <div class="max-h-[52vh] overflow-auto p-[6px_0]">
               <template v-for="(g, gi) in paletteGroups" :key="gi">
@@ -265,7 +287,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
       <!-- 快捷键 modal -->
       <template v-if="ui.shortcutsOpen">
         <div @click="ui.closeShortcuts()" @keydown.esc.prevent.stop="ui.closeShortcuts()" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:var(--overlay-scrim);">
-          <div @click.stop class="w-[430px] max-w-[92vw] overflow-hidden rounded-2xl border border-[var(--line2)] bg-[var(--panel)]" style="box-shadow:var(--shadow-lg);animation:lx-pop .18s ease;">
+          <div @click.stop class="w-[430px] max-w-[92vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]" style="box-shadow:var(--shadow-md);animation:lx-pop .18s ease;">
             <div class="flex items-center gap-2.5 border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-keyboard text-[19px] text-[var(--accent-ink)]"></i><span class="text-[15px] font-semibold text-[var(--text)]" style="font-family:var(--display);">键盘快捷键</span></div>
             <div class="px-[18px] py-[14px]">
               <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">命令面板</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">⌘K&nbsp;/&nbsp;/</span></div>

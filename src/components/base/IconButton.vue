@@ -41,5 +41,6 @@ const variantClass: Record<'ghost' | 'solid' | 'subtle', string> = {
     )"
   >
     <i :class="['ph', props.icon]"></i>
+    <slot />
   </button>
 </template>
