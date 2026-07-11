@@ -1,130 +1,22 @@
 <script setup lang="ts">
-// P3 第六个迁移视图：项目。master-detail 自包含。挂载取 me+getState(projects,tasks)。
-// workspace/privacy 经 prop 传入(visible 过滤+modeChip)；openTask 经稳定回调 prop 传入
-// (点击任务 -> 旧 App openTask 设 detailId 取详情)。2 列：项目列表+新建 | 选中项目任务列表。
-// 任务行只用 fmtTask 子集(assignee 色/首字母、title+titleColor/deco、statusLabel、due、prio)。
-import { ref, computed, onMounted, watch } from 'vue'
-import { AuthAPI } from '@/modules/auth/api'
-import { AppAPI } from '@/modules/app/api'
-import { TasksAPI } from '@/modules/tasks/api'
+// 项目视图（组装层）：项目列表+新建 | 选中项目任务列表。数据/操作走 useProjects。
+import { useProjects, type ProjectsProps } from '@/modules/tasks/composables/useProjects'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue } from '@/shared/utils/format'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
 import ContentCard from '@/components/base/ContentCard.vue'
 import SectionLabel from '@/components/base/SectionLabel.vue'
-import { useRoute } from 'vue-router'
-import { usePane } from '@/shared/composables/usePane'
-import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
-// 本视图跨 auth/app/tasks 三域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
-const api = { ...AuthAPI, ...AppAPI, ...TasksAPI }
 
-type Workspace = 'work' | 'personal'
-type Scope = Workspace | 'mixed'
-type TaskStatus = 'todo' | 'in_progress' | 'done'
-
-interface Project { id: string; name: string; desc: string; color: string }
-interface TaskItem { id: string; title: string; status: TaskStatus; project: string; due: string; priority: number; scope: Scope; assignee: string | null; collabFrom: string | null }
-
-const PROJ_COLORS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-4)', 'var(--cat-3)']
-const MEMBER_COLORS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-3)', 'var(--cat-4)', 'var(--cat-5)']
-const PRIO_COLORS: Record<number, [string, string]> = { 1: ['var(--danger)', 'var(--danger-bg)'], 2: ['var(--idea)', 'var(--idea-bg)'], 3: ['var(--text2)', 'var(--mid)'], 4: ['var(--text3)', 'var(--mid)'] }
-const STATUS_LABEL: Record<TaskStatus, string> = { todo: '待办', in_progress: '进行中', done: '已完成' }
-
-const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
+const props = defineProps<ProjectsProps>()
 const toast = useToast()
-const route = useRoute()
 const { width: leftW, startResize } = usePane({ key: STORAGE_KEYS.PANE_PROJECTS, def: 280, max: 480 })
-const loading = ref(true)
-const myName = ref('')
-const canEdit = ref(false)
-const projects = ref<Project[]>([])
-const tasks = ref<TaskItem[]>([])
-const selId = ref<string | null>(null)
-const newProjOpen = ref(false)
-const newProjName = ref('')
-
-function memberColor(name: string): string {
-  if (!name) return 'var(--cat-fallback)'
-  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0
-  return MEMBER_COLORS[Math.abs(h) % MEMBER_COLORS.length]
-}
-function visible(scope: Scope): boolean {
-  return !props.privacy || scope === props.workspace || scope === 'mixed'
-}
-function projName(pid: string | null | undefined): string {
-  if (!pid) return '收件箱'
-  const p = projects.value.find((x) => x.id === pid)
-  return p ? p.name : pid
-}
-function mapTask(t: any): TaskItem {
-  return { id: t.id, title: t.title, status: t.status as TaskStatus, project: t.collabFrom ? '协作' : projName(t.projectId), due: lxFmtDue(t.dueAt), priority: t.priority || 3, scope: (t.privacyScope || 'work') as Scope, assignee: t.assignee || null, collabFrom: t.collabFrom || null }
-}
-
-const visTasks = computed(() => tasks.value.filter((t) => visible(t.scope)))
-const projList = computed(() => projects.value.map((p) => {
-  const ts = visTasks.value.filter((t) => t.project === p.name)
-  const done = ts.filter((t) => t.status === 'done').length
-  return { id: p.id, name: p.name, desc: p.desc, color: p.color, count: ts.length, done, pct: ts.length ? Math.round((done / ts.length) * 100) : 0, bg: selId.value === p.id ? 'var(--accent-bg)' : 'transparent' }
-}))
-const selProject = computed(() => projects.value.find((p) => p.id === selId.value) || projects.value[0] || null)
-const spTasks = computed(() => selProject.value ? visTasks.value.filter((t) => t.project === selProject.value!.name).map(fmtTaskSubset) : [])
-const spDone = computed(() => selProject.value ? visTasks.value.filter((t) => t.project === selProject.value!.name && t.status === 'done').length : 0)
-const spPct = computed(() => (spTasks.value.length ? Math.round((spDone.value / spTasks.value.length) * 100) : 0))
-const modeLabel = computed(() => (props.workspace === 'work' ? '工作' : '个人') + (props.privacy ? ' · 隐私' : ''))
-const modeIcon = computed(() => (props.privacy ? 'ph-lock-simple' : 'ph-briefcase'))
-
-interface FmtTask { title: string; titleColor: string; titleDeco: string; statusLabel: string; due: string; prio: string; prioStyle: string; assigneeColor: string; assigneeInitial: string; open: () => void }
-function fmtTaskSubset(t: TaskItem): FmtTask {
-  const done = t.status === 'done'
-  const asg = t.assignee || myName.value || '我'
-  const pc = PRIO_COLORS[t.priority] || PRIO_COLORS[3]
-  return {
-    title: t.title,
-    titleColor: done ? 'var(--text3)' : 'var(--text)',
-    titleDeco: done ? 'text-decoration:line-through;' : '',
-    statusLabel: t.collabFrom ? STATUS_LABEL[t.status] + ' · 来自 ' + t.collabFrom : STATUS_LABEL[t.status],
-    due: t.due,
-    prio: 'P' + t.priority,
-    prioStyle: 'display:inline-flex;padding:3px 8px;border-radius:6px;font:700 11px/1 var(--font);color:' + pc[0] + ';background:' + pc[1] + ';',
-    assigneeColor: memberColor(asg),
-    assigneeInitial: asg.slice(-1),
-    open: () => props.openTask(t.id),
-  }
-}
-
-async function load() {
-  loading.value = true
-  try {
-    const [me, st] = await Promise.all([api.me(), api.getState()])
-    myName.value = me.name || ''
-    canEdit.value = (me.role || 'member') !== 'viewer'
-    const ps = ((st as any).projects || []) as any[]
-    projects.value = ps.map((p, idx) => ({ id: p.id, name: p.name, desc: p.description || '', color: PROJ_COLORS[idx % 4] }))
-    tasks.value = (((st as any).tasks || []) as any[]).map(mapTask)
-    selId.value = typeof route.params.selId === 'string' ? route.params.selId : null
-  } catch {
-    toast.flash('加载项目失败，请刷新重试')
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(load)
-
-function selectProject(id: string) { selId.value = id }
-watch(() => route.params.selId, (sid) => { selId.value = typeof sid === 'string' ? sid : null })
-function submitNewProject() {
-  const name = newProjName.value.trim()
-  if (!name) { toast.flash('请输入项目名称'); return }
-  api.createProject(name, '').then((p: any) => {
-    const color = MEMBER_COLORS[projects.value.length % MEMBER_COLORS.length]
-    projects.value = [...projects.value, { id: p.id, name: p.name, desc: p.description || '', color }]
-    newProjOpen.value = false; newProjName.value = ''
-    selId.value = p.id
-    toast.flash('项目已创建 · 聊天里提到项目名会自动归属')
-  }).catch((e: any) => toast.flash('创建失败：' + e.message))
-}
+const {
+  loading, canEdit, projList, selProject, selId, spTasks, spDone, spPct, modeLabel, modeIcon,
+  newProjOpen, newProjName, selectProject, submitNewProject,
+} = useProjects(props, (m) => toast.flash(m))
 </script>
 
 <template>

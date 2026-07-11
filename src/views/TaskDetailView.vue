@@ -1,93 +1,19 @@
 <script setup lang="ts">
-// P4a：任务详情面板（最后一块 legacy 内容）。自包含全局浮层。
-// watch taskId -> 取 getTaskDetail+team+me；3 tabs + 状态/优先级/负责人/协作/备注/子任务/来源/移出/退出协作 + 评论 + 活动。
-// patchTask/toggleSub/addSub/addComment/assignTask/inviteMember/inviteAll/moveOut/leaveCollab。
-// afterChange 回调(legacy loadState)刷新跨视图；emit close。
-import { ref, reactive, computed, watch } from 'vue'
-import { AuthAPI } from '@/modules/auth/api'
-import { TasksAPI } from '@/modules/tasks/api'
+// 任务详情面板视图（组装层）：全局浮层。数据/操作走 useTaskDetail；视图只留模板与分段样式（seg）。
+import { useTaskDetail, type TaskDetailProps } from '@/modules/tasks/composables/useTaskDetail'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/shared/utils/format'
-import { expandTimeTokens } from '@/shared/utils/timeTokens'
 import Button from '@/components/ui/button/Button.vue'
-// 本视图跨 auth/tasks 两域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
-const api = { ...AuthAPI, ...TasksAPI }
 
-type TaskStatus = 'todo' | 'in_progress' | 'done'
-type Scope = 'work' | 'personal' | 'mixed'
-
-const props = defineProps<{ taskId: string | null; afterChange: () => void }>()
+const props = defineProps<TaskDetailProps>()
 const emit = defineEmits<{ close: [] }>()
 const toast = useToast()
-
-const loading = ref(true)
-const myName = ref('')
-const canEdit = ref(false)
-const team = ref<any[]>([])
-const tab = ref<'detail' | 'comments' | 'activity'>('detail')
-const invitePickerOpen = ref(false)
-const subInput = ref('')
-const cmtInput = ref('')
-const task = reactive<{ id: string | null; title: string; status: TaskStatus; project: string; due: string; priority: number; notes: string; raw: string; reason: string; conf: string; gen: string; edited: boolean; assignee: string | null; collabFrom: string | null; scope: Scope }>({ id: null, title: '', status: 'todo', project: '', due: '', priority: 3, notes: '', raw: '', reason: '', conf: '', gen: '', edited: false, assignee: null, collabFrom: null, scope: 'work' })
-const subs = ref<any[]>([])
-const comments = ref<any[]>([])
-const activity = ref<any[]>([])
-const collabs = ref<any[]>([])
-const access = ref<string>('owner')
-
-const MEMBER_COLORS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-3)', 'var(--cat-4)', 'var(--cat-5)']
-function memberColor(name: string): string { if (!name) return 'var(--cat-fallback)'; let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0; return MEMBER_COLORS[Math.abs(h) % MEMBER_COLORS.length] }
-const COLLAB_META: Record<string, [string, string, string]> = { pending: ['待接受', 'var(--idea)', 'var(--idea-bg)'], accepted: ['协作中', 'var(--accent-ink)', 'var(--accent-bg)'], following: ['关注中', 'var(--text2)', 'var(--mid)'] }
-
-const dAssignee = computed(() => task.assignee || myName.value || '我')
-const memberNames = computed(() => [...new Set([...team.value.map((u) => u.name), myName.value || '我', ...(task.assignee ? [task.assignee] : [])])].filter(Boolean).slice(0, 8))
-const detailMembers = computed(() => memberNames.value.map((nm) => ({ name: nm, initial: nm.slice(-1), color: memberColor(nm), on: dAssignee.value === nm, assign: () => assignTask(nm) })))
-const dCollabs = computed(() => collabs.value.filter((c) => COLLAB_META[c.status]).map((c) => ({ name: c.userName, label: COLLAB_META[c.status][0], fg: COLLAB_META[c.status][1], bg: COLLAB_META[c.status][2], dotc: COLLAB_META[c.status][1] })))
-const dIsOwner = computed(() => access.value === 'owner' && !task.collabFrom)
-const inviteCandidates = computed(() => team.value.filter((u) => u.name !== myName.value && !collabs.value.some((c) => c.userId === u.id)).map((u) => ({ name: u.name, invite: () => inviteMember(u) })))
-const subDone = computed(() => subs.value.filter((s) => s.done).length)
-const hasSubs = computed(() => subs.value.length > 0)
-
-async function load(id: string) {
-  loading.value = true; invitePickerOpen.value = false; tab.value = 'detail'
-  try {
-    const [d, me, tm] = await Promise.all([api.getTaskDetail(id), api.me(), api.team()])
-    myName.value = me.name || ''; canEdit.value = (me.role || 'member') !== 'viewer'; team.value = (tm as any).users || []
-    const t = (d as any).task; if (!t) { emit('close'); return }
-    const gr = (d as any).generationRecord
-    task.id = t.id; task.title = t.title || ''; task.status = t.status || 'todo'; task.project = t.collabFrom ? '协作' : (t.project || '收件箱'); task.due = lxFmtDue(t.dueAt); task.priority = t.priority || 3; task.notes = t.notes || ''; task.raw = (gr && gr.rawInput) || t.notes || ''; task.reason = (gr && gr.aiReason) || ''; task.conf = gr && gr.confidence != null ? String(gr.confidence) : ''; task.gen = (gr && gr.createdAt) || ''; task.edited = !!t.edited; task.assignee = t.assignee || null; task.collabFrom = t.collabFrom || null; task.scope = (t.privacyScope || 'work') as Scope
-    subs.value = ((d as any).subtasks || []).map((s: any) => ({ id: s.id, text: s.text, done: s.done }))
-    comments.value = ((d as any).comments || []).map((c: any) => ({ author: c.author, text: c.text, time: c.createdAt || '' }))
-    activity.value = ((d as any).activity || []).map((a: any) => ({ text: a.text, time: a.createdAt || '' }))
-    collabs.value = (d as any).collaborators || []
-    access.value = (d as any).access || 'owner'
-  } catch { toast.flash('加载任务详情失败'); emit('close') }
-  finally { loading.value = false }
-}
-watch(() => props.taskId, (id) => { if (id) load(id) }, { immediate: true })
-
-function logActivity(text: string) { activity.value = [{ text, time: '刚刚' }, ...activity.value] }
-function patchTask(patch: Record<string, unknown>) {
-  const ep = { ...patch }
-  if (typeof ep.title === 'string') ep.title = expandTimeTokens(ep.title)
-  if (typeof ep.notes === 'string') ep.notes = expandTimeTokens(ep.notes)
-  Object.assign(task, ep)
-  const body: Record<string, unknown> = {}
-  ;['title', 'notes', 'status', 'priority', 'assignee'].forEach((k) => { if (k in ep) body[k] = (ep as any)[k] })
-  if ('scope' in ep) body.privacyScope = ep.scope
-  if (Object.keys(body).length) api.updateTask(task.id!, body).catch(() => {})
-  props.afterChange()
-}
-function setStatus(s: TaskStatus) { patchTask({ status: s }); logActivity('状态改为「' + ({ todo: '待办', in_progress: '进行中', done: '已完成' } as Record<TaskStatus, string>)[s] + '」') }
-function assignTask(name: string) { patchTask({ assignee: name }); logActivity('指派给 ' + name); toast.flash('已指派给 ' + name) }
-function toggleSub(sid: string) { subs.value = subs.value.map((s) => s.id === sid ? { ...s, done: !s.done } : s); api.toggleSubtask(sid).catch(() => {}) }
-function addSub() { const v = subInput.value.trim(); if (!v) return; subInput.value = ''; api.addSubtask(task.id!, v).then((sub: any) => { subs.value = [...subs.value, { id: sub.id, text: sub.text, done: sub.done }]; logActivity('添加子任务：' + v) }).catch((e: any) => toast.flash('添加失败：' + e.message)) }
-function addComment() { const v = cmtInput.value.trim(); if (!v) return; cmtInput.value = ''; api.addComment(task.id!, v, myName.value).then((c: any) => { comments.value = [...comments.value, { author: c.author, text: c.text, time: c.createdAt || '刚刚' }]; logActivity('发表了评论') }).catch((e: any) => toast.flash('评论失败：' + e.message)) }
-function inviteMember(u: any, force = false) { api.inviteCollab(task.id!, u.id, force).then((r: any) => { toast.flash(r.reused ? (u.name + ' 已在协作名单里') : ('已邀请 ' + u.name + '（待接受）')); load(task.id!) }).catch((e: any) => { if (e && e.status === 409 && window.confirm(e.message || '个人任务，确认邀请？')) { inviteMember(u, true); return } toast.flash('邀请失败：' + e.message) }) }
-function inviteAll() { const cands = inviteCandidates.value; if (!cands.length) return; Promise.allSettled(cands.map((u) => api.inviteCollab(task.id!, (team.value.find((t) => t.name === u.name) || {}).id || ''))).then(() => { toast.flash('已向 ' + cands.length + ' 位成员发出邀请'); load(task.id!) }) }
-function moveOut() { if (!window.confirm('移出 todo？将保留来源与生成记录。')) return; api.taskMoveOut(task.id!).then(() => { toast.flash('已移出 todo · 保留来源与生成记录'); emit('close'); props.afterChange() }).catch((e: any) => toast.flash('移出失败：' + e.message)) }
-function leaveCollab() { if (!window.confirm('退出协作后，这个任务将从你的列表中移除。确定退出吗？')) return; api.leaveTask(task.id!).then(() => { toast.flash('已退出协作'); emit('close'); props.afterChange() }).catch((e: any) => toast.flash('操作失败：' + e.message)) }
-function close() { emit('close') }
+function close(): void { emit('close') }
+const {
+  loading, canEdit, task, tab, invitePickerOpen, subInput, cmtInput, subs, subDone, comments, activity,
+  detailMembers, dCollabs, dIsOwner, inviteCandidates, inviteAll, memberColor,
+  setStatus, patchTask, toggleSub, addSub, addComment, moveOut, leaveCollab,
+} = useTaskDetail(props, (m) => toast.flash(m), close)
 
 const seg = (on: boolean) => on ? 'background:var(--panel);color:var(--text);box-shadow:var(--shadow);' : 'background:transparent;color:var(--text2);'
 const segBtn = 'border:0;padding:6px 12px;border-radius:7px;font:600 12.5px/1 var(--font);cursor:pointer;'
@@ -147,7 +73,7 @@ const prioBtn = 'border:0;padding:6px 10px;border-radius:6px;font:700 11.5px/1 v
               <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text3)]">来源与 AI 生成记录</div>
               <div class="flex flex-col gap-[5px] rounded-xl bg-[var(--mid)] p-[13px_14px]"><div class="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text3)]"><i class="ph ph-quotes"></i>原始输入</div><div class="text-[13.5px] font-medium leading-relaxed text-[var(--text)]">{{ task.raw }}</div></div>
               <div class="flex flex-col gap-[9px] p-[2px]">
-                <div class="flex items-center gap-2 text-[12.5px] font-medium text-[var(--text2)]"><i class="ph ph-sparkle text-[var(--accent-ink)]"></i>AI 判断为<b class="text-[var(--accent-ink)]">任务</b><span class="text-[var(--text3)]">· 置信度 {{ task.conf || '—' }}</span></div>
+                <div class="flex items-center gap-2 text-[12.5px] font-medium text-[var(--text2)]"><i class="ph ph-sparkle text-[var(--accent-ink)]"></i>AI 判断为<b class="text-[var(--accent-ink)]">任务</b><span class="text-[var(--text3)]">· 置信度 {{ task.conf || '-' }}</span></div>
                 <div class="pl-6 text-[12.5px] font-medium leading-relaxed text-[var(--text2)]">{{ task.reason }}</div>
                 <div class="flex items-center gap-2 pl-6 text-[11.5px] font-medium text-[var(--text3)]"><i class="ph ph-clock"></i>生成于 {{ lxFmtDue(task.gen) }} · {{ task.edited ? '用户已修改过' : '未被修改' }}</div>
               </div>
