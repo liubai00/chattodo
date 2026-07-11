@@ -80,3 +80,9 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 button{transition:transform var(--duration-base) var(--ease-out),var(--transition-colors)}
 button:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}[data-hv]:active{transform:none}}
+/* P12: Vue <Transition> 命名（视图切换 fade / 批量栏 slide-down）。
+   时长/缓动复用 tokens.css 变量；reduced-motion 经上方 @media 把 transition-duration 压到 0.001ms。 */
+.lx-view-enter-active,.lx-view-leave-active{transition:opacity var(--duration-medium) var(--ease-in-out)}
+.lx-view-enter-from,.lx-view-leave-to{opacity:0}
+.lx-batch-enter-active,.lx-batch-leave-active{transition:opacity var(--duration-medium) var(--ease-in-out),transform var(--duration-medium) var(--ease-in-out)}
+.lx-batch-enter-from,.lx-batch-leave-to{opacity:0;transform:translateY(-6px)}
