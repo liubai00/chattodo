@@ -20,7 +20,7 @@ import { cn } from '@/shared/utils/cn'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
 import Card from '@/components/ui/card/Card.vue'
-import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import IconButton from '@/components/base/IconButton.vue'
 import { useRoutePrefetch } from '@/shared/composables/useRoutePrefetch'
 // P14：浮层/抽屉用 Vue 原生 CSS @keyframes（lx-drawer / lx-modal / lx-flyout / lx-toast）。

@@ -36,8 +36,15 @@ export function useRoutePrefetch() {
     loader().catch(() => { prefetched.delete(name) })
   }
 
+  function resolvePrefetchTarget(e: Event): HTMLElement | null {
+    // e.target may be document, text node, or SVG element — only Element has .closest()
+    const target = e.target
+    if (!(target instanceof Element)) return null
+    return target.closest('[data-nav-prefetch]') as HTMLElement | null
+  }
+
   function onNavEnter(e: Event) {
-    const el = (e.target as HTMLElement).closest('[data-nav-prefetch]') as HTMLElement | null
+    const el = resolvePrefetchTarget(e)
     if (!el) return
     const name = el.dataset.navPrefetch
     if (!name) return
@@ -46,7 +53,7 @@ export function useRoutePrefetch() {
   }
 
   function onNavLeave(e: Event) {
-    const el = (e.target as HTMLElement).closest('[data-nav-prefetch]') as HTMLElement | null
+    const el = resolvePrefetchTarget(e)
     if (!el) return
     if (_timer) { clearTimeout(_timer); _timer = null }
   }
