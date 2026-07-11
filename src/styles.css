@@ -65,7 +65,7 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 /* one-line "thinking" status: shimmering text, clamped to a single row */
 .lx-think{display:inline-block;max-width:min(420px,60vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:var(--font-medium) 12.5px/1.4 var(--font);background:linear-gradient(90deg,var(--text3) 32%,var(--accent-ink) 50%,var(--text3) 68%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--text3);animation:lx-shimmer 1.6s linear infinite}
 @keyframes lx-slide{0%{opacity:0;transform:translateX(48px)}100%{opacity:1;transform:none}}
-@keyframes lx-pop{0%{opacity:0;transform:translateY(14px) scale(.88);filter:blur(4px)}70%{opacity:1;transform:translateY(-2px) scale(1.02);filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
+@keyframes lx-pop{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes lx-spin{to{transform:rotate(360deg)}}
 .lx-spin{display:inline-block;animation:lx-spin .8s linear infinite}
 /* numeric/date/id/code runs — the Attio "feel" cue */

@@ -8,12 +8,12 @@ export const DURATION_FAST = 0.11 // 110ms：按钮 hover/点击
 export const DURATION_BASE = 0.16 // 160ms：微量位移
 export const DURATION_MEDIUM = 0.2 // 200ms：组件切换
 export const DURATION_SLOW = 0.3 // 300ms：区块入场
-export const DURATION_ROUTE = 0.28 // 280ms：路由淡入淡出
+export const DURATION_ROUTE = 0.3 // 300ms：路由淡入淡出（MD §5.1）
 
 // 运动幅度约束
-export const SHIFT_Y = 6 // 位移 ≤8px
-export const SCALE_PRESS = 0.97 // 按压
-export const SCALE_POP = 0.95 // 弹窗原点缩放
+export const SHIFT_Y = 4 // 位移 ≤4px（MD §4.1.4 translateY(-4px)）
+export const SCALE_PRESS = 0.97 // 按压（MD §4.1.2）
+export const SCALE_HOVER = 1.02 // hover 放大（MD §4.1.2）
 
 export function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches

@@ -258,7 +258,7 @@ const navItems = [
             <div>
               <h2 class="text-[14px] font-semibold text-[var(--text)]">Popover · Dropdown · Tooltip</h2>
               <p class="mt-0.5 text-[12px] text-[var(--text3)]">
-                目标：与 Select 同一套 scale+opacity 250ms · 无 slide-in-from-*
+                目标：与 Select 同一套 translateY(-4px)+opacity 200ms · 无 slide-in-from-*
               </p>
             </div>
             <span class="text-[11px] font-medium text-[var(--text3)]">Attio §三(二)2</span>
