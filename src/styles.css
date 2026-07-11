@@ -38,7 +38,7 @@ body{
 
   /* type / radius / shadow */
   --font:var(--font-sans);
-  --display:var(--font-sans);      /* Attio unifies on Inter — no serif display */
+  --display:var(--font-sans);      /* display unifies on the body stack - no serif display face */
   --mono:var(--font-mono);
   --r:var(--radius-lg);
   --r-sm:var(--radius-md);

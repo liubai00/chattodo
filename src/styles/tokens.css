@@ -79,10 +79,12 @@
   --cat-fallback: var(--gray-500);
 
   /* ---------- Typography ----------
-     Inter/JetBrains Mono first, then a CJK fallback (the app ships Chinese
-     copy — Latin webfonts carry no CJK glyphs), then system stacks. */
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans SC', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'Noto Sans SC', monospace;
+     Pure system font stack - zero CDN, zero webfont payload. system-ui leads so
+     each OS renders in its native UI face; CJK families cover the Chinese copy
+     on macOS/Windows/Android; emoji families sit last so emoji always resolve
+     in the system style. Mono mirrors the de-facto dev stack (Tailwind/shadcn). */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Noto Sans SC', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
   --text-xs:   12px;
   --text-sm:   13px;
