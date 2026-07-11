@@ -3,6 +3,9 @@
 // 泛型 T 让 modelValue 可收窄为字符串字面量联合（如 AgentSection），避免 string 回灌丢类型。
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/shared/utils/cn'
+import { useMotion } from '@/shared/composables/useMotion'
+
+const mot = useMotion()
 
 interface TabItem<T extends string> { id: T; label: string }
 const props = defineProps<{
@@ -19,7 +22,7 @@ const emit = defineEmits<{ 'update:modelValue': [id: T] }>()
       v-for="item in items"
       :key="item.id"
       @click="emit('update:modelValue', item.id)"
-      :class="cn('cursor-pointer rounded-[7px] border-0 px-[13px] py-[7px] text-[12.5px] leading-none',
+      :class="cn('cursor-pointer rounded-[7px] border-0 px-[13px] py-[7px] text-[12.5px] leading-none', mot.transitionColors,
         props.modelValue === item.id
           ? 'bg-[var(--panel)] font-semibold text-[var(--text)] shadow-[var(--shadow)]'
           : 'bg-transparent font-medium text-[var(--text2)]')"
