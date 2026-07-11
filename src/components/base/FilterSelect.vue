@@ -24,7 +24,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
   >
     <SelectTrigger
       :class="cn(
-        'h-[34px] min-w-[110px] gap-2 rounded-[9px] border-[var(--line2)] bg-[var(--panel)] px-[10px] text-[12.5px] font-semibold text-[var(--text2)] shadow-none',
+        'min-w-[110px]',
         props.class,
       )"
     >

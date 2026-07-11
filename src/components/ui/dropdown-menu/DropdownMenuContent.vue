@@ -25,7 +25,7 @@ const props = withDefaults(
       :hide-when-detached="props.hideWhenDetached"
       :loop="props.loop"
       :class="cn(
-        'lx-overlay z-50 min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+        'lx-overlay z-50 min-w-32 overflow-hidden rounded-[9px] border border-[var(--line2)] bg-[var(--elev)] p-1 text-popover-foreground shadow-md',
         props.class,
       )"
     >

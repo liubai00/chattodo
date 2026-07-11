@@ -26,7 +26,7 @@ const props = withDefaults(
       :sticky="props.sticky"
       :hide-when-detached="props.hideWhenDetached"
       :class="cn(
-        'lx-overlay relative z-50 max-h-96 min-w-32 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+        'lx-overlay relative z-50 max-h-96 min-w-32 overflow-hidden rounded-[9px] border border-[var(--line2)] bg-[var(--elev)] text-popover-foreground shadow-md',
         props.position === 'popper'
           && 'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1',
         props.class,

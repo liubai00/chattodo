@@ -1,23 +1,27 @@
 /* =========================================================================
-   Attio overlay + press 动效（§二 缓动/时长/幅度 · §五 统一物理缓动）
+   Attio overlay + press 动效（Ant Design 5 motion token，只抄动效不抄皮肤）
    -------------------------------------------------------------------------
-   所有 popover / select / dropdown 共用同一套 keyframe + utility class。
+   所有 popover / select / dropdown / tooltip 通过 data-state 挂钩自动触发。
    时长/缓动经 CSS 变量控制（tokens.css），reduced-motion 由 tokens.css 全局
    @media 门禁压停 —— 此处不重复检查。
+   =========================================================================
+   浮层入场：200ms easeOutQuint (cubic-bezier(0.23,1,0.32,1)), scale 0.8→1
+   浮层离场：200ms easeInQuint  (cubic-bezier(0.755,0.05,0.855,0.06)), scale 1→0.8
+   按压：    100ms ease-out, scale(0.97)
+   禁止：    slide-in-from-* / zoom-in-95(tw-animate) / 弹性 overshoot / ripple
    ========================================================================= */
 @layer utilities {
-  /* ---------- overlay in / out ---------- */
-  .lx-overlay-in {
-    animation: lx-overlay-in var(--duration-overlay, 250ms) var(--ease-in-out) both;
+  .lx-overlay[data-state="open"] {
+    animation: lx-overlay-in var(--duration-overlay, 200ms) var(--ease-overlay-in) both;
   }
-  .lx-overlay-out {
-    animation: lx-overlay-out var(--duration-overlay, 250ms) var(--ease-in-out) both;
+  .lx-overlay[data-state="closed"] {
+    animation: lx-overlay-out var(--duration-overlay, 200ms) var(--ease-overlay-out) both;
   }
 
   @keyframes lx-overlay-in {
     from {
       opacity: 0;
-      transform: scale(0.95);
+      transform: scale(0.8);
     }
     to {
       opacity: 1;
@@ -31,21 +35,12 @@
     }
     to {
       opacity: 0;
-      transform: scale(0.95);
+      transform: scale(0.8);
     }
   }
 
-  /* Applied to overlay panels – uses data-state from reka-ui Content */
-  .lx-overlay[data-state="open"] {
-    animation: lx-overlay-in var(--duration-overlay, 250ms) var(--ease-in-out) both;
-  }
-  .lx-overlay[data-state="closed"] {
-    animation: lx-overlay-out var(--duration-overlay, 250ms) var(--ease-in-out) both;
-  }
-
-  /* ---------- press ---------- */
   .lx-press {
-    transition: transform var(--duration-press, 120ms) var(--ease-in-out);
+    transition: transform var(--duration-press, 100ms) var(--ease-out);
   }
   .lx-press:active:not(:disabled) {
     transform: scale(0.97);

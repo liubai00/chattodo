@@ -133,12 +133,16 @@
   --duration-base:   160ms;
   --duration-medium: 200ms;
   --duration-slow:   300ms;
-  --duration-overlay: 250ms;
-  --duration-press:   120ms;
+  --duration-overlay: 200ms;
+  --duration-press:   100ms;
 
   --ease-in:     cubic-bezier(0.4, 0, 1, 1);
   --ease-in-out: cubic-bezier(0.7, 0, 0.39, 0.98);
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Ant Design 5 overlay easings（Attio Attio 缓存策略名） */
+  --ease-overlay-in:  cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-overlay-out: cubic-bezier(0.755, 0.05, 0.855, 0.06);
 
   /* named transitions — easing baked in so callers stay consistent */
   --transition-colors:    background-color var(--duration-medium) var(--ease-in-out),

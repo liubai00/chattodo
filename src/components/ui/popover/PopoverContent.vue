@@ -24,7 +24,7 @@ const props = withDefaults(
       :sticky="props.sticky"
       :hide-when-detached="props.hideWhenDetached"
       :class="cn(
-        'lx-overlay z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
+        'lx-overlay z-50 w-72 rounded-[9px] border border-[var(--line2)] bg-[var(--elev)] p-4 text-popover-foreground shadow-md outline-none',
         props.class,
       )"
     >
