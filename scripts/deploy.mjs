@@ -5,10 +5,10 @@
  *
  * 首次使用：
  *   1. 复制 .env.example 为 .env
- *   2. npm run deploy:setup-auth
+ *   2. npm run deploy:setup-ssh   （生成密钥 + 上传公钥，setup 阶段输入一次密码）
  *   3. npm run deploy
  *
- * 依赖：PuTTY (plink + pscp)，服务器需有 Node.js + nginx
+ * 依赖：OpenSSH 客户端 (ssh/scp)，服务器需有 Node.js + nginx
  */
 
 import { unlinkSync } from 'node:fs'
@@ -63,7 +63,7 @@ async function main() {
 
   log('UPLOAD', '上传到服务器…')
   try { await scp(DEPLOY_TAR, '/tmp/chattodo-deploy.tar.gz') }
-  catch { fail('上传失败，若未初始化凭证请运行 npm run deploy:setup-auth'); process.exit(1) }
+  catch { fail('上传失败，若未初始化密钥请运行 npm run deploy:setup-ssh'); process.exit(1) }
   ok('上传完成')
 
   log('REMOTE', '执行远程部署…')

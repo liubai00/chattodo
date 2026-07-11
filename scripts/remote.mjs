@@ -1,10 +1,25 @@
 import { spawn } from 'node:child_process'
-import { loadDeploySecret, resolveSecretPath } from './secrets.mjs'
+import { existsSync } from 'node:fs'
+import { resolve, isAbsolute } from 'node:path'
 
 const IS_WIN = process.platform === 'win32'
 
+export function resolveSshKeyPath(configPath, root) {
+  const p = configPath || '.ssh/chattodo_deploy'
+  return isAbsolute(p) ? p : resolve(root, p)
+}
+
+function sshCommonArgs(keyPath) {
+  return [
+    '-i', keyPath,
+    '-o', 'BatchMode=yes',
+    '-o', 'StrictHostKeyChecking=accept-new',
+    '-o', 'IdentitiesOnly=yes',
+  ]
+}
+
 function run(cmd, args, opts = {}) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolvePromise, reject) => {
     const { silent, cwd, shell } = opts
     const useShell = shell ?? (IS_WIN && cmd === 'npm')
     const child = spawn(cmd, args, {
@@ -21,7 +36,7 @@ function run(cmd, args, opts = {}) {
     }
 
     child.on('exit', code => {
-      if (code === 0) resolve(stdout.trim())
+      if (code === 0) resolvePromise(stdout.trim())
       else reject(new Error(`${cmd} exited ${code}${stderr ? `: ${stderr.trim()}` : ''}`))
     })
     child.on('error', reject)
@@ -29,18 +44,25 @@ function run(cmd, args, opts = {}) {
 }
 
 export function createRemoteClient(config, root) {
+  const keyPath = resolveSshKeyPath(config.DEPLOY_SSH_KEY, root)
+  if (!existsSync(keyPath)) {
+    throw new Error(
+      `SSH 私钥不存在: ${keyPath}\n请先运行: npm run deploy:setup-ssh`,
+    )
+  }
+
   const target = `${config.DEPLOY_USER}@${config.DEPLOY_HOST}`
-  const password = loadDeploySecret(resolveSecretPath(config.DEPLOY_SECRET_FILE))
+  const base = sshCommonArgs(keyPath)
 
   return {
     run(cmd, args, opts = {}) {
       return run(cmd, args, { cwd: opts.cwd ?? root, ...opts })
     },
     ssh(command, opts = {}) {
-      return run('plink', ['-pw', password, '-batch', target, command], opts)
+      return run('ssh', [...base, target, command], opts)
     },
-    scp(localFile, remotePath) {
-      return run('pscp', ['-pw', password, '-batch', localFile, `${target}:${remotePath}`])
+    scp(localFile, remotePath, opts = {}) {
+      return run('scp', [...base, localFile, `${target}:${remotePath}`], opts)
     },
   }
 }

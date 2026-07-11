@@ -23,7 +23,7 @@ export function loadDeployEnv() {
   const {
     DEPLOY_HOST,
     DEPLOY_USER = 'root',
-    DEPLOY_SECRET_FILE = '.deploy-secret',
+    DEPLOY_SSH_KEY = '.ssh/chattodo_deploy',
     DEPLOY_PORT = '9090',
     DEPLOY_API_PORT = '8787',
     DEPLOY_PROJECT_DIR = '/opt/chattodo',
@@ -38,7 +38,7 @@ export function loadDeployEnv() {
   return {
     DEPLOY_HOST,
     DEPLOY_USER,
-    DEPLOY_SECRET_FILE,
+    DEPLOY_SSH_KEY,
     DEPLOY_PORT,
     DEPLOY_API_PORT,
     DEPLOY_PROJECT_DIR,

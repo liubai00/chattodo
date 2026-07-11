@@ -18,7 +18,7 @@
     "prepare": "husky",
     "deploy": "node scripts/deploy.mjs",
     "deploy:nginx": "node scripts/nginx.mjs",
-    "deploy:setup-auth": "node scripts/setup-auth.mjs"
+    "deploy:setup-ssh": "node scripts/setup-ssh.mjs"
   },
   "lint-staged": {
     "*.{ts,vue}": "eslint --fix"

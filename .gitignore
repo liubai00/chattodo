@@ -12,9 +12,11 @@ yarn-error.log*
 # local archive (design bundle) - keep the extracted todo/ folder, not the zip
 /todo.zip
 
-# 部署凭证
+# 部署凭证（本地专用，勿提交 git）
 .env
+!.env.example
 .deploy-secret
+.ssh/
 
 # IDE / editor
 .idea/
