@@ -1,81 +1,18 @@
 <script setup lang="ts">
-// P3 第四个迁移视图：待澄清区。master-detail 自包含--挂载取 getState(todoIdeas filter clarifying)，
-// 本地持有 ideas + selId。workspace/privacy 经 prop 传入（用于 visible 过滤 + modeChip）。
-// 旧 App 中栏 clarify 列表块移除、aside 对 clarify 隐藏（main 内 2 列：列表 | 详情）。
-// convertIdea/discardIdea 乐观移除+失败回滚（与旧 App 一致）。toast 经 useToast。
-import { ref, computed, onMounted, watch } from 'vue'
-import { AppAPI } from '@/modules/app/api'
-import { ClarifyAPI } from '@/modules/clarify/api'
+// 待澄清区视图（组装层）：列表 | 详情 master-detail。数据/操作走 useClarify。
+import { useClarify, type ClarifyProps } from '@/modules/clarify/composables/useClarify'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/shared/utils/format'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
-import { useRoute } from 'vue-router'
-import { usePane } from '@/shared/composables/usePane'
-import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
-// 本视图跨 app/clarify 两域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
-const api = { ...AppAPI, ...ClarifyAPI }
 
-type Workspace = 'work' | 'personal'
-type Scope = Workspace | 'mixed'
-interface IdeaItem { id: string; title: string; raw: string; suggest: string; reason: string; scope: Scope; gen: string }
-
-const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
+const props = defineProps<ClarifyProps>()
 const toast = useToast()
-const route = useRoute()
 const { width: leftW, startResize } = usePane({ key: STORAGE_KEYS.PANE_CLARIFY, def: 280, max: 480 })
-const loading = ref(true)
-const ideas = ref<IdeaItem[]>([])
-const selId = ref<string | null>(null)
-
-function visible(scope: Scope): boolean {
-  return !props.privacy || scope === props.workspace || scope === 'mixed'
-}
-const visIdeas = computed(() => ideas.value.filter((i) => visible(i.scope)))
-const selIdea = computed(() => visIdeas.value.find((i) => i.id === selId.value) || visIdeas.value[0] || null)
-const modeLabel = computed(() => (props.workspace === 'work' ? '工作' : '个人') + (props.privacy ? ' · 隐私' : ''))
-const modeIcon = computed(() => (props.privacy ? 'ph-lock-simple' : 'ph-briefcase'))
-
-function mapIdea(i: any): IdeaItem {
-  return { id: i.id, title: i.title, raw: i.rawText, suggest: i.suggestedNextAction, reason: i.aiReason, scope: (i.privacyScope || 'work') as Scope, gen: i.createdAt || '' }
-}
-
-async function load() {
-  loading.value = true
-  try {
-    const st = await api.getState()
-    ideas.value = (((st as any).todoIdeas || []) as any[]).filter((i) => i.status === 'clarifying').map(mapIdea)
-    selId.value = typeof route.params.selId === 'string' ? route.params.selId : null
-  } catch {
-    toast.flash('加载待澄清区失败，请刷新重试')
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(load)
-
-function select(id: string) { selId.value = id }
-watch(() => route.params.selId, (sid) => { selId.value = typeof sid === 'string' ? sid : null })
-
-function convertIdea(id: string) {
-  const it = ideas.value.find((x) => x.id === id)
-  ideas.value = ideas.value.filter((x) => x.id !== id)
-  selId.value = null
-  api.ideaConvert(id).then(() => toast.flash('已转为正式任务 · 进入 Todo 数据库')).catch((e: any) => {
-    if (it) ideas.value = [it, ...ideas.value]
-    toast.flash('转换失败：' + e.message)
-  })
-}
-function discardIdea(id: string) {
-  const it = ideas.value.find((x) => x.id === id)
-  ideas.value = ideas.value.filter((x) => x.id !== id)
-  selId.value = null
-  api.ideaDiscard(id).then(() => toast.flash('已放弃该待澄清项')).catch((e: any) => {
-    if (it) ideas.value = [it, ...ideas.value]
-    toast.flash('操作失败：' + e.message)
-  })
-}
+const { loading, visIdeas, selIdea, selId, modeLabel, modeIcon, select, convertIdea, discardIdea } = useClarify(props, (m) => toast.flash(m))
 </script>
 
 <template>

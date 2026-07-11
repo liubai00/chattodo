@@ -1,107 +1,17 @@
 <script setup lang="ts">
-// P3 第五个迁移视图：非 todo 隔离区。master-detail 自包含，与 ClarifyView 同模式。
-// 挂载取 getState(nonTodoOutputs)，本地持有 nonTodos + selId。workspace/privacy 经 prop 传入
-// （visible 过滤 + modeChip）。5 动作：转 todo / 复制 / 导出 Markdown / 归档 / 删除
-// （归档与删除都走 nonDiscard，仅 toast 文案不同；与旧 App 一致）。toast 经 useToast。
-import { ref, computed, onMounted, watch } from 'vue'
-import { AppAPI } from '@/modules/app/api'
-import { NonTodoAPI } from '@/modules/nontodo/api'
+// 非 todo 隔离区视图（组装层）：列表 | 详情 master-detail。数据/操作走 useNonTodo。
+import { useNonTodo, type NonTodoProps } from '@/modules/nontodo/composables/useNonTodo'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue } from '@/shared/utils/format'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
-import { useRoute } from 'vue-router'
-import { usePane } from '@/shared/composables/usePane'
-import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
-// 本视图跨 app/nontodo 两域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
-const api = { ...AppAPI, ...NonTodoAPI }
 
-type Workspace = 'work' | 'personal'
-type Scope = Workspace | 'mixed'
-type Dest = 'copy' | 'export' | 'archive' | 'discard'
-interface NonItem { id: string; title: string; text: string; raw: string; reason: string; dest: Dest; scope: Scope; gen: string }
-
-const DEST_LABEL: Record<Dest, string> = { copy: '建议复制', export: '建议导出', archive: '建议归档', discard: '建议删除' }
-
-const props = defineProps<{ workspace: Workspace; privacy: boolean; isMobile?: boolean }>()
+const props = defineProps<NonTodoProps>()
 const toast = useToast()
-const route = useRoute()
 const { width: leftW, startResize } = usePane({ key: STORAGE_KEYS.PANE_NONTODO, def: 280, max: 480 })
-const loading = ref(true)
-const nonTodos = ref<NonItem[]>([])
-const selId = ref<string | null>(null)
-
-function visible(scope: Scope): boolean {
-  return !props.privacy || scope === props.workspace || scope === 'mixed'
-}
-const visNons = computed(() => nonTodos.value.filter((n) => visible(n.scope)))
-const selNon = computed(() => visNons.value.find((n) => n.id === selId.value) || visNons.value[0] || null)
-const modeLabel = computed(() => (props.workspace === 'work' ? '工作' : '个人') + (props.privacy ? ' · 隐私' : ''))
-const modeIcon = computed(() => (props.privacy ? 'ph-lock-simple' : 'ph-briefcase'))
-const cnDest = computed(() => (selNon.value ? DEST_LABEL[selNon.value.dest] || '建议归档' : ''))
-
-function mapNon(n: any): NonItem {
-  return { id: n.id, title: n.title, text: n.summary || n.rawText, raw: n.rawText, reason: n.reason, dest: (n.suggestedDestination || 'archive') as Dest, scope: (n.privacyScope || 'work') as Scope, gen: n.createdAt || '' }
-}
-
-async function load() {
-  loading.value = true
-  try {
-    const st = await api.getState()
-    nonTodos.value = (((st as any).nonTodoOutputs || []) as any[]).map(mapNon)
-    selId.value = typeof route.params.selId === 'string' ? route.params.selId : null
-  } catch {
-    toast.flash('加载隔离区失败，请刷新重试')
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(load)
-
-function select(id: string) { selId.value = id }
-watch(() => route.params.selId, (sid) => { selId.value = typeof sid === 'string' ? sid : null })
-
-function nonConvert(id: string) {
-  const n = nonTodos.value.find((x) => x.id === id)
-  nonTodos.value = nonTodos.value.filter((x) => x.id !== id)
-  selId.value = null
-  api.nonToTodo(id).then(() => toast.flash('已转为 todo · 进入 Todo 数据库')).catch((e: any) => {
-    if (n) nonTodos.value = [n, ...nonTodos.value]
-    toast.flash('转换失败：' + e.message)
-  })
-}
-function removeNon(id: string, msg: string) {
-  const n = nonTodos.value.find((x) => x.id === id)
-  nonTodos.value = nonTodos.value.filter((x) => x.id !== id)
-  selId.value = null
-  api.nonDiscard(id).then(() => toast.flash(msg)).catch((e: any) => {
-    if (n) nonTodos.value = [n, ...nonTodos.value]
-    toast.flash('操作失败：' + e.message)
-  })
-}
-function copyNon() {
-  const n = selNon.value
-  if (!n) return
-  const txt = n.raw || n.text || n.title
-  const done = () => toast.flash('已复制到剪贴板')
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(done).catch(() => toast.flash('复制失败'))
-  } else {
-    const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select()
-    try { document.execCommand('copy'); done() } catch { toast.flash('复制失败') }
-    ta.remove()
-  }
-}
-function exportNon() {
-  const n = selNon.value
-  if (!n) return
-  const md = '# ' + n.title + '\n\n' + (n.text || '') + '\n\n---\n原始输入：' + (n.raw || '') + '\n\nAI 判断：' + (n.reason || '') + '\n导出于 ' + new Date().toLocaleString()
-  const blob = new Blob([md], { type: 'text/markdown' })
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (n.title || 'non-todo').slice(0, 24) + '.md'
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-  toast.flash('已导出 Markdown')
-}
+const { loading, visNons, selNon, selId, modeLabel, modeIcon, cnDest, select, nonConvert, removeNon, copyNon, exportNon } = useNonTodo(props, (m) => toast.flash(m))
 </script>
 
 <template>
