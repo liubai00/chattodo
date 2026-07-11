@@ -1,46 +1,49 @@
 // P14: GSAP Draggable 看板拖拽替换 HTML5 drag。
-// 用法：在 DatabaseView onMounted 中调 initDraggable(boardEl)，onBeforeUnmount 调 destroyDraggable()。
+// 用法：在 DatabaseView 中 watch boardEl+dbLayout 调 initDraggable(boardEl)，onBeforeUnmount 调 destroyDraggable()。
 // 回调接回 useDatabaseBoard 的现有业务逻辑（patchTask + _moveInOrder + Flip）。
+//
+// 修复要点（2026-07-12）：
+//   1. 克隆浮层：按下时克隆卡到 document.body（position:fixed, z-index 高），原卡 opacity:0 占位。
+//      规避列 overflow:hidden 裁剪 + 卡片 position:static 致 z-index 失效 —— 否则拖动块被邻列覆盖。
+//   2. 单 Flip：释放后只复位原卡视觉，Flip 交由 useDatabaseBoard.flipBoard 统一处理，禁止双 Flip 打架
+//      （旧实现 onRelease 自带一次 Flip.from，与 flipBoard 的 Flip.from 冲突，导致列「歪掉」）。
+//   3. 释放重绑：跨列后 Vue 重建卡片节点（旧节点销毁、新节点无 Draggable），故 drop 完成后重新 init，
+//      否则拖到「进行中」后无法再拖动。
 import { ref, nextTick } from 'vue'
 import gsap from 'gsap'
-import { Flip } from 'gsap/Flip'
 import { Draggable } from 'gsap/Draggable'
 import {
-  DURATION_IMMEDIATE,
-  DURATION_FUNCTIONAL,
-  EASE_ENTRANCE,
-  EASE_EXIT,
   SCALE_DRAG_START,
   ROTATE_DRAG,
   prefersReducedMotion,
 } from '@/motion/easings'
 import type { TaskStatus } from '@/shared/enums/task-status'
 
-gsap.registerPlugin(Draggable, Flip)
+gsap.registerPlugin(Draggable)
 
 export interface KanbanDropCallbacks {
   /** 卡上 drop：dragId 移到 targetId 前，同列则只重排，跨列同时改 status */
   onDropOnCard: (dragId: string, targetId: string) => Promise<void>
   /** 列 drop：dragId 移到目标列（status）末尾 */
   onDropOnCol: (dragId: string, status: TaskStatus) => Promise<void>
-  /** 返回当前卡片 id→status 的映射，用于判断跨列 */
+  /** 返回当前卡片 id->status 的映射，用于判断跨列 */
   getCardStatus: (id: string) => TaskStatus | undefined
   /** 设置当前拖拽中的 card id（供 useDatabaseBoard.setDragId） */
   setDragId: (id: string | null) => void
+  /** 拖拽悬停列变化通知（供 useDatabaseBoard 高亮目标列；null 清除） */
+  onHoverCol?: (status: TaskStatus | null) => void
 }
 
-interface DraggableState {
-  instance: ReturnType<typeof Draggable.create>
-  flipState: ReturnType<typeof Flip.getState> | null
-}
+/** Draggable 回调里的 this 形态（仅取用到的字段）。 */
+type DragCtx = { x?: number; y?: number; pointerX?: number; pointerY?: number }
 
 export function useKanbanDraggable(callbacks: KanbanDropCallbacks) {
   const isDragging = ref(false)
-  const dragOverCol = ref<TaskStatus | null>(null)
 
-  let draggables: DraggableState[] = []
   let _boardEl: HTMLElement | null = null
   let _dragId: string | null = null
+  let _hoverCol: TaskStatus | null = null
+  let _clone: HTMLElement | null = null
   let _cleanupFns: Array<() => void> = []
 
   function getCards(root: HTMLElement): HTMLElement[] {
@@ -65,32 +68,48 @@ export function useKanbanDraggable(callbacks: KanbanDropCallbacks) {
           _dragId = id
           callbacks.setDragId(id)
           isDragging.value = true
-          // 记录 Flip 状态
-          const allCards = getCards(boardEl)
-          const state: DraggableState = draggables.find((d) => d.instance === this) || { instance: this as unknown as ReturnType<typeof Draggable.create>, flipState: null }
-          state.flipState = Flip.getState(allCards)
-          if (!draggables.includes(state)) draggables.push(state)
 
-          gsap.to(cardEl, {
-            scale: SCALE_DRAG_START,
-            rotate: ROTATE_DRAG,
-            zIndex: 1000,
-            duration: DURATION_IMMEDIATE,
-            ease: EASE_ENTRANCE,
+          // 克隆浮层：脱离列 overflow/堆叠限制，浮于所有列之上。
+          const rect = cardEl.getBoundingClientRect()
+          _clone = cardEl.cloneNode(true) as HTMLElement
+          _clone.removeAttribute('data-kanban-card')
+          _clone.removeAttribute('data-flip-id')
+          Object.assign(_clone.style, {
+            position: 'fixed',
+            left: rect.left + 'px',
+            top: rect.top + 'px',
+            width: rect.width + 'px',
+            height: rect.height + 'px',
+            margin: '0',
+            pointerEvents: 'none',
+            zIndex: '9999',
+            boxShadow: '0 14px 30px rgba(0,0,0,0.18)',
           })
+          document.body.appendChild(_clone)
+          gsap.set(_clone, { scale: SCALE_DRAG_START, rotate: ROTATE_DRAG, transformOrigin: 'center center' })
+
+          // 原卡隐形占位（保留布局供 Flip；transform 由 Draggable 驱动但不可见）。
+          gsap.set(cardEl, { opacity: 0 })
         },
         onDrag() {
-          // 检测悬停列
+          if (!_clone) return
+          const ctx = this as unknown as DragCtx
+          // 克隆跟随 Draggable 的 x/y（transform，cheap）。
+          gsap.set(_clone, { x: ctx.x || 0, y: ctx.y || 0 })
+
+          // 检测悬停列（指针位置）。
+          const px = ctx.pointerX || 0
+          const py = ctx.pointerY || 0
           const cols = Array.from(boardEl.querySelectorAll<HTMLElement>('[data-kanban-col]'))
           for (const col of cols) {
-            const rect = col.getBoundingClientRect()
-            const mx = (this as { pointerX?: number }).pointerX || 0
-            const my = (this as { pointerY?: number }).pointerY || 0
-            if (mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom) {
-              const colKey = col.dataset.kanbanCol as TaskStatus
-              if (colKey && dragOverCol.value !== colKey) {
-                dragOverCol.value = colKey
+            const r = col.getBoundingClientRect()
+            if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+              const k = col.dataset.kanbanCol as TaskStatus
+              if (k && _hoverCol !== k) {
+                _hoverCol = k
+                callbacks.onHoverCol?.(k)
               }
+              break
             }
           }
         },
@@ -100,88 +119,52 @@ export function useKanbanDraggable(callbacks: KanbanDropCallbacks) {
           _dragId = null
           callbacks.setDragId(null)
 
-          // 还原拖拽视觉
-          gsap.to(cardEl, {
-            scale: 1,
-            rotate: 0,
-            zIndex: 1,
-            duration: DURATION_IMMEDIATE,
-            ease: EASE_EXIT,
-          })
+          // 用克隆位置判定 drop 目标（用户实际释放点）。
+          const dropRect = _clone ? _clone.getBoundingClientRect() : cardEl.getBoundingClientRect()
+          const cx = dropRect.left + dropRect.width / 2
+          const cy = dropRect.top + dropRect.height / 2
 
-          if (!dragId) return
+          // 清理克隆 + 瞬间复位原卡视觉（Flip 由 flipBoard 接管，这里不动画、不做 Flip）。
+          if (_clone) { _clone.remove(); _clone = null }
+          gsap.set(cardEl, { opacity: 1, zIndex: 1, clearProps: 'transform' })
 
-          // 清除 Draggable 应用的 transform（复位到原始位置）
-          gsap.set(cardEl, { x: 0, y: 0 })
+          const targetCol = _hoverCol
+          _hoverCol = null
+          callbacks.onHoverCol?.(null)
 
-          // 判断 drop 目标
-          const targetCol = dragOverCol.value
-          dragOverCol.value = null
+          if (!dragId) { void rebind(); return }
 
-          // 找到最近的卡
+          // 找最近卡（用释放位置）。
           const allCards = getCards(boardEl)
-          const cardRect = cardEl.getBoundingClientRect()
-          const cardCenterX = cardRect.left + cardRect.width / 2
-          const cardCenterY = cardRect.top + cardRect.height / 2
-
           let nearestCardId: string | null = null
           let nearestDist = Infinity
           for (const other of allCards) {
             if (other === cardEl) continue
-            const otherRect = other.getBoundingClientRect()
-            const otherCenterX = otherRect.left + otherRect.width / 2
-            const otherCenterY = otherRect.top + otherRect.height / 2
-            const dist = Math.hypot(cardCenterX - otherCenterX, cardCenterY - otherCenterY)
-            if (dist < nearestDist && dist < 120) {
-              nearestDist = dist
+            const r = other.getBoundingClientRect()
+            const ox = r.left + r.width / 2
+            const oy = r.top + r.height / 2
+            const d = Math.hypot(cx - ox, cy - oy)
+            if (d < nearestDist && d < 120) {
+              nearestDist = d
               nearestCardId = other.dataset.kanbanCard || null
             }
           }
 
-          // 找到当前卡片所在 column
           const currentCol = callbacks.getCardStatus(dragId)
           const nearestCardStatus = nearestCardId ? callbacks.getCardStatus(nearestCardId) : undefined
 
-          // 重新收集 Flip 状态（reset transform 后）
-          const state = draggables.find((d) => d.instance === (Draggable.get(cardEl) as unknown as typeof d.instance))
-          const flipState = state?.flipState || null
-
-          // 执行业务逻辑
-          const runMutate = async () => {
-            if (targetCol && targetCol !== currentCol) {
-              // 跨列 drop
-              await callbacks.onDropOnCol(dragId, targetCol)
-            } else if (nearestCardId && nearestCardStatus !== undefined) {
-              // 卡上 drop（可能同列也可能跨列）
-              await callbacks.onDropOnCard(dragId, nearestCardId)
-            }
-          }
-
-          // 用 Flip 做过渡
           ;(async () => {
-            await runMutate()
-            if (flipState) {
-              await nextTick()
-              try {
-                Flip.from(flipState, {
-                  duration: DURATION_FUNCTIONAL,
-                  ease: EASE_ENTRANCE,
-                  absoluteOnLeave: true,
-                  onEnter: (elements: Element[]) => {
-                    const htmlElements = elements.filter((e): e is HTMLElement => e instanceof HTMLElement)
-                    gsap.to(htmlElements, {
-                      x: 0,
-                      y: 0,
-                      scale: 1,
-                      rotate: 0,
-                      duration: DURATION_FUNCTIONAL,
-                      ease: EASE_ENTRANCE,
-                    })
-                  },
-                })
-              } catch (e) {
-                console.error('[kanban draggable] flip.from:', e)
+            try {
+              if (targetCol && targetCol !== currentCol) {
+                await callbacks.onDropOnCol(dragId, targetCol)
+              } else if (nearestCardId && nearestCardStatus !== undefined) {
+                await callbacks.onDropOnCard(dragId, nearestCardId)
               }
+            } finally {
+              // drop 后 Vue 可能重建卡片节点（跨列时旧节点销毁、新节点无 Draggable）。
+              // onDropOn* 已等 Flip 完成（flipBoard 内部 await），故此处重绑不会捕获到动画中的 transform。
+              await nextTick()
+              rebind()
             }
           })()
         },
@@ -194,16 +177,21 @@ export function useKanbanDraggable(callbacks: KanbanDropCallbacks) {
     }
   }
 
+  /** drop 后 Vue 可能重建卡片节点，重新绑定 Draggable 到最新 DOM。 */
+  function rebind() {
+    if (_boardEl) initDraggable(_boardEl)
+  }
+
   function destroyDraggable() {
     _cleanupFns.forEach((fn) => fn())
     _cleanupFns = []
-    draggables = []
+    if (_clone) { _clone.remove(); _clone = null }
+    _hoverCol = null
     _boardEl = null
   }
 
   return {
     isDragging,
-    dragOverCol,
     initDraggable,
     destroyDraggable,
   }

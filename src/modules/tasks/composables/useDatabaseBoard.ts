@@ -152,6 +152,8 @@ export function useDatabaseBoard(props: DatabaseProps, notify: (m: string) => vo
 
   // GSAP FLIP：记录卡片旧位置 -> 改状态/顺序让 Vue 重排 -> Flip.from 平滑滑到新位置。
   // P13 Phase 1: 选择器从 div[draggable="true"] 改为 [data-kanban-card]（统一 GSAP Draggable 契约）。
+  // P14: await Flip.from 完成（onComplete）-- 让 useKanbanDraggable 的释放重绑在动画结束后执行，
+  // 避免重绑时 Draggable 捕获到动画中的 transform 致下次拖动跳位。
   async function flipBoard(mutate: () => void): Promise<void> {
     const { Flip } = await useFlip()
     const root = boardEl.value
@@ -160,12 +162,25 @@ export function useDatabaseBoard(props: DatabaseProps, notify: (m: string) => vo
     mutate()
     if (state && Flip) {
       await nextTick()
-      try { Flip.from(state, { duration: 0.35, ease: 'power3.out', absoluteOnLeave: true }) } catch (e) { console.error('[lx] flip.from:', e) }
+      await new Promise<void>((resolve) => {
+        try {
+          Flip.from(state, {
+            duration: 0.35,
+            ease: 'power3.out',
+            absoluteOnLeave: true,
+            onComplete: resolve,
+          })
+        } catch (e) {
+          console.error('[lx] flip.from:', e)
+          resolve()
+        }
+      })
     }
   }
 
   // P13 Phase 1: 拖拽回调公开导出（供 DatabaseView→useKanbanDraggable 接线）
   function setDragId(id: string | null): void { _dragId = id }
+  function setDragOverCol(status: TaskStatus | null): void { dragOverCol.value = status }
 
   async function handleDropOnCard(dragId: string, targetId: string): Promise<void> {
     const dragT = tasks.value.find((x) => x.id === dragId), tgtT = tasks.value.find((x) => x.id === targetId)
@@ -285,6 +300,6 @@ export function useDatabaseBoard(props: DatabaseProps, notify: (m: string) => vo
     allSelected, boardEl, DB_DEFS,
     toggleSort, selectAll, batchStatus, batchPriority, batchMoveOut, batchDelete, newCapture,
     // P13 Phase 1: 公开拖拽回调 + dragId 管理（供 useKanbanDraggable 接线）
-    handleDropOnCard, handleDropOnCol, setDragId,
+    handleDropOnCard, handleDropOnCol, setDragId, setDragOverCol,
   }
 }

@@ -33,7 +33,7 @@ const {
   counts, dbViewName, filteredTasks, boardCols, projectOptions, priorityOptions,
   allSelected, boardEl,
   toggleSort, selectAll, batchStatus, batchPriority, batchMoveOut, batchDelete, newCapture,
-  handleDropOnCard, handleDropOnCol, setDragId,
+  handleDropOnCard, handleDropOnCol, setDragId, setDragOverCol,
 } = board
 
 const layoutItems: { value: DbLayout; label: string; icon: string }[] = [
@@ -54,6 +54,7 @@ const kanban = useKanbanDraggable({
   onDropOnCard: async (dragId: string, targetId: string) => { await handleDropOnCard(dragId, targetId) },
   onDropOnCol: async (dragId: string, status: TaskStatus) => { await handleDropOnCol(dragId, status) },
   setDragId: (id: string | null) => { setDragId(id) },
+  onHoverCol: (status: TaskStatus | null) => { setDragOverCol(status) },
 })
 
 watch(
