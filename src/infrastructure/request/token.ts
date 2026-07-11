@@ -1,5 +1,5 @@
 // 认证令牌：localStorage 持久化 + 内存缓存。零业务语义。
-// 旧 api.ts 的 setToken/getToken 迁此；lib/api.ts 与 admin/ 均经本模块复用同一份令牌状态。
+// setToken/getToken 的单一来源；stores、admin/ 等均经本模块复用同一份令牌状态。
 export const TOKEN_KEY = 'lx_token'
 
 let TOKEN = ''
