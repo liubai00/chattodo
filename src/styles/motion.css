@@ -1,16 +1,22 @@
 /* =========================================================================
-   Attio overlay + press 动效（Ant Design 5 motion token，只抄动效不抄皮肤）
+   Attio/Notion 风格微交互动效工具类（MD §5.2 + §4 组件规范）
    -------------------------------------------------------------------------
-   所有 popover / select / dropdown / tooltip 通过 data-state 挂钩自动触发。
+   所有浮层通过 reka-ui data-state 挂钩自动触发；按钮/卡片通过工具类统一。
    时长/缓动经 CSS 变量控制（tokens.css），reduced-motion 由 tokens.css 全局
    @media 门禁压停 —— 此处不重复检查。
-   =========================================================================
-   浮层入场：200ms easeOutQuint (cubic-bezier(0.23,1,0.32,1)), scale 0.8→1
-   浮层离场：200ms easeInQuint  (cubic-bezier(0.755,0.05,0.855,0.06)), scale 1→0.8
-   按压：    100ms ease-out, scale(0.97)
-   禁止：    slide-in-from-* / zoom-in-95(tw-animate) / 弹性 overshoot / ripple
+
+   浮层入场：200ms ease-overlay-in, translateY(-4px) + opacity（MD §4.1.4）
+   浮层离场：200ms ease-overlay-out, reverse
+   Tooltip： 150ms ease-out/in, translateY(-2px) + opacity（MD §4.3.2）
+   按压：    120ms ease-entrance, scale(0.97)（MD §4.1.2）
+   按钮：    200ms ease-in-out, hover:scale(1.02) + active:scale(0.97)（MD §4.1.2）
+   卡片：    200ms ease-in-out, hover:translate-y(-4px) + shadow-md（MD §4.1.3）
+
+   禁止：scale overlay（Attio→Ant Design overlay 策略已废弃）、
+        tw-animate zoom-in-95 / slide-in-from-* / elastic overshoot / ripple
    ========================================================================= */
 @layer utilities {
+  /* ── Overlay 入场/离场（DropdownMenu / Select / Popover，MD §4.1.4+§4.2.3+§4.3.1）── */
   .lx-overlay[data-state="open"] {
     animation: lx-overlay-in var(--duration-overlay, 200ms) var(--ease-overlay-in) both;
   }
@@ -19,30 +25,60 @@
   }
 
   @keyframes lx-overlay-in {
-    from {
-      opacity: 0;
-      transform: scale(0.8);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
   @keyframes lx-overlay-out {
-    from {
-      opacity: 1;
-      transform: scale(1);
-    }
-    to {
-      opacity: 0;
-      transform: scale(0.8);
-    }
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-4px); }
   }
 
+  /* ── Tooltip（MD §4.3.2：150ms translateY(-2px) + opacity，比 overlay 更轻）── */
+  .lx-tooltip[data-state="delayed-open"],
+  .lx-tooltip[data-state="instant-open"] {
+    animation: lx-tooltip-in 150ms var(--ease-out) both;
+  }
+  .lx-tooltip[data-state="closed"] {
+    animation: lx-tooltip-out 150ms var(--ease-exit) both;
+  }
+
+  @keyframes lx-tooltip-in {
+    from { opacity: 0; transform: translateY(-2px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes lx-tooltip-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-2px); }
+  }
+
+  /* ── 按压反馈（Button / SelectItem / 可点击行，MD §4.1.2）── */
   .lx-press {
-    transition: transform var(--duration-press, 100ms) var(--ease-out);
+    transition: transform var(--duration-press, 120ms) var(--ease-entrance);
   }
   .lx-press:active:not(:disabled) {
     transform: scale(0.97);
+  }
+
+  /* ── Button 交互（MD §4.1.2：hover scale 1.02 + active scale 0.97，200ms ease-in-out）── */
+  .lx-btn-interact {
+    transition-duration: var(--duration-standard, 200ms);
+    transition-timing-function: var(--ease-neutral);
+    transition-property: color, background-color, border-color, transform;
+  }
+  .lx-btn-interact:hover:not(:disabled) {
+    transform: scale(1.02);
+  }
+  .lx-btn-interact:active:not(:disabled) {
+    transition-duration: var(--duration-immediate, 120ms);
+    transform: scale(0.97);
+  }
+
+  /* ── Card 交互（MD §4.1.3：hover 上浮 -4px + shadow-md，200ms）── */
+  .lx-card-interact {
+    transition: all var(--duration-standard, 200ms) var(--ease-neutral);
+  }
+  .lx-card-interact:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
   }
 }

@@ -28,9 +28,10 @@ const props = withDefaults(
       :class="cn(
         'lx-overlay relative z-50 max-h-96 min-w-32 overflow-hidden rounded-[9px] border border-[var(--line2)] bg-[var(--elev)] text-popover-foreground shadow-md',
         props.position === 'popper'
-          && 'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1',
+          && 'w-[var(--reka-select-trigger-width)]',
         props.class,
       )"
+      :style="props.position === 'popper' ? { transformOrigin: 'var(--reka-popper-transform-origin)' } : undefined"
     >
       <SelectViewport
         :class="cn(

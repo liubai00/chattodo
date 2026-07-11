@@ -27,20 +27,24 @@ tokens.css（原始：--surface-* / --border-* / --text-* / --accent / --radius-
 
 关键映射（见 `tailwind.css`）：`--color-primary=--accent`（紫）、`--color-border=--border-default`、`--color-ring=--accent`、`--color-popover=--surface-raised`、`--color-accent=--surface-hover`（Tailwind 的 `accent` 是 hover 浅底，**不**覆盖 Attio 紫色 `--accent`，两者各司其职）。
 
-## 3. 动效令牌
+## 3. 动效令牌（对齐 Attio/Notion MD §3）
 
 单一来源对齐三处：`tokens.css`（CSS 变量）、`@/motion/easings.ts`（GSAP 数值秒）、`@/shared/constants/motion.ts`（CSS 字符串 + re-export）。三处同值，禁止散落硬编码。
 
-| 令牌 | CSS 变量 | GSAP（秒） | 用途 |
-|------|----------|-----------|------|
-| duration-fast | `--duration-fast: 110ms` | `DURATION_FAST=0.11` | 按钮 hover/点击 |
-| duration-base | `--duration-base: 160ms` | `DURATION_BASE=0.16` | 微量位移 |
-| duration-medium | `--duration-medium: 200ms` | `DURATION_MEDIUM=0.2` | 组件/颜色切换 |
-| duration-slow | `--duration-slow: 300ms` | `DURATION_SLOW=0.3` | 区块入场 |
-| ease-out | `--ease-out: cubic-bezier(0.16,1,0.3,1)` | `EASE_OUT='power3.out'` | 入场（Attio 主缓动） |
-| ease-in-out | `--ease-in-out: cubic-bezier(0.7,0,0.39,0.98)` | `EASE_IN_OUT='power3.inOut'` | 切换/离场 |
+| 令牌 | CSS 变量 | 用途 |
+|------|----------|------|
+| duration-immediate | `--duration-immediate: 120ms` | tap / toggle / active 即时反馈 |
+| duration-standard | `--duration-standard: 200ms` | hover / dropdown / card 标准交互 |
+| duration-functional | `--duration-functional: 300ms` | page / notification / modal 功能过渡 |
+| delay-short | `--delay-short: 75ms` | 轻量延迟 |
+| delay-medium | `--delay-medium: 150ms` | 标准延迟（如 Tooltip） |
+| ease-neutral | `--ease-neutral: cubic-bezier(0.4,0,0.2,1)` | Notion 中性过渡 / hover+color |
+| ease-entrance | `--ease-entrance: cubic-bezier(0.4,0,1,1)` | Linear 入场 / active+overlay-in |
+| ease-exit | `--ease-exit: cubic-bezier(0.4,0,0.6,1)` | MD 标准离场 / overlay-out |
+| ease-overlay-in | `--ease-overlay-in: cubic-bezier(0.23,1,0.32,1)` | overlay 入场 easeOutQuint |
+| ease-overlay-out | `--ease-overlay-out: var(--ease-exit)` | overlay 离场（统一 MD exit） |
 
-> 计划文档中提到的「150ms / 200ms」为名义值；实际以 `tokens.css` 的 110/160/200/300 为准（`duration-fast ≈ 150`、`duration-normal = duration-medium = 200`）。
+> **向后兼容**：`--duration-fast/medium/slow` 等旧别名仍可用，内部改为 `var(--duration-immediate/standard/functional)` 引用，零破坏。
 
 ### 动效策略 C（已锁定）
 
@@ -104,6 +108,20 @@ P12 装好了 ShadCN 默认皮肤，Attio 级手感需 **ui 层定点改**，不
 | 执行清单 | `docs/primitive-polish-checklist.md` | 6+1 文件、Attio 条款映射、每步短 prompt、打勾验收 |
 
 推荐顺序：`motion.css` → `button` → `SelectContent` → `SelectItem/Trigger` → `Popover/Dropdown` → `Input` → `FilterSelect` 去壳 → `#/database` 整页。
+
+### 动效 utility class（lx-overlay / lx-tooltip / lx-press / lx-btn-interact / lx-card-interact）
+
+浮层（Select/Popover/DropdownMenu）统一用 `lx-overlay` class，Tooltip 用 `lx-tooltip`，按压反馈用 `lx-press`，按钮完整交互用 `lx-btn-interact`，卡片悬浮用 `lx-card-interact`。定义均位于 `src/styles/motion.css` 的 `@layer utilities`。
+
+| class | 触发 | 时长/缓动 | 动画 |
+|-------|------|----------|------|
+| `lx-overlay` | `data-state="open"` / `data-state="closed"` | 200ms overlay-in/out | translateY(-4px) + opacity（MD §4.1.4） |
+| `lx-tooltip` | `data-state="delayed-open"` / `data-state="closed"` | 150ms ease-out/ease-exit | translateY(-2px) + opacity（MD §4.3.2） |
+| `lx-press` | `:active:not(:disabled)` | 120ms ease-entrance | scale(0.97) |
+| `lx-btn-interact` | `:hover` / `:active` | 200ms ease-neutral / 120ms active | scale 1.02→0.97 + colors（MD §4.1.2） |
+| `lx-card-interact` | `:hover` | 200ms ease-neutral | translateY(-4px) + shadow-md（MD §4.1.3） |
+
+> **禁止**在 ui/base 层组件上使用 `tw-animate` 的 `zoom-in-95` / `slide-in-from-*` / `fade-in-*`，全部由上述 class 接管。transform-origin 走 reka-ui 提供的 `var(--reka-popper-transform-origin)`。Overlay 统一走 MD §4.1.4 的 `translateY(-4px) + opacity`，不使用 scale。
 
 ## 7. 暗色主题验收 checklist（P12-6 已验证）
 

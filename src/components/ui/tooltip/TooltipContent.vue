@@ -18,7 +18,7 @@ const props = withDefaults(
       :align-offset="props.alignOffset"
       :avoid-collisions="props.avoidCollisions"
       :class="cn(
-        'lx-overlay z-50 overflow-hidden rounded-[9px] px-2.5 py-1.5 text-xs font-medium shadow-md text-background bg-foreground',
+        'lx-tooltip z-50 overflow-hidden rounded-[9px] px-2.5 py-1.5 text-xs font-medium shadow-md text-background bg-foreground',
         props.class,
       )"
     >

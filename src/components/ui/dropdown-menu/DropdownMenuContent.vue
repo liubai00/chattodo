@@ -28,6 +28,7 @@ const props = withDefaults(
         'lx-overlay z-50 min-w-32 overflow-hidden rounded-[9px] border border-[var(--line2)] bg-[var(--elev)] p-1 text-popover-foreground shadow-md',
         props.class,
       )"
+      :style="{ transformOrigin: 'var(--reka-popper-transform-origin)' }"
     >
       <slot />
     </DropdownMenuContent>

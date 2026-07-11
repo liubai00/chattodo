@@ -10,7 +10,7 @@ const modelValue = defineModel<string | number>()
   <input
     v-model="modelValue"
     :class="cn(
-      'flex h-[34px] w-full rounded-[9px] border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-all duration-200 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+      'flex h-[34px] w-full rounded-[9px] border border-[var(--line2)] bg-[var(--panel)] px-3 py-1 text-sm shadow-none transition-[border-color,box-shadow] duration-200 ease-[var(--ease-neutral)] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50',
       props.class,
     )"
   />

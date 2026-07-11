@@ -12,7 +12,7 @@ const props = defineProps<SelectTriggerProps & { class?: HTMLAttributes['class']
     :as-child="props.asChild"
     :as="props.as"
     :class="cn(
-      'lx-press flex h-[34px] w-full items-center justify-between gap-2 whitespace-nowrap rounded-[9px] border border-[var(--line2)] bg-transparent px-[10px] text-[12.5px] font-semibold shadow-none ring-offset-background transition-colors duration-200 text-[var(--text2)] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 cursor-pointer',
+      'lx-press flex h-[34px] w-full items-center justify-between gap-2 whitespace-nowrap rounded-[9px] border border-[var(--line2)] bg-transparent px-[10px] text-[12.5px] font-semibold shadow-none ring-offset-background transition-[color,background-color,border-color,box-shadow] duration-200 ease-[var(--ease-neutral)] text-[var(--text2)] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 cursor-pointer',
       props.class,
     )"
   >

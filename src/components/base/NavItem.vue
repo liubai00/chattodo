@@ -29,7 +29,7 @@ const emit = defineEmits<{ click: [] }>()
     @keydown.enter.prevent="emit('click')"
     @keydown.space.prevent="emit('click')"
     :class="cn(
-      'flex cursor-pointer items-center rounded-[9px] outline-none',
+      'lx-press flex cursor-pointer items-center rounded-[9px] outline-none',
       mot.transitionColors,
       props.orientation === 'vertical'
         ? 'gap-[9px] px-[10px] py-[9px] text-[13px]'

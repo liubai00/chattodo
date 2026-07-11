@@ -27,6 +27,7 @@ const props = withDefaults(
         'lx-overlay z-50 w-72 rounded-[9px] border border-[var(--line2)] bg-[var(--elev)] p-4 text-popover-foreground shadow-md outline-none',
         props.class,
       )"
+      :style="{ transformOrigin: 'var(--reka-popper-transform-origin)' }"
     >
       <slot />
     </PopoverContent>
