@@ -25,6 +25,8 @@ export interface KanbanDropCallbacks {
   onDropOnCol: (dragId: string, status: TaskStatus) => Promise<void>
   /** 返回当前卡片 id→status 的映射，用于判断跨列 */
   getCardStatus: (id: string) => TaskStatus | undefined
+  /** 设置当前拖拽中的 card id（供 useDatabaseBoard.setDragId） */
+  setDragId: (id: string | null) => void
 }
 
 interface DraggableState {
@@ -61,6 +63,7 @@ export function useKanbanDraggable(callbacks: KanbanDropCallbacks) {
         bounds: boardEl,
         onPress() {
           _dragId = id
+          callbacks.setDragId(id)
           isDragging.value = true
           // 记录 Flip 状态
           const allCards = getCards(boardEl)
@@ -95,6 +98,7 @@ export function useKanbanDraggable(callbacks: KanbanDropCallbacks) {
           isDragging.value = false
           const dragId = _dragId
           _dragId = null
+          callbacks.setDragId(null)
 
           // 还原拖拽视觉
           gsap.to(cardEl, {

@@ -33,6 +33,7 @@ const {
   counts, dbViewName, filteredTasks, boardCols, projectOptions, priorityOptions,
   allSelected, boardEl,
   toggleSort, selectAll, batchStatus, batchPriority, batchMoveOut, batchDelete, newCapture,
+  handleDropOnCard, handleDropOnCol, setDragId,
 } = board
 
 const layoutItems: { value: DbLayout; label: string; icon: string }[] = [
@@ -40,36 +41,24 @@ const layoutItems: { value: DbLayout; label: string; icon: string }[] = [
   { value: 'board', label: '看板', icon: 'ph-kanban' },
 ]
 
-// P14: GSAP Draggable 看板拖拽 — 只在不 motion-reduced 和非移动端时初始化
+// P13 Phase 1: GSAP Draggable 回调接 useDatabaseBoard handleDropOnCard/Col + setDragId。
+// Flip 权限归 useDatabaseBoard（业务 mutate 走 handler），Draggable 只管抓起视觉——禁止双 Flip 打架。
 import { watch, onBeforeUnmount } from 'vue'
 import type { TaskStatus } from '@/shared/enums/task-status'
 
-// 暴露 patchTask 给 kanban 回调（useDatabaseBoard 返回的是内部 patchTask，
-// 但我们这里只能做简单的状态更新——完整逻辑仍在 useDatabaseBoard 内）
 const kanban = useKanbanDraggable({
   getCardStatus: (id: string): TaskStatus | undefined => {
-    const t = board.tasks.value.find((t) => t.id === id)
+    const t = tasks.value.find((t) => t.id === id)
     return t ? t.status : undefined
   },
-  onDropOnCard: async (_dragId: string, _targetId: string) => {
-    // P14 note: full kanban drop + Flip is handled by GSAP Draggable;
-    // business logic (patchTask + _moveInOrder) is triggered via the existing
-    // useDatabaseBoard internal _dropOnCard / _dropOnCol hooks which remain
-    // accessible through the BoardCol.onDrop closures on each column.
-  },
-  onDropOnCol: async (_dragId: string, _status: TaskStatus) => {
-    // Handled by BoardCol.onDrop which calls useDatabaseBoard._dropOnCol
-  },
+  onDropOnCard: async (dragId: string, targetId: string) => { await handleDropOnCard(dragId, targetId) },
+  onDropOnCol: async (dragId: string, status: TaskStatus) => { await handleDropOnCol(dragId, status) },
+  setDragId: (id: string | null) => { setDragId(id) },
 })
 
-// When boardEl changes (switching to kanban view), re-init Draggable
 watch(
-  () => [board.boardEl.value, board.dbLayout.value],
-  ([el, layout]) => {
-    if (el && layout === 'board') {
-      kanban.initDraggable(el as HTMLElement)
-    }
-  },
+  () => [boardEl.value, dbLayout.value],
+  ([el, layout]) => { if (el && layout === 'board') kanban.initDraggable(el as HTMLElement) },
 )
 onBeforeUnmount(() => kanban.destroyDraggable())
 </script>
