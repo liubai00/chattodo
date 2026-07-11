@@ -7,6 +7,7 @@ import { AuthAPI } from '@/modules/auth/api'
 import { AppAPI } from '@/modules/app/api'
 import { TasksAPI } from '@/modules/tasks/api'
 import { useFlip } from '@/motion'
+import { useViewCache } from '@/shared/composables/useViewCache'
 import { lxFmtDue } from '@/shared/utils/format'
 import { VIEW_FILTERS, SORT_COMPARATORS } from '@/modules/tasks/strategies'
 import {
@@ -235,6 +236,18 @@ export function useDatabaseBoard(props: DatabaseProps, notify: (m: string) => vo
   function newCapture(): void { router.push({ name: 'chat' }); setTimeout(() => { const c = document.getElementById('lx-composer'); if (c) c.focus() }, 80) }
 
   async function load(): Promise<void> {
+    const cache = useViewCache()
+    // H4: Skip full load if we have fresh cached data (30s TTL)
+    const cached = cache.get<{ tasks: TaskItem[]; myName: string; canEdit: boolean }>('db_board')
+    if (cached && cached.tasks.length > 0) {
+      tasks.value = cached.tasks
+      myName.value = cached.myName
+      canEdit.value = cached.canEdit
+      loading.value = false
+      // Stale-while-revalidate: refresh in background
+      refreshInBackground()
+      return
+    }
     loading.value = true
     try {
       const [me, st] = await Promise.all([AuthAPI.me(), AppAPI.getState()])
@@ -243,11 +256,25 @@ export function useDatabaseBoard(props: DatabaseProps, notify: (m: string) => vo
       const s = st as DbState
       tasks.value = (s.tasks || []).map(mapTask)
       try { const o = JSON.parse(localStorage.getItem('lx_task_order') || '[]'); if (Array.isArray(o)) taskOrder.value = o } catch { /* ignore */ }
+      // Cache result
+      cache.set('db_board', { tasks: tasks.value, myName: myName.value, canEdit: canEdit.value })
     } catch {
       notify('加载任务失败，请刷新重试')
     } finally {
       loading.value = false
     }
+  }
+  async function refreshInBackground(): Promise<void> {
+    try {
+      const [me, st] = await Promise.all([AuthAPI.me(), AppAPI.getState()])
+      const cache = useViewCache()
+      const s = st as DbState
+      const newTasks = (s.tasks || []).map(mapTask)
+      tasks.value = newTasks
+      myName.value = me.name || ''
+      canEdit.value = (me.role || 'member') !== 'viewer'
+      cache.set('db_board', { tasks: newTasks, myName: myName.value, canEdit: canEdit.value })
+    } catch { /* silent — stale data already shown */ }
   }
   onMounted(load)
 

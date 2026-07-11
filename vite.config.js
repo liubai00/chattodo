@@ -18,6 +18,18 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         admin: fileURLToPath(new URL('./admin/index.html', import.meta.url)),
       },
+      output: {
+        manualChunks(id) {
+          // H2: Split heavy vendor libs to reduce view-chunk duplication
+          if (id.includes('node_modules/reka-ui')) return 'vendor-reka'
+          if (id.includes('node_modules/@floating-ui')) return 'vendor-reka'
+          if (id.includes('node_modules/gsap')) return 'vendor-gsap'
+          // Split large views that share common dependencies
+          if (id.includes('src/views/DatabaseView') || id.includes('src/modules/tasks/composables/useDatabaseBoard')) return 'view-database'
+          if (id.includes('src/views/SettingsView')) return 'view-settings'
+          if (id.includes('src/views/ChatView') || id.includes('src/modules/chat/composables/useChat')) return 'view-chat'
+        },
+      },
     },
   },
   server: {

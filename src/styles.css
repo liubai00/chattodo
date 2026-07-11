@@ -91,8 +91,8 @@ button:active{transform:scale(.97)}
 @keyframes lx-route-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(-4px,0,0)}}
 @keyframes lx-route-in-fade{from{opacity:0}to{opacity:1}}
 @keyframes lx-route-out-fade{from{opacity:1}to{opacity:0}}
-#lx-root .lx-route-enter-active{animation:lx-route-in 350ms cubic-bezier(0.4,0,0.2,1) both;z-index:1}
-#lx-root .lx-route-leave-active{animation:lx-route-out 350ms cubic-bezier(0.4,0,0.6,1) both;z-index:0}
+#lx-root .lx-route-enter-active{animation:lx-route-in 250ms cubic-bezier(0.4,0,0.2,1) both;z-index:1}
+#lx-root .lx-route-leave-active{animation:lx-route-out 200ms cubic-bezier(0.4,0,0.6,1) both;z-index:0}
 @media (max-width:819px){
   #lx-root .lx-route-enter-active{animation-name:lx-route-in-fade}
   #lx-root .lx-route-leave-active{animation-name:lx-route-out-fade}
