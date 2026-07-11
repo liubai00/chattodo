@@ -6,6 +6,7 @@ import { ChatAPI } from '@/modules/chat/api'
 import { expandTimeTokens } from '@/shared/utils/timeTokens'
 import { isComposingEvent, shouldSendOnEnter } from '@/shared/utils/keyboard'
 import { scrollMsgs, focusComposer, errMsg, visible, mapTask, mapIdea, mapNon } from '@/modules/chat/utils'
+import { normalizeEntityKind, entityMsgMeta } from '@/modules/chat/entity-registry'
 import type {
   ChatCtx, RawMsg, PlanItem, Mention, MentionCandidate, MentionItem, PendingRef,
   ChatEntity, ChatPerformed, ChatPlanItem, RawTaskRow, RawIdeaRow, RawNonRow,
@@ -215,12 +216,14 @@ export function useChatSend(ctx: ChatCtx, loadConversations: () => void) {
       const newMsgs: RawMsg[] = []
       let tasks2 = tasks.value.slice(), ideas2 = ideas.value.slice(), nonTodos2 = nonTodos.value.slice(), feedArr = feed.value.slice()
       for (const it of entities) {
+        const kind = normalizeEntityKind(it.type)
         const reason = (it.result && it.result.reason) || reply || ''
-        if (it.type === 'task') {
+        const meta = entityMsgMeta(kind)
+        if (kind === 'task') {
           const nt = mapTask(it.entity as RawTaskRow); tasks2 = [nt, ...tasks2]
           feedArr = [{ id: nt.id, kind: 'task', title: nt.title, time: '刚刚', refId: nt.id }, ...feedArr]
-          newMsgs.push({ id: nextId(), role: 'ai', kind: 'task', title: nt.title, reason, chips: [{ i: 'ph-calendar-blank', t: '截止 ' + nt.due }, { i: 'ph-folder', t: nt.project }, { i: 'ph-flag', t: 'P' + nt.priority }], refId: nt.id })
-        } else if (it.type === 'todo_idea') {
+          newMsgs.push({ id: nextId(), role: 'ai', kind: 'task', title: nt.title, reason, chips: [{ i: 'ph-calendar-blank', t: '截止 ' + nt.due }, { i: 'ph-folder', t: nt.project }, { i: meta.chipIcon, t: meta.chipPrefix + nt.priority }], refId: nt.id })
+        } else if (kind === 'idea') {
           const ni = mapIdea(it.entity as RawIdeaRow); ideas2 = [ni, ...ideas2]
           feedArr = [{ id: ni.id, kind: 'idea', title: ni.title, time: '刚刚', refId: ni.id }, ...feedArr]
           newMsgs.push({ id: nextId(), role: 'ai', kind: 'idea', title: ni.title, reason: ni.reason || reason, suggest: ni.suggest, refId: ni.id })

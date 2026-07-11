@@ -1,46 +1,34 @@
-// 聊天 feed + 今日待办胶囊子 composable。
-// feed：收集箱列表（搜索过滤 + 点击跳实体）；today：胶囊徽标 + 下拉加载今日待办。
+// P13 Phase 2: openEntity + feedMeta 改调 entity-registry。
 import { ref, computed } from 'vue'
 import { TasksAPI } from '@/modules/tasks/api'
 import { lxFmtDue } from '@/shared/utils/format'
 import { errMsg } from '@/modules/chat/utils'
+import { openEntity as openEntityReg, feedMeta, normalizeEntityKind } from '@/modules/chat/entity-registry'
 import type { ChatCtx, FeedListItem, TodayListItem, TodayRow } from '@/modules/chat/types'
-
-const FEED_LABEL: Record<string, string> = { task: '任务', idea: '待澄清', nono: '非 todo' }
-const FEED_DOT: Record<string, string> = { task: 'var(--accent)', idea: 'var(--idea)', nono: 'var(--text3)' }
 
 // listTasks 真实可能返回数组或 { tasks: [] }，按运行时形状收窄。
 type ListTasksResp = TodayRow[] | { tasks?: TodayRow[] }
 
 export function useChatFeed(ctx: ChatCtx) {
-  const { props, notify, feed, tasks, ideas, nonTodos } = ctx
+  const { props, feed, tasks } = ctx
 
   const feedQuery = ref('')
-
-  function openEntity(kind: string, id: string): void {
-    if (kind === 'task') {
-      if (tasks.value.some((t) => t.id === id)) props.openTask(id)
-      else notify('该任务已被删除或移出')
-    } else if (kind === 'idea') {
-      if (ideas.value.some((i) => i.id === id)) props.openIdea(id)
-      else notify('该想法已被处理')
-    } else {
-      if (nonTodos.value.some((n) => n.id === id)) props.openNon(id)
-      else notify('该记录已被处理')
-    }
-  }
 
   const feedList = computed<FeedListItem[]>(() => {
     const q = feedQuery.value.toLowerCase()
     return feed.value
       .filter((f) => !q || f.title.toLowerCase().includes(q))
-      .map((f) => ({
-        ...f,
-        label: FEED_LABEL[f.kind] || '',
-        dot: FEED_DOT[f.kind] || 'var(--text3)',
-        textColor: f.kind === 'nono' ? 'var(--text2)' : 'var(--text)',
-        open: () => openEntity(f.kind, f.refId),
-      }))
+      .map((f) => {
+        const kind = normalizeEntityKind(f.kind)
+        const meta = feedMeta(kind)
+        return {
+          ...f,
+          label: meta.label,
+          dot: meta.dot,
+          textColor: f.kind === 'nono' ? 'var(--text2)' : 'var(--text)',
+          open: () => openEntityReg(props, kind, f.refId),
+        }
+      })
   })
   const feedCount = computed(() => feed.value.length)
   const feedEmpty = computed(() => feed.value.length === 0)
