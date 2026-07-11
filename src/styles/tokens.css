@@ -263,4 +263,37 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+  /* P14 路由：降级为极短 opacity 淡入淡出（保留位移关闭） */
+  #lx-root .lx-route-enter-active,
+  #lx-root .lx-route-leave-active {
+    animation-duration: 150ms !important;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  #lx-root .lx-route-enter-active { animation-name: lx-route-in-fade !important; }
+  #lx-root .lx-route-leave-active { animation-name: lx-route-out-fade !important; }
+  #lx-root .lx-drawer-enter-active .lx-drawer-panel,
+  #lx-root .lx-drawer-leave-active .lx-drawer-panel,
+  #lx-root .lx-modal-enter-active .lx-modal-panel,
+  #lx-root .lx-modal-leave-active .lx-modal-panel,
+  #lx-root .lx-flyout-enter-active,
+  #lx-root .lx-flyout-leave-active,
+  #lx-root .lx-toast-enter-active,
+  #lx-root .lx-toast-leave-active {
+    animation-duration: 150ms !important;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  #lx-root .lx-drawer-enter-active .lx-drawer-panel { animation-name: lx-route-in-fade !important; transform: none !important; }
+  #lx-root .lx-drawer-leave-active .lx-drawer-panel { animation-name: lx-route-out-fade !important; transform: none !important; }
+  #lx-root .lx-modal-enter-active .lx-modal-panel { animation-name: lx-route-in-fade !important; transform: none !important; }
+  #lx-root .lx-modal-leave-active .lx-modal-panel { animation-name: lx-route-out-fade !important; transform: none !important; }
+  #lx-root .lx-flyout-enter-active { animation-name: lx-route-in-fade !important; transform: none !important; }
+  #lx-root .lx-flyout-leave-active { animation-name: lx-route-out-fade !important; transform: none !important; }
+  #lx-root .lx-toast-enter-active { animation-name: lx-route-in-fade !important; transform: translate3d(-50%, 0, 0) !important; }
+  #lx-root .lx-toast-leave-active { animation-name: lx-route-out-fade !important; transform: translate3d(-50%, 0, 0) !important; }
+  #lx-root .lx-drawer-enter-active .lx-drawer-scrim,
+  #lx-root .lx-drawer-leave-active .lx-drawer-scrim,
+  #lx-root .lx-modal-enter-active,
+  #lx-root .lx-modal-leave-active {
+    animation-duration: 150ms !important;
+  }
 }

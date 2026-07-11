@@ -22,8 +22,7 @@ import Input from '@/components/ui/input/Input.vue'
 import Card from '@/components/ui/card/Card.vue'
 import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import IconButton from '@/components/base/IconButton.vue'
-// P14：路由滑入切换用 Vue 原生 CSS 过渡（name="lx-route"，见 styles.css）；浮层仍用 GSAP 钩子。
-import { onOverlayRightEnter, onOverlayCenterEnter, onOverlayLeave } from '@/motion'
+// P14：浮层/抽屉用 Vue 原生 CSS @keyframes（lx-drawer / lx-modal / lx-flyout / lx-toast）。
 // AppShell 跨 tasks/friends/app 三域：显式合并所需域 API（保持 api.xxx 调用语法，import 来自 modules）。
 const api = { ...TasksAPI, ...FriendsAPI, ...AppAPI }
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
@@ -268,19 +267,37 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <IconButton :icon="ui.theme==='dark'?'ph-sun':'ph-moon'" label="主题" variant="ghost" size="sm" @click="ui.toggleTheme()" />
         <IconButton icon="ph-sign-out" label="登出" variant="ghost" size="sm" @click="logout" />
       </div>
-      <div class="relative min-w-0 flex-1">
-        <Transition name="lx-route" mode="out-in">
-          <component
+      <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+        <!-- 同步 wrapper 承接 lx-route 类名；异步视图在内部加载，enter 不再抢跑 -->
+        <Transition
+          name="lx-route"
+          mode="out-in"
+          :duration="{ enter: 350, leave: 350 }"
+        >
+          <div
             v-if="currentView"
-            :is="currentView"
             :key="String(view)"
-            v-bind="viewProps"
-          />
-          <div v-else class="flex flex-1 items-center justify-center text-[var(--text3)]">未知视图</div>
+            class="lx-route-view h-full w-full min-h-0"
+          >
+            <component :is="currentView" v-bind="viewProps" />
+          </div>
+          <div
+            v-else
+            :key="'unknown'"
+            class="lx-route-view flex h-full w-full items-center justify-center text-[var(--text3)]"
+          >未知视图</div>
         </Transition>
 
-        <!-- 任务详情浮层 -->
-        <TaskDetailView v-if="ui.detailId" :taskId="ui.detailId" :afterChange="afterSend" @close="ui.closeDetail()" />
+        <!-- 任务详情抽屉（P14: lx-drawer 右侧滑入 + scrim 淡入） -->
+        <Transition name="lx-drawer" :duration="{ enter: 350, leave: 250 }">
+          <TaskDetailView
+            v-if="ui.detailId"
+            :key="ui.detailId"
+            :taskId="ui.detailId"
+            :afterChange="afterSend"
+            @close="ui.closeDetail()"
+          />
+        </Transition>
       </div>
 
       <!-- 移动端底栏 -->
@@ -288,63 +305,86 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <a v-for="n in NAV" :key="n[0]" @click="go(n[0])" :title="n[1]" :class="cn('flex flex-col items-center gap-0.5 px-1 py-1 cursor-pointer', view === n[0] ? 'text-[var(--accent-ink)]' : 'text-[var(--text3)]')"><i :class="['ph', n[2]]" class="text-[18px]"></i><span class="text-[9px] font-medium">{{ n[1].slice(0,2) }}</span></a>
       </nav>
 
-      <!-- 通知面板（P14: GSAP 右上 x+20px→0 + opacity 350ms） -->
-      <template v-if="ui.notifOpen">
-        <div @click="ui.closeNotif()" class="fixed inset-0 z-40"></div>
-        <Transition :css="false" @enter="onOverlayRightEnter" @leave="onOverlayLeave">
-          <div v-if="ui.notifOpen" class="fixed bottom-4 z-[41] w-[340px] max-w-[80vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]" style="left:74px;box-shadow:var(--shadow-md);">
-            <!-- content unchanged -->
-            <div class="flex items-center gap-2 border-b border-[var(--line)] px-4 py-[14px]"><i class="ph ph-bell text-[var(--accent-ink)]"></i><span class="text-sm font-semibold text-[var(--text)]" style="font-family:var(--display);">通知</span><div class="flex-1"></div><button @click="ui.markAllRead()" class="text-[11.5px] font-semibold text-[var(--accent-ink)]" style="border:0;background:transparent;cursor:pointer;">全部已读</button></div>
-            <div class="max-h-[360px] overflow-auto">
-              <div v-for="(n, i) in notifList" :key="i" class="flex gap-[11px] border-b border-[var(--line)] px-4 py-3"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-relaxed text-[var(--text)]">{{ n.text }}</div><div class="mt-[3px] text-[11px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ n.time }}</span></div><template v-if="n.isInvite && !n.wasInvite"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptInvite(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受并提醒我</button><button @click="followInvite(n.actionRef)" title="不进我的任务库，只接收进展通知" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">仅关注</button><button @click="declineInvite(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq && !n.wasFriendReq"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptFriend(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受好友</button><button @click="declineFriend(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div>
-              <div v-if="notifList.length === 0" class="flex flex-col items-center gap-2 px-4 py-[30px] text-center text-[var(--text3)]"><i class="ph ph-bell-slash text-[22px]"></i><div class="text-xs font-medium">暂无通知</div></div>
+      <!-- 通知面板（P14: lx-flyout 右上 x+20px 350ms） -->
+      <Transition name="lx-flyout" :duration="{ enter: 350, leave: 250 }">
+        <div
+          v-if="ui.notifOpen"
+          key="notif"
+          class="fixed bottom-4 z-[41] w-[340px] max-w-[80vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]"
+          style="left:74px;box-shadow:var(--shadow-md);"
+        >
+          <div @click="ui.closeNotif()" class="fixed inset-0 z-[-1]"></div>
+          <div class="flex items-center gap-2 border-b border-[var(--line)] px-4 py-[14px]"><i class="ph ph-bell text-[var(--accent-ink)]"></i><span class="text-sm font-semibold text-[var(--text)]" style="font-family:var(--display);">通知</span><div class="flex-1"></div><button @click="ui.markAllRead()" class="text-[11.5px] font-semibold text-[var(--accent-ink)]" style="border:0;background:transparent;cursor:pointer;">全部已读</button></div>
+          <div class="max-h-[360px] overflow-auto">
+            <div v-for="(n, i) in notifList" :key="i" class="flex gap-[11px] border-b border-[var(--line)] px-4 py-3"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-relaxed text-[var(--text)]">{{ n.text }}</div><div class="mt-[3px] text-[11px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ n.time }}</span></div><template v-if="n.isInvite && !n.wasInvite"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptInvite(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受并提醒我</button><button @click="followInvite(n.actionRef)" title="不进我的任务库，只接收进展通知" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">仅关注</button><button @click="declineInvite(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq && !n.wasFriendReq"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptFriend(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受好友</button><button @click="declineFriend(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div>
+            <div v-if="notifList.length === 0" class="flex flex-col items-center gap-2 px-4 py-[30px] text-center text-[var(--text3)]"><i class="ph ph-bell-slash text-[22px]"></i><div class="text-xs font-medium">暂无通知</div></div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- 搜索面板 ⌘K（P14: lx-modal 中心 scale 0.98→1 350ms + scrim） -->
+      <Transition name="lx-modal" :duration="{ enter: 350, leave: 250 }">
+        <div
+          v-if="ui.searchOpen"
+          key="search"
+          class="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]"
+          style="background:var(--overlay-scrim);"
+          @click="ui.closeSearch()"
+          @keydown.esc.prevent.stop="ui.closeSearch()"
+        >
+          <div
+            class="lx-modal-panel w-[560px] max-w-[90vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]"
+            style="box-shadow:var(--shadow-md);"
+            @click.stop
+          >
+            <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input ref="searchInput" :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
+            <div class="max-h-[52vh] overflow-auto p-[6px_0]">
+              <template v-for="(g, gi) in paletteGroups" :key="gi">
+                <div class="px-[18px] pb-[5px] pt-[9px] text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--text3)]">{{ g.name }}</div>
+                <template v-for="(it, ii) in g.items" :key="ii"><a @click="it.run" class="flex cursor-pointer items-center gap-[11px] px-[18px] py-[10px]" :style="`background:${flatIndex(gi,ii)===ui.paletteIndex?'var(--mid)':'transparent'};`" data-hv="0"><i :class="`ph ${it.icon}`" class="text-[17px] text-[var(--accent-ink)]"></i><span class="flex-1 truncate text-[13.5px] font-semibold text-[var(--text)]">{{ it.label }}</span></a></template>
+              </template>
+              <div v-if="paletteGroups.length === 0" class="px-[18px] py-6 text-center text-[13px] font-medium text-[var(--text3)]">没有匹配的结果</div>
+            </div>
+            <div class="flex gap-[14px] border-t border-[var(--line)] px-[18px] py-[10px] text-[11px] font-medium text-[var(--text3)]"><span>↑↓ 选择</span><span>↵ 执行</span><span>esc 关闭</span></div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- 快捷键 modal（P14: lx-modal 中心 scale 0.98→1 350ms + scrim） -->
+      <Transition name="lx-modal" :duration="{ enter: 350, leave: 250 }">
+        <div
+          v-if="ui.shortcutsOpen"
+          key="shortcuts"
+          class="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style="background:var(--overlay-scrim);"
+          @click="ui.closeShortcuts()"
+          @keydown.esc.prevent.stop="ui.closeShortcuts()"
+        >
+          <div
+            class="lx-modal-panel w-[430px] max-w-[92vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]"
+            style="box-shadow:var(--shadow-md);"
+            @click.stop
+          >
+            <div class="flex items-center gap-2.5 border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-keyboard text-[19px] text-[var(--accent-ink)]"></i><span class="text-[15px] font-semibold text-[var(--text)]" style="font-family:var(--display);">键盘快捷键</span></div>
+            <div class="px-[18px] py-[14px]">
+              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">命令面板</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">⌘K&nbsp;/&nbsp;/</span></div>
+              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">新建捕获</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">N</span></div>
+              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">跳转 · 聊天/数据库/项目/设置</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">G 然后 C/D/P/S</span></div>
+              <div class="flex items-center gap-3 py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">显示 / 关闭本表</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">?</span></div>
             </div>
           </div>
-        </Transition>
-      </template>
-
-      <!-- 搜索面板 ⌘K（P14: 中心 scale 0.98→1 opacity 350ms） -->
-      <template v-if="ui.searchOpen">
-        <div @click="ui.closeSearch()" @keydown.esc.prevent.stop="ui.closeSearch()" class="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" style="background:var(--overlay-scrim);">
-          <Transition :css="false" @enter="onOverlayCenterEnter" @leave="onOverlayLeave">
-            <div v-if="ui.searchOpen" @click.stop class="w-[560px] max-w-[90vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]" style="box-shadow:var(--shadow-md);">
-              <!-- content unchanged -->
-              <div class="flex items-center gap-[11px] border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-magnifying-glass text-[19px] text-[var(--text3)]"></i><input ref="searchInput" :value="ui.searchQuery" @input="ui.searchQuery = ($event.target as HTMLInputElement).value; ui.paletteIndex = 0" @keydown="paletteKey" placeholder="搜索任务、待澄清、非 todo、项目…" class="flex-1 border-0 bg-transparent text-[15px] font-medium text-[var(--text)]" /><span class="rounded-md border border-[var(--line2)] px-[6px] py-[3px] text-[10.5px] font-semibold text-[var(--text3)]">Esc</span></div>
-              <div class="max-h-[52vh] overflow-auto p-[6px_0]">
-                <template v-for="(g, gi) in paletteGroups" :key="gi">
-                  <div class="px-[18px] pb-[5px] pt-[9px] text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--text3)]">{{ g.name }}</div>
-                  <template v-for="(it, ii) in g.items" :key="ii"><a @click="it.run" class="flex cursor-pointer items-center gap-[11px] px-[18px] py-[10px]" :style="`background:${flatIndex(gi,ii)===ui.paletteIndex?'var(--mid)':'transparent'};`" data-hv="0"><i :class="`ph ${it.icon}`" class="text-[17px] text-[var(--accent-ink)]"></i><span class="flex-1 truncate text-[13.5px] font-semibold text-[var(--text)]">{{ it.label }}</span></a></template>
-                </template>
-                <div v-if="paletteGroups.length === 0" class="px-[18px] py-6 text-center text-[13px] font-medium text-[var(--text3)]">没有匹配的结果</div>
-              </div>
-              <div class="flex gap-[14px] border-t border-[var(--line)] px-[18px] py-[10px] text-[11px] font-medium text-[var(--text3)]"><span>↑↓ 选择</span><span>↵ 执行</span><span>esc 关闭</span></div>
-            </div>
-          </Transition>
         </div>
-      </template>
-
-      <!-- 快捷键 modal（P14: 中心 scale 0.98→1 opacity 350ms） -->
-      <template v-if="ui.shortcutsOpen">
-        <div @click="ui.closeShortcuts()" @keydown.esc.prevent.stop="ui.closeShortcuts()" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:var(--overlay-scrim);">
-          <Transition :css="false" @enter="onOverlayCenterEnter" @leave="onOverlayLeave">
-            <div v-if="ui.shortcutsOpen" @click.stop class="w-[430px] max-w-[92vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]" style="box-shadow:var(--shadow-md);">
-              <!-- content unchanged -->
-              <div class="flex items-center gap-2.5 border-b border-[var(--line)] px-[18px] py-[15px]"><i class="ph ph-keyboard text-[19px] text-[var(--accent-ink)]"></i><span class="text-[15px] font-semibold text-[var(--text)]" style="font-family:var(--display);">键盘快捷键</span></div>
-              <div class="px-[18px] py-[14px]">
-                <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">命令面板</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">⌘K&nbsp;/&nbsp;/</span></div>
-                <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">新建捕获</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">N</span></div>
-                <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">跳转 · 聊天/数据库/项目/设置</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">G 然后 C/D/P/S</span></div>
-                <div class="flex items-center gap-3 py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">显示 / 关闭本表</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">?</span></div>
-              </div>
-            </div>
-          </Transition>
-        </div>
-      </template>
+      </Transition>
     </template>
 
-    <!-- toast（全局，读 useToast store，P14: x+20px enter 350ms / leave x+20px 250ms） -->
-    <Transition :css="false" @enter="onOverlayRightEnter" @leave="onOverlayLeave">
-      <div v-if="toast.msg" style="position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;background:var(--text);color:var(--bg);padding:11px 18px;border-radius:12px;font:600 13px/1 var(--font);box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;"><i class="ph ph-check-circle"></i>{{ toast.msg }}</div>
+    <!-- toast（P14: lx-toast x+20px enter 350ms / leave 250ms） -->
+    <Transition name="lx-toast" :duration="{ enter: 350, leave: 250 }">
+      <div
+        v-if="toast.msg"
+        key="toast"
+        class="lx-toast-host"
+        style="position:fixed;left:50%;bottom:22px;z-index:9999;background:var(--text);color:var(--bg);padding:11px 18px;border-radius:12px;font:600 13px/1 var(--font);box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;"
+      ><i class="ph ph-check-circle"></i>{{ toast.msg }}</div>
     </Transition>
   </div>
 </template>
