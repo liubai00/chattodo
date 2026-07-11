@@ -10,8 +10,8 @@ import { useUiStore } from '@/stores/ui'
 import { useEventsStore } from '@/stores/events'
 import { useToast } from '@/stores/toast'
 import { api } from '@/lib/api'
-import { lxFmtDue } from '@/lib/format'
-import { applyTheme } from '@/lib/theme'
+import { lxFmtDue } from '@/shared/utils/format'
+import { applyTheme } from '@/shared/utils/theme'
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
 import ChatView from '@/views/ChatView.vue'
 const DatabaseView = defineAsyncComponent(() => import('@/views/DatabaseView.vue'))

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 小节标签：统一 uppercase + tracking + text3 的小标题样式。
 import type { HTMLAttributes } from 'vue'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 </script>

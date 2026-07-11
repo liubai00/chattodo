@@ -2,7 +2,7 @@
 // 通用列表行：leading(头像/图标) + default(主内容，自动 flex-1) + trailing(操作)。
 // variant=solid 实线带阴影（已接受/常用），variant=dashed 虚线（待处理/已发出）。
 import type { HTMLAttributes } from 'vue'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 const props = defineProps<{ variant?: 'solid' | 'dashed'; class?: HTMLAttributes['class'] }>()
 </script>

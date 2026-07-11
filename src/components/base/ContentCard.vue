@@ -2,7 +2,7 @@
 // 通用内容卡片：基于 ui/Card，统一 Attio 面板圆角/边框/阴影/内边距。
 // 覆盖 Card 默认的 gap/py/rounded/配色；保留 flex-col 骨架，内部间距由 caller 控制。
 import type { HTMLAttributes } from 'vue'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import Card from '@/components/ui/card/Card.vue'
 
 const props = defineProps<{ class?: HTMLAttributes['class'] }>()

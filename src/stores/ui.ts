@@ -3,7 +3,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/lib/api'
-import { applyTheme } from '@/lib/theme'
+import { applyTheme } from '@/shared/utils/theme'
 
 import type { Theme } from '@/shared/enums/theme'
 import type { Workspace } from '@/shared/enums/workspace'
