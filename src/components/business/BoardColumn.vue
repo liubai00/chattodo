@@ -1,0 +1,17 @@
+<script setup lang="ts">
+// 看板列：列头(状态色 + 名称 + 计数) + 卡片列表。drop/over/leave 经 BoardCol 闭包；
+// 卡片用 TaskCard。hl(highlight) 为拖拽悬停高亮。纯展示。
+import TaskCard from '@/components/business/TaskCard.vue'
+import type { BoardCol } from '@/modules/tasks/types'
+
+defineProps<{ col: BoardCol; isMobile?: boolean }>()
+</script>
+
+<template>
+  <div @drop="col.onDrop" @dragover="col.onOver" @dragleave="col.onLeave" :style="`${isMobile?'flex:0 0 240px;min-width:240px;':'flex:1;min-width:0;'}background:var(--panel);border:1px solid ${col.hl?'var(--accent)':'var(--line)'};border-radius:14px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .12s;${col.hl?'box-shadow:0 0 0 2px var(--accent-bg);':''}`">
+    <div class="flex items-center gap-2 border-b border-[var(--line)] p-[13px_14px]"><span :style="`width:8px;height:8px;border-radius:50%;background:${col.color};`"></span><span class="text-[13px] font-semibold text-[var(--text)]">{{ col.name }}</span><span class="text-[11px] font-semibold text-[var(--text3)]">{{ col.count }}</span></div>
+    <div v-stagger class="flex flex-1 flex-col gap-[9px] overflow-auto p-[10px]" style="min-height:120px;">
+      <TaskCard v-for="c in col.cards" :key="c.id" :card="c" />
+    </div>
+  </div>
+</template>

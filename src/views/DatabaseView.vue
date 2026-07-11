@@ -1,267 +1,27 @@
 <script setup lang="ts">
-// P3 第七个迁移视图：Todo 数据库（列表部分）。自包含，挂载取 me+getState+localStorage(taskOrder)。
-// workspace/privacy 经 prop(visible 过滤+modeChip)；openTask 经稳定回调(点击任务->旧 App 详情浮层)。
-// 2 列：dbViews 导航 | 头+筛选+批量+table+kanban。拖拽(kanban 改状态/重排)、批量、排序、筛选。
-// 详情面板(子任务/评论/动态/协作)保持 legacy(全局浮层)，本视图只管列表。FLIP 动画已补回(flipBoard + data-flip-id)。
-import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
-import { AuthAPI } from '@/modules/auth/api'
-import { AppAPI } from '@/modules/app/api'
-import { TasksAPI } from '@/modules/tasks/api'
+// Todo 数据库视图（组装层）：dbViews 导航 | 头+筛选+批量+表格+看板。
+// 全部数据/编排走 useDatabaseBoard；看板列拆为 BoardColumn + TaskCard。表格视图内联（行模型带闭包）。
+import { useDatabaseBoard, DB_DEFS } from '@/modules/tasks/composables/useDatabaseBoard'
+import { usePane } from '@/shared/composables/usePane'
+import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
 import { useToast } from '@/stores/toast'
-import { lxFmtDue } from '@/shared/utils/format'
 import Button from '@/components/ui/button/Button.vue'
 import ViewHeader from '@/components/base/ViewHeader.vue'
 import LoadingState from '@/components/base/LoadingState.vue'
-import { useFlip } from '@/motion'
-import { usePane } from '@/shared/composables/usePane'
-import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
-// 本视图跨 auth/app/tasks 三域：显式合并所需域 API（保持 api.xxx 调用语法，去 @/lib/api 依赖）
-const api = { ...AuthAPI, ...AppAPI, ...TasksAPI }
+import BoardColumn from '@/components/business/BoardColumn.vue'
+import type { DatabaseProps } from '@/modules/tasks/types'
 
-type Workspace = 'work' | 'personal'
-type Scope = Workspace | 'mixed'
-type TaskStatus = 'todo' | 'in_progress' | 'done'
-type DbView = 'all' | 'today' | 'open' | 'done' | 'collab'
-type DbLayout = 'table' | 'board'
-
-interface TaskItem { id: string; title: string; status: TaskStatus; project: string; due: string; today: boolean; priority: number; scope: Scope; assignee: string | null; collabFrom: string | null }
-
-const MEMBER_COLORS = ['var(--cat-1)', 'var(--cat-2)', 'var(--cat-3)', 'var(--cat-4)', 'var(--cat-5)']
-const PRIO_COLORS: Record<number, [string, string]> = { 1: ['var(--danger)', 'var(--danger-bg)'], 2: ['var(--idea)', 'var(--idea-bg)'], 3: ['var(--text2)', 'var(--mid)'], 4: ['var(--text3)', 'var(--mid)'] }
-const STATUS_LABEL: Record<TaskStatus, string> = { todo: '待办', in_progress: '进行中', done: '已完成' }
-const DB_DEFS: Array<[DbView, string, string]> = [['all', '全部任务', 'ph-stack'], ['today', '今日', 'ph-sun-horizon'], ['open', '未完成', 'ph-circle-dashed'], ['done', '已完成', 'ph-check-circle'], ['collab', '协作任务', 'ph-users']]
-const BOARD_DEFS: Array<[TaskStatus, string, string]> = [['todo', '待办', 'var(--text3)'], ['in_progress', '进行中', 'var(--idea)'], ['done', '已完成', 'var(--accent)']]
-const DUE_ORDER: Record<string, number> = { '昨天': 0, '今天': 1, '明天': 2, '后天': 3, '周一': 4, '周二': 4, '周三': 4, '周四': 5, '周五': 6, '下周': 8, '月底': 9, '待定': 99 }
-const STATUS_ORDER: Record<TaskStatus, number> = { todo: 0, in_progress: 1, done: 2 }
-
-const props = defineProps<{ workspace: Workspace; privacy: boolean; openTask: (id: string) => void; isMobile?: boolean }>()
-const router = useRouter()
+const props = defineProps<DatabaseProps>()
 const toast = useToast()
 const { width: dbNavW, startResize } = usePane({ key: STORAGE_KEYS.PANE_DB, def: 200, min: 160, max: 360 })
-
-const loading = ref(true)
-const myName = ref('')
-const canEdit = ref(false)
-const tasks = ref<TaskItem[]>([])
-const dbView = ref<DbView>('all')
-const dbLayout = ref<DbLayout>('table')
-const dbSearch = ref('')
-const dbProject = ref('all')
-const dbPriority = ref('all')
-const dbSortKey = ref('')
-const dbSortDir = ref<'asc' | 'desc'>('asc')
-const dbSelected = ref<string[]>([])
-const taskOrder = ref<string[]>([])
-const dragOverCol = ref<TaskStatus | null>(null)
-let _dragId: string | null = null
-const boardEl = ref<HTMLElement | null>(null)
-
-function memberColor(name: string): string {
-  if (!name) return 'var(--cat-fallback)'
-  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0
-  return MEMBER_COLORS[Math.abs(h) % MEMBER_COLORS.length]
-}
-function visible(scope: Scope): boolean {
-  return !props.privacy || scope === props.workspace || scope === 'mixed'
-}
-function mapTask(t: any): TaskItem {
-  return { id: t.id, title: t.title, status: t.status as TaskStatus, project: t.collabFrom ? '协作' : (t.project || '收件箱'), due: lxFmtDue(t.dueAt), today: !!t.today || !!(t.dueAt && isToday(t.dueAt)), priority: t.priority || 3, scope: (t.privacyScope || 'work') as Scope, assignee: t.assignee || null, collabFrom: t.collabFrom || null }
-}
-function isToday(iso: string): boolean {
-  if (!iso) return false
-  const d = new Date(iso), t = new Date()
-  return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate()
-}
-
-const visTasks = computed(() => tasks.value.filter((t) => visible(t.scope)))
-const counts = computed(() => ({
-  all: visTasks.value.length,
-  today: visTasks.value.filter((t) => t.today).length,
-  open: visTasks.value.filter((t) => t.status !== 'done').length,
-  done: visTasks.value.filter((t) => t.status === 'done').length,
-  collab: visTasks.value.filter((t) => t.collabFrom).length,
-}))
-const dbViewName = computed(() => ({ all: '全部任务', today: '今日', open: '未完成', done: '已完成', collab: '协作任务' } as Record<DbView, string>)[dbView.value])
-const dbase = computed(() => {
-  let d = visTasks.value
-  if (dbProject.value !== 'all') d = d.filter((t) => t.project === dbProject.value)
-  if (dbPriority.value !== 'all') d = d.filter((t) => t.priority === Number(dbPriority.value))
-  const dq = dbSearch.value.toLowerCase()
-  if (dq) d = d.filter((t) => t.title.toLowerCase().includes(dq))
-  return d
-})
-function orderTasks(list: TaskItem[]): TaskItem[] {
-  const ord = taskOrder.value
-  if (!ord || !ord.length) return list
-  const map = new Map(ord.map((id, i) => [id, i]))
-  return [...list].sort((a, b) => (map.has(a.id) ? map.get(a.id)! : 1e9) - (map.has(b.id) ? map.get(b.id)! : 1e9))
-}
-const tbl = computed(() => {
-  const d = dbase.value
-  if (dbView.value === 'today') return d.filter((t) => t.today)
-  if (dbView.value === 'open') return d.filter((t) => t.status !== 'done')
-  if (dbView.value === 'done') return d.filter((t) => t.status === 'done')
-  if (dbView.value === 'collab') return d.filter((t) => t.collabFrom)
-  return d
-})
-const sortedTbl = computed(() => {
-  const list = tbl.value
-  if (dbSortKey.value) {
-    const dir = dbSortDir.value === 'asc' ? 1 : -1
-    const dOrd = (d: string) => { for (const k in DUE_ORDER) { if (d && d.indexOf(k) >= 0) return DUE_ORDER[k] } return 50 }
-    return [...list].sort((a, b) => {
-      if (dbSortKey.value === 'title') return dir * a.title.localeCompare(b.title, 'zh')
-      if (dbSortKey.value === 'project') return dir * a.project.localeCompare(b.project, 'zh')
-      if (dbSortKey.value === 'priority') return dir * (a.priority - b.priority)
-      if (dbSortKey.value === 'due') return dir * (dOrd(a.due) - dOrd(b.due))
-      if (dbSortKey.value === 'status') return dir * (STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
-      return 0
-    })
-  }
-  return orderTasks(list)
-})
-const filteredTasks = computed(() => sortedTbl.value.map(fmtTask))
-const boardCols = computed(() => BOARD_DEFS.map(([key, name, color]) => ({
-  key, name, color,
-  count: dbase.value.filter((t) => t.status === key).length,
-  cards: orderTasks(dbase.value.filter((t) => t.status === key)).map(fmtTask),
-  hl: dragOverCol.value === key,
-  onDrop: (e: DragEvent) => { if (e && e.preventDefault) e.preventDefault(); _dropOnCol(key) },
-  onOver: (e: DragEvent) => { if (e && e.preventDefault) e.preventDefault(); if (dragOverCol.value !== key) dragOverCol.value = key },
-  onLeave: () => { if (dragOverCol.value === key) dragOverCol.value = null },
-})))
-const projectOptions = computed(() => [{ value: 'all', label: '全部项目' }].concat([...new Set(tasks.value.map((t) => t.project))].map((p) => ({ value: p, label: p }))))
-const priorityOptions = [{ value: 'all', label: '全部优先级' }, { value: '1', label: 'P1 紧急' }, { value: '2', label: 'P2 高' }, { value: '3', label: 'P3 中' }, { value: '4', label: 'P4 低' }]
-const selIds = computed(() => filteredTasks.value.map((t) => t.id))
-const allSelected = computed(() => selIds.value.length > 0 && selIds.value.every((id) => dbSelected.value.includes(id)))
-const modeLabel = computed(() => (props.workspace === 'work' ? '工作' : '个人') + (props.privacy ? ' · 隐私' : ''))
-const modeIcon = computed(() => (props.privacy ? 'ph-lock-simple' : 'ph-briefcase'))
-
-interface FmtTask { id: string; title: string; project: string; due: string; statusLabel: string; collabFrom: string | null; selected: boolean; rowBg: string; selBoxStyle: string; selCheck: string; toggleSel: (e: Event) => void; titleColor: string; titleDeco: string; dueColor: string; prio: string; prioStyle: string; assignee: string; assigneeInitial: string; assigneeColor: string; scopeColor: string; scopeLabel: string; open: () => void; onDragStart: (e: DragEvent) => void; onCardDrop: (e: DragEvent) => void; onCardOver: (e: DragEvent) => void }
-function fmtTask(t: TaskItem): FmtTask {
-  const done = t.status === 'done'
-  const selected = dbSelected.value.includes(t.id)
-  const asg = t.assignee || myName.value || '我'
-  const pc = PRIO_COLORS[t.priority] || PRIO_COLORS[3]
-  const statusLabel = t.collabFrom ? STATUS_LABEL[t.status] + ' · 来自 ' + t.collabFrom : STATUS_LABEL[t.status]
-  return {
-    id: t.id, title: t.title, project: t.project, due: t.due, statusLabel, collabFrom: t.collabFrom,
-    selected, rowBg: selected ? 'var(--accent-bg)' : 'transparent',
-    selBoxStyle: 'width:17px;height:17px;border-radius:5px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;cursor:pointer;' + (selected ? 'background:var(--accent);border:1px solid var(--accent);' : 'border:1.5px solid var(--line2);background:var(--panel);'),
-    selCheck: selected ? '' : 'display:none;',
-    toggleSel: (e) => { if (e && e.stopPropagation) e.stopPropagation(); toggleSelect(t.id) },
-    titleColor: done ? 'var(--text3)' : 'var(--text)',
-    titleDeco: done ? 'text-decoration:line-through;' : '',
-    dueColor: (t.due === '今天 17:00' || t.due === '明天' || t.today) ? 'var(--accent-ink)' : 'var(--text2)',
-    prio: 'P' + t.priority,
-    prioStyle: 'display:inline-flex;padding:3px 8px;border-radius:6px;font:700 11px/1 var(--font);color:' + pc[0] + ';background:' + pc[1] + ';',
-    assignee: asg, assigneeInitial: asg.slice(-1), assigneeColor: memberColor(asg),
-    scopeColor: t.scope === 'work' ? 'var(--accent)' : 'var(--idea)',
-    scopeLabel: t.scope === 'work' ? '工作' : '个人',
-    open: () => props.openTask(t.id),
-    onDragStart: (e) => { _dragId = t.id; try { if (e && e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', t.id) } } catch { /* ignore */ } },
-    onCardDrop: (e) => { if (e) { e.preventDefault(); e.stopPropagation() } _dropOnCard(t.id) },
-    onCardOver: (e) => { if (e) e.preventDefault() },
-  }
-}
-
-// ---- 拖拽 / 排序 / 批量 ----
-function _saveOrder(order: string[]) { try { localStorage.setItem('lx_task_order', JSON.stringify(order)) } catch { /* ignore */ } }
-function _moveInOrder(dragId: string, beforeId: string | null) {
-  let order = (taskOrder.value || []).slice()
-  const allIds = tasks.value.map((t) => t.id)
-  for (const id of allIds) if (!order.includes(id)) order.push(id)
-  order = order.filter((id) => allIds.includes(id) && id !== dragId)
-  if (beforeId) { const i = order.indexOf(beforeId); order.splice(i < 0 ? order.length : i, 0, dragId) } else order.push(dragId)
-  taskOrder.value = order; dragOverCol.value = null; _saveOrder(order)
-}
-// GSAP FLIP：记录卡片旧位置 -> 改状态/顺序让 Vue 重排 -> Flip.from 平滑滑到新位置。
-// cards 带 data-flip-id，跨列移动(Vue 重建节点)也能按 id 匹配做位移动画。
-async function flipBoard(mutate: () => void) {
-  const { Flip } = await useFlip()
-  const root = boardEl.value
-  const cards = root ? Array.from(root.querySelectorAll<HTMLElement>('div[draggable="true"]')) : []
-  const state = Flip && cards.length ? Flip.getState(cards) : null
-  mutate()
-  if (state && Flip) {
-    await nextTick()
-    try { Flip.from(state, { duration: 0.35, ease: 'power3.out', absoluteOnLeave: true }) } catch (e) { console.error('[lx] flip.from:', e) }
-  }
-}
-async function _dropOnCard(targetId: string) {
-  const drag = _dragId; _dragId = null
-  if (!drag || drag === targetId) return
-  const dragT = tasks.value.find((x) => x.id === drag), tgtT = tasks.value.find((x) => x.id === targetId)
-  await flipBoard(() => {
-    if (dragT && tgtT && dragT.status !== tgtT.status) patchTask(drag, { status: tgtT.status })
-    _moveInOrder(drag, targetId)
-  })
-}
-async function _dropOnCol(status: TaskStatus) {
-  const drag = _dragId; _dragId = null
-  if (!drag) return
-  const dragT = tasks.value.find((x) => x.id === drag)
-  await flipBoard(() => {
-    dragOverCol.value = null
-    if (dragT && dragT.status !== status) patchTask(drag, { status })
-    _moveInOrder(drag, null)
-  })
-}
-function patchTask(id: string, patch: { status?: TaskStatus }) {
-  tasks.value = tasks.value.map((t) => (t.id === id ? { ...t, ...patch } : t))
-  const body: Record<string, unknown> = {}
-  if (patch.status !== undefined) body.status = patch.status
-  if (Object.keys(body).length) api.updateTask(id, body).catch(() => {})
-}
-function toggleSelect(id: string) { dbSelected.value = dbSelected.value.includes(id) ? dbSelected.value.filter((x) => x !== id) : [...dbSelected.value, id] }
-function selectAll() { const ids = selIds.value; dbSelected.value = (ids.length > 0 && ids.every((i) => dbSelected.value.includes(i))) ? [] : ids.slice() }
-function batchStatus(status: TaskStatus) {
-  const ids = dbSelected.value.slice()
-  tasks.value = tasks.value.map((t) => (ids.includes(t.id) ? { ...t, status } : t))
-  dbSelected.value = []
-  ids.forEach((id) => api.updateTask(id, { status }).catch(() => {}))
-  toast.flash('已更新 ' + ids.length + ' 项状态')
-}
-function batchPriority(p: number) {
-  const ids = dbSelected.value.slice()
-  tasks.value = tasks.value.map((t) => (ids.includes(t.id) ? { ...t, priority: p } : t))
-  dbSelected.value = []
-  ids.forEach((id) => api.updateTask(id, { priority: p }).catch(() => {}))
-  toast.flash('已设为 P' + p)
-}
-function batchMoveOut() {
-  const ids = dbSelected.value.slice()
-  tasks.value = tasks.value.filter((t) => !ids.includes(t.id))
-  dbSelected.value = []
-  ids.forEach((id) => api.taskMoveOut(id).catch(() => {}))
-  toast.flash('已移出 ' + ids.length + ' 项 · 保留来源')
-}
-function batchDelete() {
-  const ids = dbSelected.value.slice()
-  tasks.value = tasks.value.filter((t) => !ids.includes(t.id))
-  dbSelected.value = []
-  ids.forEach((id) => api.deleteTask(id).catch(() => {}))
-  toast.flash('已删除 ' + ids.length + ' 项')
-}
-function toggleSort(key: string) { dbSortKey.value = key; dbSortDir.value = (dbSortKey.value === key && dbSortDir.value === 'asc') ? 'desc' : 'asc' }
-function newCapture() { router.push({ name: 'chat' }); setTimeout(() => { const c = document.getElementById('lx-composer'); if (c) c.focus() }, 80) }
-
-async function load() {
-  loading.value = true
-  try {
-    const [me, st] = await Promise.all([api.me(), api.getState()])
-    myName.value = me.name || ''
-    canEdit.value = (me.role || 'member') !== 'viewer'
-    tasks.value = (((st as any).tasks || []) as any[]).map(mapTask)
-    try { const o = JSON.parse(localStorage.getItem('lx_task_order') || '[]'); if (Array.isArray(o)) taskOrder.value = o } catch { /* ignore */ }
-  } catch {
-    toast.flash('加载任务失败，请刷新重试')
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(load)
+const board = useDatabaseBoard(props, (m) => toast.flash(m))
+const {
+  loading, canEdit, tasks, modeLabel, modeIcon,
+  dbView, dbLayout, dbSearch, dbProject, dbPriority, dbSortKey, dbSortDir, dbSelected,
+  counts, dbViewName, filteredTasks, boardCols, projectOptions, priorityOptions,
+  allSelected, boardEl,
+  toggleSort, selectAll, batchStatus, batchPriority, batchMoveOut, batchDelete, newCapture,
+} = board
 </script>
 
 <template>
@@ -345,15 +105,7 @@ onMounted(load)
       <!-- 看板视图 -->
       <template v-if="dbLayout === 'board'">
         <div ref="boardEl" class="flex flex-1 items-stretch gap-4 overflow-auto p-[18px]">
-          <div v-for="col in boardCols" :key="col.key" @drop="col.onDrop" @dragover="col.onOver" @dragleave="col.onLeave" :style="`${isMobile?'flex:0 0 240px;min-width:240px;':'flex:1;min-width:0;'}background:var(--panel);border:1px solid ${col.hl?'var(--accent)':'var(--line)'};border-radius:14px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .12s;${col.hl?'box-shadow:0 0 0 2px var(--accent-bg);':''}`">
-            <div class="flex items-center gap-2 border-b border-[var(--line)] p-[13px_14px]"><span :style="`width:8px;height:8px;border-radius:50%;background:${col.color};`"></span><span class="text-[13px] font-semibold text-[var(--text)]">{{ col.name }}</span><span class="text-[11px] font-semibold text-[var(--text3)]">{{ col.count }}</span></div>
-            <div v-stagger class="flex flex-1 flex-col gap-[9px] overflow-auto p-[10px]" style="min-height:120px;">
-              <div v-for="c in col.cards" :key="c.id" :data-flip-id="'flip-task-' + c.id" draggable="true" @dragstart="c.onDragStart" @drop="c.onCardDrop" @dragover="c.onCardOver" @click="c.open" class="cursor-grab rounded-[11px] border border-[var(--line)] bg-[var(--bg)] p-[11px_12px] shadow-md" data-hv="2">
-                <div :style="`font:600 13px/1.4 var(--font);color:${c.titleColor};${c.titleDeco}`">{{ c.title }}</div>
-                <div class="mt-[9px] flex flex-wrap items-center gap-1.5"><span :style="c.prioStyle">{{ c.prio }}</span><span class="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text2)]"><i class="ph ph-folder text-[11px]"></i>{{ c.project }}</span><span :style="`font:500 11px/1 var(--font);color:${c.dueColor};`"><span class="lx-mono">{{ c.due }}</span></span><span :title="c.assignee" :style="`width:20px;height:20px;border-radius:50%;background:${c.assigneeColor};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 10px/1 var(--font);margin-left:auto;flex:0 0 auto;`">{{ c.assigneeInitial }}</span></div>
-              </div>
-            </div>
-          </div>
+          <BoardColumn v-for="col in boardCols" :key="col.key" :col="col" :is-mobile="isMobile" />
         </div>
       </template>
     </div>
