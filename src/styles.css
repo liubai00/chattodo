@@ -80,18 +80,63 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 button{transition:transform var(--duration-base) var(--ease-out),var(--transition-colors)}
 button:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}[data-hv]:active{transform:none}}
-/* P12/P14: Vue <Transition> 命名（视图切换 Linear x-slide / 批量栏 slide-down）。
-   时长/缓动复用 tokens.css 变量；reduced-motion 经上方 @media 把 transition-duration 压到 0.001ms。
-   桌面：x+8px→0 enter / x→-4px leave via GSAP routeTransition；CSS fallback 仅 opacity。
-   移动/窄屏：仅 opacity（Grill 锁定）。 */
+/* P12/P14: Vue <Transition> 命名（路由 lx-route / Database lx-view / 批量栏 lx-batch）。
+   时长/缓动复用 tokens.css；reduced-motion 时全局 transition-duration 压至 0.001ms。 */
 .lx-view-enter-active,.lx-view-leave-active{transition:opacity var(--duration-complex, 350ms) var(--ease-neutral)}
 .lx-view-enter-from,.lx-view-leave-to{opacity:0}
-/* P14 fix: 路由视图切换改用 Vue 原生 CSS 过渡（替代 :css=false JS 钩子）。
-   旧钩子靠 transitionend，会被子元素冒泡提前结束、且异步组件占位(comment 节点)上取 .style 崩溃。
-   原生 Transition 内部按 e.target===el 过滤冒泡并计算超时兜底，规避这两类问题。视觉不变。 */
-.lx-route-enter-active,.lx-route-leave-active{transition:opacity var(--duration-complex, 350ms) var(--ease-neutral),transform var(--duration-complex, 350ms) var(--ease-neutral)}
-.lx-route-enter-from{opacity:0;transform:translateX(8px)}
-.lx-route-leave-to{opacity:0;transform:translateX(-4px)}
-@media (max-width:819px){.lx-route-enter-from,.lx-route-leave-to{transform:none}}
+/* P14 路由切换：@keyframes（比 transition 更稳，Vue 3.5 靠 animationend + :duration 兜底）。
+   桌面 enter x+8 / leave x-4 / 350ms；窄屏仅 opacity。 */
+.lx-route-view{position:relative;isolation:isolate;min-height:0}
+@keyframes lx-route-in{from{opacity:0;transform:translate3d(8px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes lx-route-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(-4px,0,0)}}
+@keyframes lx-route-in-fade{from{opacity:0}to{opacity:1}}
+@keyframes lx-route-out-fade{from{opacity:1}to{opacity:0}}
+#lx-root .lx-route-enter-active{animation:lx-route-in 350ms cubic-bezier(0.4,0,0.2,1) both;z-index:1}
+#lx-root .lx-route-leave-active{animation:lx-route-out 350ms cubic-bezier(0.4,0,0.6,1) both;z-index:0}
+@media (max-width:819px){
+  #lx-root .lx-route-enter-active{animation-name:lx-route-in-fade}
+  #lx-root .lx-route-leave-active{animation-name:lx-route-out-fade}
+}
+/* P14 抽屉（TaskDetail）：scrim 淡入 + 面板右侧 x+20px 滑入 350ms / leave 250ms */
+@keyframes lx-scrim-in{from{opacity:0}to{opacity:1}}
+@keyframes lx-scrim-out{from{opacity:1}to{opacity:0}}
+@keyframes lx-drawer-in{from{opacity:0;transform:translate3d(20px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes lx-drawer-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(20px,0,0)}}
+#lx-root .lx-drawer-enter-active .lx-drawer-scrim{animation:lx-scrim-in 350ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-drawer-enter-active .lx-drawer-panel{animation:lx-drawer-in 350ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-drawer-leave-active .lx-drawer-scrim{animation:lx-scrim-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+#lx-root .lx-drawer-leave-active .lx-drawer-panel{animation:lx-drawer-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+/* P14 中心弹窗（⌘K / 快捷键）：scrim 淡入 + 面板 scale 0.98→1 350ms / leave 250ms */
+@keyframes lx-modal-in{from{opacity:0;transform:scale(0.98)}to{opacity:1;transform:scale(1)}}
+@keyframes lx-modal-out{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(0.98)}}
+#lx-root .lx-modal-enter-active{animation:lx-scrim-in 350ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-modal-enter-active .lx-modal-panel{animation:lx-modal-in 350ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-modal-leave-active{animation:lx-scrim-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+#lx-root .lx-modal-leave-active .lx-modal-panel{animation:lx-modal-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+/* P14 通知飞入：x+20px 350ms / leave 250ms */
+@keyframes lx-flyout-in{from{opacity:0;transform:translate3d(20px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes lx-flyout-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(20px,0,0)}}
+#lx-root .lx-flyout-enter-active{animation:lx-flyout-in 350ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-flyout-leave-active{animation:lx-flyout-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+/* P14 Toast：底部居中 x+20px enter 350ms / leave 250ms */
+@keyframes lx-toast-in{from{opacity:0;transform:translate3d(calc(-50% + 20px),0,0)}to{opacity:1;transform:translate3d(-50%,0,0)}}
+@keyframes lx-toast-out{from{opacity:1;transform:translate3d(-50%,0,0)}to{opacity:0;transform:translate3d(calc(-50% + 20px),0,0)}}
+#lx-root .lx-toast-enter-active{animation:lx-toast-in 350ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-toast-leave-active{animation:lx-toast-out 250ms cubic-bezier(0.4,0,0.6,1) both}
 .lx-batch-enter-active,.lx-batch-leave-active{transition:opacity var(--duration-linear-view, 250ms) var(--ease-in-out),transform var(--duration-linear-view, 250ms) var(--ease-in-out)}
 .lx-batch-enter-from,.lx-batch-leave-to{opacity:0;transform:translateY(-4px)}
+/* P15 主题切换过渡：View Transitions API 伪元素，节奏对齐 Attio/Linear 300ms ease-in-out */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-functional, 300ms);
+  animation-timing-function: var(--ease-in-out);
+}
+::view-transition-old(root) { animation-name: lx-theme-out; }
+::view-transition-new(root) { animation-name: lx-theme-in; }
+@keyframes lx-theme-out { to { opacity: 0; filter: blur(4px); } }
+@keyframes lx-theme-in { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: none; } }
+/* 减少动效：直接切换无 blur */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none; }
+}
