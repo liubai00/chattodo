@@ -2,6 +2,9 @@
 // 图标按钮：统一 hover/active/focus 态。ghost(透明)/solid(紫)/subtle(灰底) 三变体。
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/shared/utils/cn'
+import { useMotion } from '@/shared/composables/useMotion'
+
+const mot = useMotion()
 
 const props = withDefaults(
   defineProps<{
@@ -34,7 +37,8 @@ const variantClass: Record<'ghost' | 'solid' | 'subtle', string> = {
     :aria-label="props.label"
     @click="emit('click')"
     :class="cn(
-      'inline-flex cursor-pointer items-center justify-center border-0 outline-none transition-colors duration-[160ms] focus-visible:ring-2 focus-visible:ring-[var(--accent)]',
+      'inline-flex cursor-pointer items-center justify-center border-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]',
+      mot.transitionColors,
       sizeClass[props.size],
       variantClass[props.variant],
       props.class,

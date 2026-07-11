@@ -3,6 +3,9 @@
 // 泛型 T 收窄 modelValue（如 DbLayout = 'table' | 'board'），替代 inline :style 按钮组。
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/shared/utils/cn'
+import { useMotion } from '@/shared/composables/useMotion'
+
+const mot = useMotion()
 
 interface SegmentItem<T extends string> { value: T; label: string; icon?: string }
 const props = defineProps<{
@@ -21,7 +24,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
       type="button"
       @click="emit('update:modelValue', item.value)"
       :class="cn(
-        'inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border-0 px-3 py-[6px] text-[12.5px] leading-none transition-colors duration-[160ms] outline-none',
+        'inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border-0 px-3 py-[6px] text-[12.5px] leading-none outline-none',
+        mot.transitionColors,
         props.modelValue === item.value
           ? 'bg-[var(--panel)] font-semibold text-[var(--text)] shadow-[var(--shadow)]'
           : 'bg-transparent font-medium text-[var(--text2)] hover:text-[var(--text)]',

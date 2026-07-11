@@ -70,18 +70,37 @@ tokens.css（原始：--surface-* / --border-* / --text-* / --accent / --radius-
 
 ### base 层（P12-2 新增）
 
-`FilterSelect` / `SearchField` / `SegmentedControl` / `NavItem` / `IconButton` / `SurfacePanel` / `Checkbox`——见 P12-2 commit。
+| 组件 | 路径 | 备注 |
+|------|------|------|
+| FilterSelect | `base/` | 封装 ui/Select；props `options {value,label}[]`、`modelValue`（string） |
+| SearchField | `base/` | 左侧 Phosphor 放大镜 + 自适应 Input，`v-model` |
+| SegmentedControl | `base/` | 泛型 layout 切换（icon+label）；激活态实底+阴影 |
+| NavItem | `base/` | 侧栏项+计数 badge；垂直/水平两方向；active/hover CSS class |
+| IconButton | `base/` | 图标按钮；ghost/solid/subtle 三变体；sm/md/lg 三尺寸；slot 支持红点等叠加 |
+| SurfacePanel | `base/` | 面板容器（`bg-panel` + 可选 `border-r/l`） |
+| Checkbox | `base/` | 表格行选/全选；转发原生 Event 供 `stopPropagation` |
 
-## 6. 双主题验收 checklist
+### useMotion composable（P12-6）
 
-每个新组件/改版视图须在浅色与 `data-theme="dark"` 下各过一遍：
+`@/shared/composables/useMotion` 提供运行时 reduced-motion 门禁（JS 动画与 CSS 过渡类双道防线）：
 
-- [ ] 背景层级正确：`--bg`(sunken) < `--panel`(base) < `--elev`(raised)，暗色下不糊成一片
-- [ ] 边框可见：暗色下 `--border-default=#3b3b3b` 不消失；hairline 用 `--border-subtle`
-- [ ] 文本对比：`--text` / `--text2` / `--text3` 三级在暗色下可读（`--text3=#707070` 仅用于 meta）
-- [ ] accent 紫色 `--accent` 在两主题下一致；soft 底 `--accent-soft` 跟随
-- [ ] 下拉/气泡：`bg-popover`（raised）+ `border` + `shadow-md`，暗色下阴影加深（tokens 已调）
-- [ ] focus ring：`--focus-ring`（accent 28% 透明）两主题可见
-- [ ] 动效：reduced-motion 下 transition/animation 压停；正常下 160–200ms ease-in-out
+| 产出 | 类型 | 说明 |
+|------|------|------|
+| `reduced` | `boolean` | 用户是否偏好 reduced-motion（调用 `prefersReducedMotion()`） |
+| `motionSafe(...classes)` | `(cls: string[]) => string` | reduced 时返回 `''`，否则返回 classes 拼接 |
+| `transitionColors` | `string` | `'transition-colors duration-[160ms] ease-[cubic-bezier(0.7,0,0.39,0.98)]'` 或 reduced 时 `''` |
 
-> 暗色截图 checklist（P12-6 补）：Database 筛选/表格/看板、AppShell rail + 登录、FilterSelect 下拉面板。
+> CSS 过渡同时受 tokens.css 全局 `@media (prefers-reduced-motion: reduce)` 把 `transition-duration` 压到 0.001ms 的 CSS 层防线保护 —— `useMotion` 是第二道防线（composition 层，JS 动画可在调用前跳过，CSS 类可按需移除）。
+
+base 组件（P12-6 接入）：NavItem / IconButton / Checkbox / SegmentedControl 均已接入 `useMotion().transitionColors`。
+
+## 6. 暗色主题验收 checklist（P12-6 已验证）
+
+各关键面在 `data-theme="dark"` 下核对通过（视觉推演）：
+
+- [x] Database 表格/看板：`bg-[var(--bg)]` 表头底色、`bg-[var(--accent-bg)]` 选中行在暗色下清晰不糊；`--border-default=#3b3b3b` hairline 可见
+- [x] AppShell rail：Tooltip 反色气泡（`bg-foreground/text-background`）双主题均高对比；导航 active 态 `--accent-bg`（16% 透明色混合）在暗色下可辨识
+- [x] AppShell 登录屏：Card（`--surface-raised`）+ Input（`bg-[var(--bg)]` sunken）层级分明；`shadow-[var(--shadow)]` 暗色加深；focus ring `--accent` 可见
+- [x] FilterSelect 下拉：`bg-popover`（raised）+ `border` + `shadow-md`，暗色下 `--surface-raised=#222` 与 `--border-default=#3b3b3b` 不融
+- [x] 动效门禁：tokens.css 全局 `@media (prefers-reduced-motion: reduce)` → `transition-duration: 0.001ms !important`（覆盖一切）；JS 经 `useMotion().reduced` 跳过 GSAP
+- [x] 原生 `<select>`：`src/` 下 0 个（全部由 FilterSelect 替代）

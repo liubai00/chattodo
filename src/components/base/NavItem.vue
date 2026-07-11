@@ -3,6 +3,9 @@
 // active/hover 走 CSS class（非 inline :style）；count 计数右对齐。
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/shared/utils/cn'
+import { useMotion } from '@/shared/composables/useMotion'
+
+const mot = useMotion()
 
 const props = withDefaults(
   defineProps<{
@@ -26,7 +29,8 @@ const emit = defineEmits<{ click: [] }>()
     @keydown.enter.prevent="emit('click')"
     @keydown.space.prevent="emit('click')"
     :class="cn(
-      'flex cursor-pointer items-center rounded-[9px] outline-none transition-colors duration-[160ms]',
+      'flex cursor-pointer items-center rounded-[9px] outline-none',
+      mot.transitionColors,
       props.orientation === 'vertical'
         ? 'gap-[9px] px-[10px] py-[9px] text-[13px]'
         : 'flex-shrink-0 gap-[5px] whitespace-nowrap px-[10px] py-[6px] text-[12px]',

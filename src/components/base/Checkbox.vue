@@ -3,6 +3,9 @@
 // 点击转发原生 Event，供父级 stopPropagation（行选不触发行 open）。
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/shared/utils/cn'
+import { useMotion } from '@/shared/composables/useMotion'
+
+const mot = useMotion()
 
 const props = defineProps<{
   checked: boolean
@@ -21,7 +24,8 @@ const emit = defineEmits<{ click: [e: Event] }>()
     @keydown.enter.prevent="emit('click', $event)"
     @keydown.space.prevent="emit('click', $event)"
     :class="cn(
-      'flex h-[17px] w-[17px] flex-none cursor-pointer items-center justify-center rounded-[5px] outline-none transition-colors duration-[160ms]',
+      'flex h-[17px] w-[17px] flex-none cursor-pointer items-center justify-center rounded-[5px] outline-none',
+      mot.transitionColors,
       props.checked || props.indeterminate
         ? 'border border-[var(--accent)] bg-[var(--accent)]'
         : 'border-[1.5px] border-[var(--line2)] bg-[var(--panel)] hover:border-[var(--accent)]',
