@@ -1,6 +1,7 @@
-/* Self-hosted Phosphor Icons (Regular) — replaces jsdelivr CDN.
-   woff2 (147 KB) inlined as the only format; modern browsers all support it.
-   font-display: block prevents FOIT (Flash of Invisible Text) for icons. */
+/* Self-hosted Phosphor Icons (Regular) — glyph rules from npm, woff2 local.
+   Replaces jsdelivr CDN; font-display: block avoids FOIT for icon buttons. */
+@import '@phosphor-icons/web/regular';
+
 @font-face {
   font-family: "Phosphor";
   src: url("/fonts/Phosphor.woff2") format("woff2");
@@ -8,18 +9,3 @@
   font-style: normal;
   font-display: block;
 }
-
-.ph {
-  font-family: "Phosphor" !important;
-  speak: never;
-  font-style: normal;
-  font-weight: normal;
-  font-variant: normal;
-  text-transform: none;
-  line-height: 1;
-  letter-spacing: 0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.ph::before { display: var(--ph-display, inline-block); }
