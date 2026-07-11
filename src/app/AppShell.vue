@@ -34,6 +34,9 @@ const NonTodoView = defineAsyncComponent(() => import('@/views/NonTodoView.vue')
 const AgentView = defineAsyncComponent(() => import('@/views/AgentView.vue'))
 const SettingsView = defineAsyncComponent(() => import('@/views/SettingsView.vue'))
 const TaskDetailView = defineAsyncComponent(() => import('@/views/TaskDetailView.vue'))
+const DesignPreviewView = import.meta.env.DEV
+  ? defineAsyncComponent(() => import('@/views/DesignPreviewView.vue'))
+  : null
 
 const auth = useAuthStore()
 const ui = useUiStore()
@@ -244,6 +247,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <NonTodoView v-else-if="view==='nontodo'" :workspace="ui.workspace" :privacy="ui.privacy" :isMobile="ui.isMobile" />
         <AgentView v-else-if="view==='agent'" :isMobile="ui.isMobile" />
         <SettingsView v-else-if="view==='settings'" :isMobile="ui.isMobile" />
+        <DesignPreviewView v-else-if="view==='design-preview' && DesignPreviewView" :isMobile="ui.isMobile" />
         <div v-else class="flex flex-1 items-center justify-center text-[var(--text3)]">未知视图</div>
 
         <!-- 任务详情浮层 -->

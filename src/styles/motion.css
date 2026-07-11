@@ -1,0 +1,53 @@
+/* =========================================================================
+   Attio overlay + press 动效（§二 缓动/时长/幅度 · §五 统一物理缓动）
+   -------------------------------------------------------------------------
+   所有 popover / select / dropdown 共用同一套 keyframe + utility class。
+   时长/缓动经 CSS 变量控制（tokens.css），reduced-motion 由 tokens.css 全局
+   @media 门禁压停 —— 此处不重复检查。
+   ========================================================================= */
+@layer utilities {
+  /* ---------- overlay in / out ---------- */
+  .lx-overlay-in {
+    animation: lx-overlay-in var(--duration-overlay, 250ms) var(--ease-in-out) both;
+  }
+  .lx-overlay-out {
+    animation: lx-overlay-out var(--duration-overlay, 250ms) var(--ease-in-out) both;
+  }
+
+  @keyframes lx-overlay-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes lx-overlay-out {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+
+  /* Applied to overlay panels – uses data-state from reka-ui Content */
+  .lx-overlay[data-state="open"] {
+    animation: lx-overlay-in var(--duration-overlay, 250ms) var(--ease-in-out) both;
+  }
+  .lx-overlay[data-state="closed"] {
+    animation: lx-overlay-out var(--duration-overlay, 250ms) var(--ease-in-out) both;
+  }
+
+  /* ---------- press ---------- */
+  .lx-press {
+    transition: transform var(--duration-press, 120ms) var(--ease-in-out);
+  }
+  .lx-press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}

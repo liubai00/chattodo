@@ -133,6 +133,8 @@
   --duration-base:   160ms;
   --duration-medium: 200ms;
   --duration-slow:   300ms;
+  --duration-overlay: 250ms;
+  --duration-press:   120ms;
 
   --ease-in:     cubic-bezier(0.4, 0, 1, 1);
   --ease-in-out: cubic-bezier(0.7, 0, 0.39, 0.98);

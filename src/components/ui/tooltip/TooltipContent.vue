@@ -18,7 +18,7 @@ const props = withDefaults(
       :align-offset="props.alignOffset"
       :avoid-collisions="props.avoidCollisions"
       :class="cn(
-        'z-50 overflow-hidden rounded-md px-2.5 py-1.5 text-xs font-medium shadow-md text-background bg-foreground animate-in fade-in-0 zoom-in-95 data-[state=delayed-open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+        'lx-overlay z-50 overflow-hidden rounded-md px-2.5 py-1.5 text-xs font-medium shadow-md text-background bg-foreground',
         props.class,
       )"
     >

@@ -20,6 +20,11 @@ const routes: RouteRecordRaw[] = [
   { path: '/:pathMatch(.*)*', name: 'legacy', component: AppShell },
 ]
 
+// 设计原语验收页（仅开发构建；生产 bundle 不含此路由）
+if (import.meta.env.DEV) {
+  routes.push({ path: '/design-preview', name: 'design-preview', component: AppShell })
+}
+
 export const router = createRouter({
   history: createWebHashHistory(),
   routes,

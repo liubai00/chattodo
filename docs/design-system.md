@@ -94,7 +94,18 @@ tokens.css（原始：--surface-* / --border-* / --text-* / --accent / --radius-
 
 base 组件（P12-6 接入）：NavItem / IconButton / Checkbox / SegmentedControl 均已接入 `useMotion().transitionColors`。
 
-## 6. 暗色主题验收 checklist（P12-6 已验证）
+## 6. 原语抛光（P12 后）
+
+P12 装好了 ShadCN 默认皮肤，Attio 级手感需 **ui 层定点改**，不要全站 prompt 微调。
+
+| 资源 | 路径 | 说明 |
+|------|------|------|
+| 验收页 | `#/design-preview`（DEV only） | `src/views/DesignPreviewView.vue` — Button/Select/Input/NavItem/Overlays 各状态 |
+| 执行清单 | `docs/primitive-polish-checklist.md` | 6+1 文件、Attio 条款映射、每步短 prompt、打勾验收 |
+
+推荐顺序：`motion.css` → `button` → `SelectContent` → `SelectItem/Trigger` → `Popover/Dropdown` → `Input` → `FilterSelect` 去壳 → `#/database` 整页。
+
+## 7. 暗色主题验收 checklist（P12-6 已验证）
 
 各关键面在 `data-theme="dark"` 下核对通过（视觉推演）：
 
