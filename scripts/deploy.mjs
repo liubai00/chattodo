@@ -75,9 +75,7 @@ async function main() {
     `cd ${DEPLOY_PROJECT_DIR}/server && npm install --omit=dev`,
     `kill $(ss -tlnp 2>/dev/null | grep ':${DEPLOY_API_PORT}' | sed -n 's/.*pid=\\([0-9]*\\).*/\\1/p') 2>/dev/null || true`,
     'sleep 1',
-    `cd ${DEPLOY_PROJECT_DIR}/server`,
-    `nohup env PORT=${DEPLOY_API_PORT} HOST=0.0.0.0 DB_PATH=${DEPLOY_DB_PATH} PGLITE_DIR=${DEPLOY_PGLITE_DIR} DEFAULT_USER_ID=${DEPLOY_DEFAULT_USER_ID} node src/server.js > ${DEPLOY_PROJECT_DIR}/server.log 2>&1 &`,
-    'sleep 3',
+    `cd ${DEPLOY_PROJECT_DIR}/server && nohup env PORT=${DEPLOY_API_PORT} HOST=0.0.0.0 DB_PATH=${DEPLOY_DB_PATH} PGLITE_DIR=${DEPLOY_PGLITE_DIR} DEFAULT_USER_ID=${DEPLOY_DEFAULT_USER_ID} node src/server.js > ${DEPLOY_PROJECT_DIR}/server.log 2>&1 & sleep 3`,
   ].join(' && ')
 
   try {

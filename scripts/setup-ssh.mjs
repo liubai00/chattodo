@@ -58,26 +58,46 @@ function uploadPublicKey(config, keyPath) {
   const pubkey = readFileSync(`${keyPath}.pub`, 'utf-8').trim()
   const target = `${config.DEPLOY_USER}@${config.DEPLOY_HOST}`
 
+  const appendKey = `grep -qxF ${shellQuote(pubkey)} ~/.ssh/authorized_keys 2>/dev/null || echo ${shellQuote(pubkey)} >> ~/.ssh/authorized_keys`
   const remoteCmd = [
     'mkdir -p ~/.ssh',
     'chmod 700 ~/.ssh',
-    `grep -qxF ${shellQuote(pubkey)} ~/.ssh/authorized_keys 2>/dev/null`,
-    `|| echo ${shellQuote(pubkey)} >> ~/.ssh/authorized_keys`,
+    appendKey,
     'chmod 600 ~/.ssh/authorized_keys',
     'echo PUBKEY_OK',
   ].join(' && ')
 
-  console.log(`\n${C.cyan}接下来会 SSH 到 ${target}，请输入一次服务器密码以写入公钥…${C.reset}\n`)
+  console.log(`\n${C.cyan}接下来会 SSH 到 ${target}，请输入一次服务器密码以写入公钥…${C.reset}`)
+  info('提示：输入密码时屏幕不会显示任何字符（连 * 也没有），输完直接按 Enter。')
+  console.log()
+
+  prepareStdinForChild()
 
   const result = spawnSync(
     'ssh',
-    ['-o', 'StrictHostKeyChecking=accept-new', target, remoteCmd],
+    [
+      '-o', 'StrictHostKeyChecking=accept-new',
+      '-o', 'ConnectTimeout=15',
+      '-o', 'PreferredAuthentications=keyboard-interactive,password',
+      '-o', 'PubkeyAuthentication=no',
+      '-o', 'NumberOfPasswordPrompts=3',
+      target,
+      remoteCmd,
+    ],
     { stdio: 'inherit' },
   )
   if (result.status !== 0) {
-    throw new Error('公钥上传失败')
+    throw new Error('公钥上传失败（密码错误或网络超时）')
   }
   ok('公钥已写入服务器 authorized_keys')
+}
+
+/** readline 关闭后会占用 stdin，导致后续 ssh 读不到密码 */
+function prepareStdinForChild() {
+  if (input.isTTY) {
+    input.setRawMode(false)
+  }
+  input.resume()
 }
 
 function verifyKeyAuth(config, keyPath) {
@@ -104,18 +124,23 @@ async function main() {
   console.log(readFileSync(`${keyPath}.pub`, 'utf-8').trim())
   console.log()
 
-  const rl = createInterface({ input, output })
+  const rl = createInterface({ input, output, terminal: true })
   const answer = await rl.question('是否现在上传公钥到服务器? (setup 阶段需输入一次密码) [Y/n] ')
-  rl.close()
+  rl.pause()
 
   if (answer.trim() && /^n/i.test(answer.trim())) {
+    rl.close()
     info('已跳过上传。请手动将公钥追加到服务器 ~/.ssh/authorized_keys')
     info('完成后运行: npm run deploy')
     return
   }
 
-  uploadPublicKey(config, keyPath)
-  verifyKeyAuth(config, keyPath)
+  try {
+    uploadPublicKey(config, keyPath)
+    verifyKeyAuth(config, keyPath)
+  } finally {
+    rl.close()
+  }
 
   console.log(`\n${C.green}完成。之后 npm run deploy 全程使用密钥，本地不再存储密码。${C.reset}\n`)
 }
