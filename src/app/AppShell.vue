@@ -22,6 +22,7 @@ import Input from '@/components/ui/input/Input.vue'
 import Card from '@/components/ui/card/Card.vue'
 import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import IconButton from '@/components/base/IconButton.vue'
+import { useRoutePrefetch } from '@/shared/composables/useRoutePrefetch'
 // P14：浮层/抽屉用 Vue 原生 CSS @keyframes（lx-drawer / lx-modal / lx-flyout / lx-toast）。
 // AppShell 跨 tasks/friends/app 三域：显式合并所需域 API（保持 api.xxx 调用语法，import 来自 modules）。
 const api = { ...TasksAPI, ...FriendsAPI, ...AppAPI }
@@ -193,12 +194,20 @@ function subscribeEvents() {
 onMounted(async () => {
   await auth.init()
   if (auth.authed) {
-    await ui.load(); applyTheme(ui.theme); ui.loadNotifs(); events.connect(); subscribeEvents()
+    // H5: Parallelize boot — shell renders immediately, data loads concurrently
+    const dataPromise = Promise.all([ui.load(), ui.loadNotifs()])
+    applyTheme(ui.theme)
+    events.connect()
+    subscribeEvents()
+    // Don't await data — let shell render immediately, store updates will fill in
+    dataPromise.catch(() => {})
   }
   booting.value = false
   onResize()
   window.addEventListener('resize', onResize)
   window.addEventListener('keydown', onGlobalKey, true)
+  // H2: Activate route prefetch on nav hover
+  useRoutePrefetch()
 })
 onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydown', onGlobalKey, true); window.removeEventListener('resize', onResize) })
 </script>
@@ -238,6 +247,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
               <button
                 @click="go(n[0])"
                 :aria-label="n[1]"
+                :data-nav-prefetch="n[0]"
                 :class="cn(
                   'flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-[12px] text-[22px] transition-colors duration-[160ms] border-0',
                   view === n[0]
@@ -272,7 +282,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <Transition
           name="lx-route"
           mode="out-in"
-          :duration="{ enter: 350, leave: 350 }"
+          :duration="{ enter: 250, leave: 200 }"
         >
           <div
             v-if="currentView"

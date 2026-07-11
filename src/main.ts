@@ -4,6 +4,7 @@ import Root from './app/Root.vue'
 import { router } from '@/infrastructure/router'
 import './styles/tokens.css' // Attio 设计令牌（先于其它样式，供 var() 引用）
 import './styles/motion.css'  // Attio overlay/press 动效工具类（@layer utilities）
+import './phosphor.css'       // 自托管 Phosphor 图标字体（woff2 本地化，免 CDN）
 import './styles/tailwind.css' // Tailwind v4（迁移期不含 preflight，不影响旧 App）
 import './styles.css'
 import { vFade, vStagger } from './motion' // GSAP 动效指令（克制型微过渡）
