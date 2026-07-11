@@ -80,9 +80,11 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 button{transition:transform var(--duration-base) var(--ease-out),var(--transition-colors)}
 button:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}[data-hv]:active{transform:none}}
-/* P12: Vue <Transition> 命名（视图切换 fade / 批量栏 slide-down）。
-   时长/缓动复用 tokens.css 变量；reduced-motion 经上方 @media 把 transition-duration 压到 0.001ms。 */
-.lx-view-enter-active,.lx-view-leave-active{transition:opacity var(--duration-medium) var(--ease-in-out)}
+/* P12/P14: Vue <Transition> 命名（视图切换 Linear x-slide / 批量栏 slide-down）。
+   时长/缓动复用 tokens.css 变量；reduced-motion 经上方 @media 把 transition-duration 压到 0.001ms。
+   桌面：x+8px→0 enter / x→-4px leave via GSAP routeTransition；CSS fallback 仅 opacity。
+   移动/窄屏：仅 opacity（Grill 锁定）。 */
+.lx-view-enter-active,.lx-view-leave-active{transition:opacity var(--duration-complex, 350ms) var(--ease-neutral)}
 .lx-view-enter-from,.lx-view-leave-to{opacity:0}
-.lx-batch-enter-active,.lx-batch-leave-active{transition:opacity var(--duration-medium) var(--ease-in-out),transform var(--duration-medium) var(--ease-in-out)}
-.lx-batch-enter-from,.lx-batch-leave-to{opacity:0;transform:translateY(-6px)}
+.lx-batch-enter-active,.lx-batch-leave-active{transition:opacity var(--duration-linear-view, 250ms) var(--ease-in-out),transform var(--duration-linear-view, 250ms) var(--ease-in-out)}
+.lx-batch-enter-from,.lx-batch-leave-to{opacity:0;transform:translateY(-4px)}

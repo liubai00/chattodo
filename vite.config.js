@@ -23,6 +23,15 @@ export default defineConfig({
   server: {
     host: true,
     port: Number(process.env.PORT) || 3000,
+    allowedHosts: true,
+    proxy: {
+      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+    },
+  },
+  preview: {
+    host: true,
+    port: Number(process.env.PORT) || 3000,
+    allowedHosts: true,
     proxy: {
       '/api': { target: 'http://localhost:8787', changeOrigin: true },
     },

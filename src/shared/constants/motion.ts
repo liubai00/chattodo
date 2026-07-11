@@ -5,14 +5,15 @@
 //
 // 分层：shared -> motion（motion 为基础设施层，见 docs/architecture.md 已知例外）。
 export {
-  // 数值（秒）GSAP 时长，供 JS 动画使用
-  DURATION_FAST,
-  DURATION_BASE,
-  DURATION_MEDIUM,
-  DURATION_SLOW,
-  DURATION_ROUTE,
+  // P14 Linear tokens
+  EASE_ENTRANCE, EASE_EXIT, EASE_NEUTRAL,
+  DURATION_COMPLEX, DURATION_FUNCTIONAL, DURATION_IMMEDIATE,
+  SHIFT_X_ENTER, SHIFT_X_LEAVE, SHIFT_Y_SMALL, STAGGER_ITEM_MS,
+  SCALE_DRAG_START, ROTATE_DRAG,
+  // legacy
+  DURATION_FAST, DURATION_BASE, DURATION_MEDIUM, DURATION_SLOW, DURATION_ROUTE,
   // 运行时 reduced-motion 检测（GSAP/JS 动画门禁）
-  prefersReducedMotion,
+  prefersReducedMotion, isMobileTransition,
 } from '@/motion/easings'
 
 /* ---------- CSS 字符串形式（与 tokens.css --duration-* / --ease-* 同值） ---------- */
@@ -25,6 +26,10 @@ export const DURATION_BASE_CSS = '160ms'
 export const DURATION_MEDIUM_CSS = '200ms'
 /** 300ms：区块入场 */
 export const DURATION_SLOW_CSS = '300ms'
+/** 350ms：路由/大浮层（P14） */
+export const DURATION_COMPLEX_CSS = '350ms'
+/** 250ms：视图切换/通知/搜索面板（P14） */
+export const DURATION_FUNCTIONAL_CSS = '250ms'
 
 /** ease-in：离场（先慢后快） */
 export const EASE_IN_CSS = 'cubic-bezier(0.4, 0, 1, 1)'

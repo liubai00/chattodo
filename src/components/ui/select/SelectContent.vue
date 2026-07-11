@@ -28,7 +28,7 @@ const props = withDefaults(
       :class="cn(
         'lx-overlay relative z-50 max-h-96 min-w-32 overflow-hidden rounded-[9px] border border-[var(--line2)] bg-[var(--elev)] text-popover-foreground shadow-md',
         props.position === 'popper'
-          && 'w-[var(--reka-select-trigger-width)]',
+          && 'min-w-[var(--reka-select-trigger-width)]',
         props.class,
       )"
       :style="props.position === 'popper' ? { transformOrigin: 'var(--reka-popper-transform-origin)' } : undefined"
@@ -36,8 +36,7 @@ const props = withDefaults(
       <SelectViewport
         :class="cn(
           'p-1',
-          props.position === 'popper'
-            && 'h-[var(--reka-select-trigger-height)] w-full min-w-[var(--reka-select-trigger-width)]',
+          props.position === 'popper' && 'w-full min-w-[var(--reka-select-trigger-width)]',
         )"
       >
         <slot />

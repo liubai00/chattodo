@@ -128,10 +128,14 @@
   --space-8: 32px;
   --space-9: 40px;
 
-  /* ──────── Motion（Attio/Notion 标准，MD §3）──────── */
+  /* ──────── Motion（Attio/Notion 标准 + P14 Linear 扩展）──────── */
   --duration-immediate:  120ms;  /* MD immediate — tap / toggle / active */
   --duration-standard:   200ms;  /* MD standard  — hover / dropdown / card */
   --duration-functional: 300ms;  /* MD functional — page / notification / modal */
+  /* P14 Linear 三档 */
+  --duration-complex:    350ms;  /* P14 路由 / TaskDetail / 大浮层 */
+  --duration-linear-view:250ms;  /* P14 Database lx-view / 通知搜索面板 */
+  --duration-linear-chat:150ms;  /* P14 Chat 单条 enter / 拖拽发起 */
   /* Backward-compat aliases（现有代码零破坏） */
   --duration-fast:    var(--duration-immediate);
   --duration-base:    160ms;

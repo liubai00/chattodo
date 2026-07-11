@@ -123,6 +123,23 @@ P12 装好了 ShadCN 默认皮肤，Attio 级手感需 **ui 层定点改**，不
 
 > **禁止**在 ui/base 层组件上使用 `tw-animate` 的 `zoom-in-95` / `slide-in-from-*` / `fade-in-*`，全部由上述 class 接管。transform-origin 走 reka-ui 提供的 `var(--reka-popper-transform-origin)`。Overlay 统一走 MD §4.1.4 的 `translateY(-4px) + opacity`，不使用 scale。
 
+## 8. P14 Linear 路由切换参数
+
+路由过渡从纯 opacity fade 升级为 Linear 风格 x 滑入：
+
+| 参数 | 值 | 适用 |
+|------|-----|------|
+| enter | `x +8px → 0` opacity `0→1` | 桌面路由切换 |
+| leave | `x 0 → -4px` opacity `1→0` | 桌面路由切换 |
+| duration | 350ms | `--duration-complex` |
+| easing | `cubic-bezier(0.4,0,0.2,1)` (power2.inOut) | `--ease-neutral` |
+| 移动端 | opacity only，0 位移 | `innerWidth<820` |
+| reduced | instant（`done()` 跳过） | `prefersReducedMotion()` |
+
+GSAP 入口：`src/motion/routeTransition.ts`（`onRouteBeforeEnter/onRouteEnter/onRouteLeave`），经 AppShell `<Transition :css="false" mode="out-in">` 接入。
+
+Token 存储于 `src/motion/easings.ts`（`DURATION_COMPLEX=0.35`, `SHIFT_X_ENTER=8`, `SHIFT_X_LEAVE=4`, `EASE_NEUTRAL='power2.inOut'`），CSS 变量 `--duration-complex: 350ms` 在 `tokens.css`。移动端门禁 `isMobileTransition()` export 自 `easings.ts`。
+
 ## 7. 暗色主题验收 checklist（P12-6 已验证）
 
 各关键面在 `data-theme="dark"` 下核对通过（视觉推演）：

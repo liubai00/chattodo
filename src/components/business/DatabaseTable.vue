@@ -113,7 +113,7 @@ const headers = [
 <style scoped>
 .db-grid {
   display: grid;
-  grid-template-columns: 36px 1fr 112px 100px 76px 88px 60px;
+  grid-template-columns: 36px 1fr 112px 100px 76px 88px 72px;
   align-items: center;
   gap: 0;
   padding: 0 22px;
@@ -140,6 +140,7 @@ const headers = [
   display: flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
 }
 .db-head--active {
   color: var(--text);

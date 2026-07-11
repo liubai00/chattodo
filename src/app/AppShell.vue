@@ -22,6 +22,8 @@ import Input from '@/components/ui/input/Input.vue'
 import Card from '@/components/ui/card/Card.vue'
 import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import IconButton from '@/components/base/IconButton.vue'
+// P14：路由滑入切换（Linear 350ms x+8px→0 / x→-4px）。
+import { onRouteBeforeEnter, onRouteEnter, onRouteLeave } from '@/motion'
 // AppShell 跨 tasks/friends/app 三域：显式合并所需域 API（保持 api.xxx 调用语法，import 来自 modules）。
 const api = { ...TasksAPI, ...FriendsAPI, ...AppAPI }
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
@@ -53,6 +55,34 @@ const booting = ref(true)
 interface PaletteItem { icon: string; label: string; subtitle?: string; run: () => void }
 
 const view = computed(() => route.name as string)
+
+// P14: 视图组件映射 + 统一 props，配合 <Transition :css="false"> 路由滑入
+const viewComponentMap: Record<string, ReturnType<typeof defineAsyncComponent> | null> = {
+  chat: ChatView,
+  database: DatabaseView,
+  projects: ProjectsView,
+  friends: FriendsView,
+  clarify: ClarifyView,
+  nontodo: NonTodoView,
+  agent: AgentView,
+  settings: SettingsView,
+  'design-preview': DesignPreviewView,
+}
+const currentView = computed(() => viewComponentMap[view.value] ?? null)
+const viewProps = computed(() => {
+  const base: Record<string, unknown> = { isMobile: ui.isMobile }
+  const viewsWithWorkspace = new Set(['chat', 'database', 'projects', 'clarify', 'nontodo'])
+  if (viewsWithWorkspace.has(view.value)) {
+    base.workspace = ui.workspace
+    base.privacy = ui.privacy
+  }
+  if (view.value === 'chat') {
+    base.openTask = openTask; base.openIdea = openIdea; base.openNon = openNon
+    base.afterSend = afterSend; base.setWorkspace = ui.setWorkspace; base.togglePrivacy = ui.togglePrivacy
+  }
+  if (view.value === 'database' || view.value === 'projects') base.openTask = openTask
+  return base
+})
 const meBig = computed(() => (auth.user.name || '我').slice(-1))
 const adminUrl = computed(() => (import.meta.env.BASE_URL || '/') + 'admin/')
 
@@ -239,16 +269,15 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <IconButton icon="ph-sign-out" label="登出" variant="ghost" size="sm" @click="logout" />
       </div>
       <div class="relative min-w-0 flex-1">
-        <ChatView v-if="view==='chat'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :openIdea="openIdea" :openNon="openNon" :afterSend="afterSend" :setWorkspace="ui.setWorkspace" :togglePrivacy="ui.togglePrivacy" :isMobile="ui.isMobile" />
-        <DatabaseView v-else-if="view==='database'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :isMobile="ui.isMobile" />
-        <ProjectsView v-else-if="view==='projects'" :workspace="ui.workspace" :privacy="ui.privacy" :openTask="openTask" :isMobile="ui.isMobile" />
-        <FriendsView v-else-if="view==='friends'" :isMobile="ui.isMobile" />
-        <ClarifyView v-else-if="view==='clarify'" :workspace="ui.workspace" :privacy="ui.privacy" :isMobile="ui.isMobile" />
-        <NonTodoView v-else-if="view==='nontodo'" :workspace="ui.workspace" :privacy="ui.privacy" :isMobile="ui.isMobile" />
-        <AgentView v-else-if="view==='agent'" :isMobile="ui.isMobile" />
-        <SettingsView v-else-if="view==='settings'" :isMobile="ui.isMobile" />
-        <DesignPreviewView v-else-if="view==='design-preview' && DesignPreviewView" :isMobile="ui.isMobile" />
-        <div v-else class="flex flex-1 items-center justify-center text-[var(--text3)]">未知视图</div>
+        <Transition :css="false" mode="out-in" @before-enter="onRouteBeforeEnter" @enter="onRouteEnter" @leave="onRouteLeave">
+          <component
+            v-if="currentView"
+            :is="currentView"
+            :key="String(view)"
+            v-bind="viewProps"
+          />
+          <div v-else class="flex flex-1 items-center justify-center text-[var(--text3)]">未知视图</div>
+        </Transition>
 
         <!-- 任务详情浮层 -->
         <TaskDetailView v-if="ui.detailId" :taskId="ui.detailId" :afterChange="afterSend" @close="ui.closeDetail()" />

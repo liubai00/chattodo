@@ -110,19 +110,19 @@ const layoutItems: { value: DbLayout; label: string; icon: string }[] = [
       <div
         :class="[
           'flex flex-none items-center gap-2.5 border-b border-[var(--line)] bg-[var(--panel)] px-[18px]',
-          isMobile ? 'flex-wrap py-2' : 'h-[52px]',
+          isMobile ? 'flex-wrap py-2' : 'h-[52px] min-w-0',
         ]"
       >
         <SearchField
           v-model="dbSearch"
           placeholder="搜索任务标题"
-          :class="isMobile ? 'w-full' : 'w-[230px]'"
+          :class="isMobile ? 'w-full' : 'w-[230px] max-w-[30%] min-w-[140px]'"
         />
         <FilterSelect v-model="dbProject" :options="projectOptions" />
         <FilterSelect v-model="dbPriority" :options="priorityOptions" />
-        <div class="flex-1"></div>
-        <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--mid)] px-[11px] py-1.5 text-xs font-semibold text-[var(--text2)]">
-          <i :class="['ph', modeIcon]" class="text-[13px]"></i>{{ modeLabel }}
+        <div class="min-w-2 flex-1"></div>
+        <span class="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--mid)] px-[11px] py-1.5 text-xs font-semibold text-[var(--text2)]">
+          <i :class="['ph', modeIcon]" class="shrink-0 text-[13px]"></i>{{ modeLabel }}
         </span>
       </div>
 
