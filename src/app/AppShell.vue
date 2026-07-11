@@ -22,8 +22,8 @@ import Input from '@/components/ui/input/Input.vue'
 import Card from '@/components/ui/card/Card.vue'
 import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import IconButton from '@/components/base/IconButton.vue'
-// P14：路由滑入切换（Linear 350ms x+8px→0 / x→-4px）+ 浮层动效。
-import { onRouteBeforeEnter, onRouteEnter, onRouteLeave, onOverlayRightEnter, onOverlayCenterEnter, onOverlayLeave } from '@/motion'
+// P14：路由滑入切换用 Vue 原生 CSS 过渡（name="lx-route"，见 styles.css）；浮层仍用 GSAP 钩子。
+import { onOverlayRightEnter, onOverlayCenterEnter, onOverlayLeave } from '@/motion'
 // AppShell 跨 tasks/friends/app 三域：显式合并所需域 API（保持 api.xxx 调用语法，import 来自 modules）。
 const api = { ...TasksAPI, ...FriendsAPI, ...AppAPI }
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
@@ -56,7 +56,7 @@ interface PaletteItem { icon: string; label: string; subtitle?: string; run: () 
 
 const view = computed(() => route.name as string)
 
-// P14: 视图组件映射 + 统一 props，配合 <Transition :css="false"> 路由滑入
+// P14: 视图组件映射 + 统一 props，配合 <Transition name="lx-route"> 路由滑入
 const viewComponentMap: Record<string, ReturnType<typeof defineAsyncComponent> | null> = {
   chat: ChatView,
   database: DatabaseView,
@@ -269,7 +269,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <IconButton icon="ph-sign-out" label="登出" variant="ghost" size="sm" @click="logout" />
       </div>
       <div class="relative min-w-0 flex-1">
-        <Transition :css="false" mode="out-in" @before-enter="onRouteBeforeEnter" @enter="onRouteEnter" @leave="onRouteLeave">
+        <Transition name="lx-route" mode="out-in">
           <component
             v-if="currentView"
             :is="currentView"

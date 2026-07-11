@@ -86,5 +86,12 @@ button:active{transform:scale(.97)}
    移动/窄屏：仅 opacity（Grill 锁定）。 */
 .lx-view-enter-active,.lx-view-leave-active{transition:opacity var(--duration-complex, 350ms) var(--ease-neutral)}
 .lx-view-enter-from,.lx-view-leave-to{opacity:0}
+/* P14 fix: 路由视图切换改用 Vue 原生 CSS 过渡（替代 :css=false JS 钩子）。
+   旧钩子靠 transitionend，会被子元素冒泡提前结束、且异步组件占位(comment 节点)上取 .style 崩溃。
+   原生 Transition 内部按 e.target===el 过滤冒泡并计算超时兜底，规避这两类问题。视觉不变。 */
+.lx-route-enter-active,.lx-route-leave-active{transition:opacity var(--duration-complex, 350ms) var(--ease-neutral),transform var(--duration-complex, 350ms) var(--ease-neutral)}
+.lx-route-enter-from{opacity:0;transform:translateX(8px)}
+.lx-route-leave-to{opacity:0;transform:translateX(-4px)}
+@media (max-width:819px){.lx-route-enter-from,.lx-route-leave-to{transform:none}}
 .lx-batch-enter-active,.lx-batch-leave-active{transition:opacity var(--duration-linear-view, 250ms) var(--ease-in-out),transform var(--duration-linear-view, 250ms) var(--ease-in-out)}
 .lx-batch-enter-from,.lx-batch-leave-to{opacity:0;transform:translateY(-4px)}
