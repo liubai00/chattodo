@@ -18,6 +18,61 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* =========================================================================
+   Scoped preflight（P12）：仅作用于应用壳 #lx-root，归一化元素默认值，使 ShadCN
+   工具类组合可预测。放在 @layer base，故 @layer utilities 始终胜出（层叠顺序优先于
+   特异性），内联 style 也始终胜出 —— 不影响现有内联样式 / 工具类渲染。
+   admin/（独立 HTML）与 standalone.html 在 #lx-root 之外，完全不受影响。
+   ========================================================================= */
+@layer base {
+  #lx-root,
+  #lx-root *,
+  #lx-root *::before,
+  #lx-root *::after {
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--border-default);
+  }
+
+  #lx-root button,
+  #lx-root input,
+  #lx-root optgroup,
+  #lx-root select,
+  #lx-root textarea {
+    font: inherit;
+    color: inherit;
+    line-height: inherit;
+  }
+
+  #lx-root button,
+  #lx-root [type='button'],
+  #lx-root [type='reset'],
+  #lx-root [type='submit'] {
+    -webkit-appearance: button;
+    background-color: transparent;
+    background-image: none;
+  }
+
+  #lx-root [type='search'] {
+    -webkit-appearance: textfield;
+    outline-offset: -2px;
+  }
+
+  #lx-root ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+
+  #lx-root ::-webkit-file-upload-button {
+    -webkit-appearance: button;
+    font: inherit;
+  }
+
+  #lx-root :disabled {
+    cursor: default;
+  }
+}
+
 @theme inline {
   /* surfaces */
   --color-background: var(--surface-base);
