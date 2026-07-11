@@ -16,7 +16,7 @@ export interface ServerEvent {
 // Streaming chat turn over SSE. handlers: {onStatus({intent}), onDelta(text)}.
 // Resolves with the final full payload (same shape as api.chat); throws if the
 // stream is unavailable or breaks before `done` - caller falls back to api.chat.
-async function chatStream(message: string, handlers: ChatStreamHandlers = {}, mentions: string[] = [], conversationId: string | null = null): Promise<ChatResponse> {
+async function chatStream(message: string, handlers: ChatStreamHandlers = {}, mentions: unknown[] = [], conversationId: string | null = null): Promise<ChatResponse> {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   const token = getToken()
   if (token) headers.authorization = 'Bearer ' + token
@@ -96,7 +96,7 @@ function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
 }
 
 export const ChatAPI = {
-  chat: (message: string, mentions?: string[], conversationId?: string | null) => request<ChatResponse>('POST', '/chat', { message, ...(mentions && mentions.length ? { mentions } : {}), ...(conversationId ? { conversationId } : {}) }),
+  chat: (message: string, mentions?: unknown[], conversationId?: string | null) => request<ChatResponse>('POST', '/chat', { message, ...(mentions && mentions.length ? { mentions } : {}), ...(conversationId ? { conversationId } : {}) }),
   chatStream,
   conversations: () => request<{ conversations: Conversation[] }>('GET', '/conversations'),
   createConversation: (title?: string) => request<Conversation>('POST', '/conversations', title ? { title } : {}),
