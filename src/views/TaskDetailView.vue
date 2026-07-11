@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // 任务详情面板视图（组装层）：全局浮层。数据/操作走 useTaskDetail；视图只留模板与分段样式（seg）。
+// P14: lx-slide 升级为 GSAP 右侧 x+20px enter 350ms / leave 250ms。
+import { onOverlayRightEnter, onOverlayLeave } from '@/motion'
 import { useTaskDetail, type TaskDetailProps } from '@/modules/tasks/composables/useTaskDetail'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/shared/utils/format'
@@ -23,8 +25,10 @@ const prioBtn = 'border:0;padding:6px 10px;border-radius:6px;font:700 11.5px/1 v
 <template>
   <div>
     <div @click="close" style="position:absolute;inset:0;background:var(--overlay-scrim);z-index:8;"></div>
-    <div style="position:absolute;top:0;right:0;bottom:0;width:440px;max-width:92%;background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow-lg);z-index:9;display:flex;flex-direction:column;animation:lx-slide .28s ease;">
-      <div class="flex h-[57px] flex-none items-center gap-2.5 border-b border-[var(--line)] px-4">
+    <Transition :css="false" @enter="onOverlayRightEnter" @leave="onOverlayLeave">
+      <div v-if="true" style="position:absolute;top:0;right:0;bottom:0;width:440px;max-width:92%;background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow-lg);z-index:9;display:flex;flex-direction:column;">
+        <!-- rest unchanged, wrapped in <template v-if> for Transition -->
+        <div class="flex h-[57px] flex-none items-center gap-2.5 border-b border-[var(--line)] px-4">
         <span class="inline-flex items-center gap-[5px] rounded-full bg-[var(--accent-bg)] px-[10px] py-1 text-[11.5px] font-semibold text-[var(--accent-ink)]"><span class="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"></span>任务</span>
         <div class="flex-1"></div>
         <button @click="close" class="flex h-8 w-8 items-center justify-center rounded-lg text-[18px] text-[var(--text2)]" style="border:0;background:transparent;cursor:pointer;" data-hv="0"><i class="ph ph-x"></i></button>
@@ -100,5 +104,6 @@ const prioBtn = 'border:0;padding:6px 10px;border-radius:6px;font:700 11.5px/1 v
         </template>
       </div>
     </div>
+    </Transition>
   </div>
 </template>

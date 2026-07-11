@@ -17,20 +17,21 @@
    ========================================================================= */
 @layer utilities {
   /* ── Overlay 入场/离场（DropdownMenu / Select / Popover，MD §4.1.4+§4.2.3+§4.3.1）── */
+  /* P14: 容器展开 scaleY(0.98)→1 + translateY(-4px) + opacity 250ms */
   .lx-overlay[data-state="open"] {
-    animation: lx-overlay-in var(--duration-overlay, 200ms) var(--ease-overlay-in) both;
+    animation: lx-overlay-in var(--duration-linear-view, 250ms) var(--ease-entrance) both;
   }
   .lx-overlay[data-state="closed"] {
-    animation: lx-overlay-out var(--duration-overlay, 200ms) var(--ease-overlay-out) both;
+    animation: lx-overlay-out var(--duration-linear-view, 250ms) var(--ease-exit) both;
   }
 
   @keyframes lx-overlay-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-4px) scaleY(0.98); }
+    to   { opacity: 1; transform: translateY(0) scaleY(1); }
   }
   @keyframes lx-overlay-out {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(-4px); }
+    from { opacity: 1; transform: translateY(0) scaleY(1); }
+    to   { opacity: 0; transform: translateY(-4px) scaleY(0.98); }
   }
 
   /* ── Tooltip（MD §4.3.2：150ms translateY(-2px) + opacity，比 overlay 更轻）── */

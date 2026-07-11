@@ -2,6 +2,8 @@
 // Todo 数据库视图（组装层）：dbViews 导航 | 头+筛选+批量+表格+看板。
 // 全部数据/编排走 useDatabaseBoard（不改其逻辑）；表格拆为 DatabaseTable，看板列拆为 BoardColumn。
 // P12：NavItem/SearchField/FilterSelect/SegmentedControl 替代原生控件与内联 :style 墙；视图切换走 Vue Transition。
+// P14：lx-view Transition 升级为 GSAP x 滑入（250ms），桌面 x+4px→0 / 移动仅 opacity。
+import { onViewEnter, onViewLeave } from '@/motion'
 import { useDatabaseBoard, DB_DEFS } from '@/modules/tasks/composables/useDatabaseBoard'
 import { usePane } from '@/shared/composables/usePane'
 import { STORAGE_KEYS } from '@/shared/constants/storage-keys'
@@ -143,8 +145,8 @@ const layoutItems: { value: DbLayout; label: string; icon: string }[] = [
         </div>
       </Transition>
 
-      <!-- 视图切换 table <-> board -->
-      <Transition name="lx-view" mode="out-in">
+      <!-- 视图切换 table <-> board（P14: GSAP x 滑入 250ms） -->
+      <Transition :css="false" mode="out-in" @enter="onViewEnter" @leave="onViewLeave">
         <DatabaseTable
           v-if="dbLayout === 'table'"
           key="table"

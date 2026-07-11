@@ -14,4 +14,12 @@ export { vFade } from './v-fade'
 export { vStagger } from './v-stagger'
 export { vMessageEnter } from './messageEnter'
 export { onRouteBeforeEnter, onRouteEnter, onRouteLeave } from './routeTransition'
+export {
+  onOverlayRightEnter,
+  onToastLeave,
+  onOverlayCenterEnter,
+  onOverlayLeave,
+  onViewEnter,
+  onViewLeave,
+} from './overlayTransitions'
 export { useFlip } from './useFlip'
