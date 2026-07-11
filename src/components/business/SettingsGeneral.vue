@@ -2,6 +2,7 @@
 // 设置 · 通用 section：主题/默认工作区/默认视图。状态经 SETTINGS_KEY 注入；seg 为分段按钮样式。
 import { inject } from 'vue'
 import { SETTINGS_KEY } from '@/modules/settings/composables/useSettings'
+import FilterSelect from '@/components/base/FilterSelect.vue'
 
 const { s, toggleTheme, updateSetting, viewOptions } = inject(SETTINGS_KEY)!
 const seg = (on: boolean) => on
@@ -27,9 +28,12 @@ const seg = (on: boolean) => on
     </div>
     <div class="flex items-center gap-[14px] py-[15px]">
       <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">默认视图</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">下次登录首屏进入的页面</div></div>
-      <select :value="s.defaultView" @change="updateSetting('defaultView', ($event.target as HTMLSelectElement).value)" class="cursor-pointer rounded-[9px] border border-[var(--line2)] bg-[var(--bg)] px-[10px] py-2 text-[12.5px] font-semibold text-[var(--text)]">
-        <option v-for="o in viewOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-      </select>
+      <FilterSelect
+        :model-value="s.defaultView"
+        @update:model-value="(v) => updateSetting('defaultView', v)"
+        :options="viewOptions"
+        class="bg-[var(--bg)]"
+      />
     </div>
   </div>
   <div class="rounded-xl bg-[var(--mid)] p-3 text-xs font-medium text-[var(--text3)] leading-relaxed">以上设置即时保存到你的账号。</div>

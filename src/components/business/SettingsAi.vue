@@ -5,6 +5,7 @@ import { SETTINGS_KEY } from '@/modules/settings/composables/useSettings'
 import { AI_PRESETS } from '@/modules/agent/constants'
 import Button from '@/components/ui/button/Button.vue'
 import ContentCard from '@/components/base/ContentCard.vue'
+import FilterSelect from '@/components/base/FilterSelect.vue'
 import Input from '@/components/ui/input/Input.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 
@@ -24,9 +25,12 @@ const { canAdmin, s, apiKey, ownAiOpen, aiIsRule, aiPresetHint, aiOwnActive, aiP
     </div>
     <ContentCard v-if="ownAiOpen" class="gap-[14px]">
       <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">服务商预设</span>
-        <select :value="s.aiPreset" @change="pickAiPreset(AI_PRESETS.find(p => p.name === ($event.target as HTMLSelectElement).value)!)" class="cursor-pointer rounded-[10px] border border-[var(--line2)] bg-[var(--bg)] px-3 py-2.5 text-[13.5px] font-medium text-[var(--text)]">
-          <option v-for="o in aiPresetOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-        </select>
+        <FilterSelect
+          :model-value="s.aiPreset"
+          @update:model-value="(v) => pickAiPreset(AI_PRESETS.find(p => p.name === v)!)"
+          :options="aiPresetOptions"
+          class="bg-[var(--bg)]"
+        />
       </label>
       <template v-if="!aiIsRule">
         <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">Base URL</span><Input :model-value="s.aiBaseUrl" @update:model-value="(v) => setAiField('aiBaseUrl', v)" placeholder="https://api.deepseek.com/v1" /></label>
@@ -45,9 +49,12 @@ const { canAdmin, s, apiKey, ownAiOpen, aiIsRule, aiPresetHint, aiOwnActive, aiP
   <template v-else>
     <ContentCard class="gap-[14px]">
       <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">服务商预设</span>
-        <select :value="s.aiPreset" @change="pickAiPreset(AI_PRESETS.find(p => p.name === ($event.target as HTMLSelectElement).value)!)" class="cursor-pointer rounded-[10px] border border-[var(--line2)] bg-[var(--bg)] px-3 py-2.5 text-[13.5px] font-medium text-[var(--text)]">
-          <option v-for="o in aiPresetOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-        </select>
+        <FilterSelect
+          :model-value="s.aiPreset"
+          @update:model-value="(v) => pickAiPreset(AI_PRESETS.find(p => p.name === v)!)"
+          :options="aiPresetOptions"
+          class="bg-[var(--bg)]"
+        />
         <span v-if="aiPresetHint" class="text-[11.5px] font-medium text-[var(--text3)]">{{ aiPresetHint }}</span>
       </label>
       <template v-if="!aiIsRule">
