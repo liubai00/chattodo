@@ -12,6 +12,9 @@ on:
       - 'vite.config.*'
       - 'tsconfig.json'
       - 'vitest.config.*'
+      - 'eslint.config.*'
+      - '.prettierrc*'
+      - '.editorconfig'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
     paths:
@@ -22,6 +25,9 @@ on:
       - 'vite.config.*'
       - 'tsconfig.json'
       - 'vitest.config.*'
+      - 'eslint.config.*'
+      - '.prettierrc*'
+      - '.editorconfig'
       - '.github/workflows/frontend-ci.yml'
 
 jobs:
@@ -43,6 +49,9 @@ jobs:
 
       - name: Type-check
         run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
 
       - name: Unit tests
         run: npm run test

@@ -148,7 +148,6 @@ function subscribeEvents() {
   if (_unsub) return
   _unsub = events.subscribe((e: ServerEvent) => {
     if (e.kind === 'notify' && e.text) toast.flash('🔔 ' + String(e.text).slice(0, 46))
-    const now = Date.now()
     if (!_evtTimer) { _evtTimer = setTimeout(() => { _evtTimer = null; ui.load(); ui.loadNotifs() }, 2600) }
   })
 }

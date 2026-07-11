@@ -45,8 +45,8 @@ async function chatStream(message: string, handlers: ChatStreamHandlers = {}, me
       }
       let obj: unknown = null
       try { obj = JSON.parse(data) } catch { /* ignore */ }
-      if (event === 'delta') handlers.onDelta && handlers.onDelta((obj as { text?: string } | null)?.text || '')
-      else if (event === 'status') handlers.onStatus && handlers.onStatus((obj as { intent?: string } | null) || {})
+      if (event === 'delta') handlers.onDelta?.((obj as { text?: string } | null)?.text || '')
+      else if (event === 'status') handlers.onStatus?.((obj as { intent?: string } | null) || {})
       else if (event === 'done') done = obj as ChatResponse
       else if (event === 'error') throw new Error((obj as { error?: string } | null)?.error || '流式请求失败')
     }
@@ -92,7 +92,7 @@ function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
     }
   }
   run()
-  return () => { stop = true; try { ctrl && ctrl.abort() } catch { /* ignore */ } }
+  return () => { stop = true; try { ctrl?.abort() } catch { /* ignore */ } }
 }
 
 export const ChatAPI = {

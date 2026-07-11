@@ -1,6 +1,6 @@
 import type { Directive } from 'vue'
 import gsap from 'gsap'
-import { EASE_OUT, DURATION_MEDIUM, SHIFT_Y, prefersReducedMotion } from './easings'
+import { prefersReducedMotion } from './easings'
 
 // 子元素错峰入场：同区块内子元素 15-30ms 依次递进显隐。
 // 用法：<ul v-stagger="{ selector: 'li', delay: 0.02 }">...</ul>

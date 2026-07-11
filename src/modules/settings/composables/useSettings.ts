@@ -1,5 +1,5 @@
 // 设置域 composable：账号 / 通用 / AI 接入 / 通知 / 隐私 / 数据 全部状态与操作下沉。
-// 视图只负责模板与分段样式（seg）。toast 经 useToast——与视图共用同一 store 实例
+// 视图只负责模板与分段样式（seg）。toast 经 useToast--与视图共用同一 store 实例
 // （Pinia 单例），故视图保留自己的 useToast() 供模板内联 toast.flash，模板无需改动。
 import { ref, reactive, computed, onMounted, type InjectionKey } from 'vue'
 import { AuthAPI } from '@/modules/auth/api'
@@ -8,11 +8,29 @@ import { SettingsAPI } from '@/modules/settings/api'
 import { setToken } from '@/infrastructure/request'
 import { applyTheme, type Theme } from '@/shared/utils/theme'
 import { AI_PRESETS, type AiPreset } from '@/modules/agent/constants'
-import type { AiConfig } from '@/types/api'
+import type { AiConfig, User } from '@/types/api'
 import { useToast } from '@/stores/toast'
 import { useEventsStore } from '@/stores/events'
 
 export type Section = 'account' | 'general' | 'ai' | 'notifications' | 'privacy' | 'data'
+
+// getState 返回的 appSettings 形状（load 只读这几列）。
+interface AppSettingsRow {
+  theme?: string
+  workspaceMode?: string
+  defaultView?: string
+  aiVisibility?: string
+  privacyMode?: boolean
+  friendPolicy?: string
+  notifPrefs?: { assign?: boolean; due?: boolean; fail?: boolean; done?: boolean }
+}
+interface SettingsState { appSettings?: AppSettingsRow; [k: string]: unknown }
+// testAiConfig 返回（ok/error 显式，kind 经 index signature 为 unknown，按需收窄）。
+interface TestAiResult { ok: boolean; error?: string; kind?: string }
+
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : ''
+}
 
 export function useSettings() {
   const toast = useToast()
@@ -72,9 +90,9 @@ export function useSettings() {
       user.accountName = me.accountName || me.name || ''
       user.email = me.email || ''
       user.role = me.role || 'member'
-      const as = ((st as any).appSettings || {}) as Record<string, any>
+      const as: AppSettingsRow = (st as unknown as SettingsState).appSettings || {}
       s.theme = as.theme === 'dark' ? 'dark' : 'light'
-      s.defaultWs = as.workspaceMode || 'work'
+      s.defaultWs = (as.workspaceMode || 'work') as 'work' | 'personal'
       s.defaultView = as.defaultView || 'chat'
       s.aiVisibility = as.aiVisibility || 'visible_scope_only'
       s.privacyDefault = as.privacyMode != null ? !!as.privacyMode : false
@@ -106,9 +124,9 @@ export function useSettings() {
   // ---- 变更方法（对齐旧 App.vue）----
   const FIELD_MAP: Record<string, string> = { defaultWs: 'workspaceMode', defaultView: 'defaultView', aiVisibility: 'aiVisibility', privacyDefault: 'privacyMode', friendPolicy: 'friendPolicy' }
   function updateSetting(field: string, val: unknown) {
-    ;(s as any)[field] = val
+    (s as unknown as Record<string, unknown>)[field] = val
     const col = FIELD_MAP[field]
-    if (col) SettingsAPI.updateSettings({ [col]: field === 'privacyDefault' ? !!val : val } as any).catch(() => {})
+    if (col) SettingsAPI.updateSettings({ [col]: field === 'privacyDefault' ? !!val : val }).catch(() => {})
   }
   function toggleNotifPref(k: 'assign' | 'due' | 'fail' | 'done') {
     s.notifPrefs[k] = !s.notifPrefs[k]
@@ -119,7 +137,7 @@ export function useSettings() {
     s.aiModel = (p.models && p.models[0]) || ''; s.aiTested = false
   }
   function setAiField(field: string, val: unknown) {
-    ;(s as any)[field] = val; s.aiTested = false
+    (s as unknown as Record<string, unknown>)[field] = val; s.aiTested = false
     if ((field === 'aiBaseUrl' || field === 'aiModel') && s.aiPreset !== '规则版（离线）') s.aiPreset = '自定义'
   }
   function aiCfg(): AiConfig {
@@ -129,50 +147,53 @@ export function useSettings() {
   }
   function testConn() {
     toast.flash('测试中…')
-    SettingsAPI.testAiConfig(aiCfg()).then((r: any) => { s.aiTested = !!r.ok; toast.flash(r.ok ? ('连接正常 · ' + (r.kind || '模型可用')) : ('连接失败：' + (r.error || ''))) })
-      .catch((e: any) => { s.aiTested = false; toast.flash('测试失败：' + e.message) })
+    SettingsAPI.testAiConfig(aiCfg()).then((r) => {
+      const rr = r as TestAiResult
+      s.aiTested = !!rr.ok
+      toast.flash(rr.ok ? ('连接正常 · ' + (rr.kind || '模型可用')) : ('连接失败：' + (rr.error || '')))
+    }).catch((e: unknown) => { s.aiTested = false; toast.flash('测试失败：' + errMsg(e)) })
   }
   function saveSettings() {
-    SettingsAPI.updateAiConfig(aiCfg()).then(() => { apiKey.value = ''; toast.flash('AI 接入配置已保存') }).catch((e: any) => toast.flash('保存失败：' + e.message))
+    SettingsAPI.updateAiConfig(aiCfg()).then(() => { apiKey.value = ''; toast.flash('AI 接入配置已保存') }).catch((e: unknown) => toast.flash('保存失败：' + errMsg(e)))
   }
   function saveOwnAi() {
-    SettingsAPI.updateOwnAiConfig(aiCfg()).then(() => { aiSource.value = 'own'; apiKey.value = ''; toast.flash('已保存个人 AI 配置（仅对你生效）') }).catch((e: any) => toast.flash('保存失败：' + e.message))
+    SettingsAPI.updateOwnAiConfig(aiCfg()).then(() => { aiSource.value = 'own'; apiKey.value = ''; toast.flash('已保存个人 AI 配置（仅对你生效）') }).catch((e: unknown) => toast.flash('保存失败：' + errMsg(e)))
   }
   function clearOwnAi() {
-    SettingsAPI.clearOwnAiConfig().then(() => { load(); toast.flash('已恢复使用团队配置') }).catch((e: any) => toast.flash('操作失败：' + e.message))
+    SettingsAPI.clearOwnAiConfig().then(() => { load(); toast.flash('已恢复使用团队配置') }).catch((e: unknown) => toast.flash('操作失败：' + errMsg(e)))
   }
   function submitPwd() {
     if (!pwdNew.value || pwdNew.value.length < 8) { toast.flash('新密码至少 8 位'); return }
     pwdBusy.value = true
     AuthAPI.changePassword(pwdOld.value, pwdNew.value).then(() => { pwdBusy.value = false; pwdOpen.value = false; pwdOld.value = ''; pwdNew.value = ''; toast.flash('密码已更新') })
-      .catch((e: any) => { pwdBusy.value = false; toast.flash('修改失败：' + e.message) })
+      .catch((e: unknown) => { pwdBusy.value = false; toast.flash('修改失败：' + errMsg(e)) })
   }
   function doExport() {
-    SettingsAPI.exportData().then((data: any) => {
+    SettingsAPI.exportData().then((data) => {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'linx-export-' + new Date().toISOString().slice(0, 10) + '.json'
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)
       toast.flash('已导出全部数据 (JSON)')
-    }).catch((e: any) => toast.flash('导出失败：' + e.message))
+    }).catch((e: unknown) => toast.flash('导出失败：' + errMsg(e)))
   }
   function doClearData() {
     if (!window.confirm('确定清空当前账号下的全部任务、想法与聊天记录吗？此操作不可恢复。')) return
-    SettingsAPI.clearData().then(() => { load(); toast.flash('已清空数据') }).catch((e: any) => toast.flash('清空失败：' + e.message))
+    SettingsAPI.clearData().then(() => { load(); toast.flash('已清空数据') }).catch((e: unknown) => toast.flash('清空失败：' + errMsg(e)))
   }
   function onName(e: Event) {
     const v = (e.target as HTMLInputElement).value.trim()
     if (!v) { toast.flash('称呼不能为空'); return }
     const old = user.name; user.name = v
-    AuthAPI.updateMe({ name: v }).then((u: any) => { user.name = u.name || v; user.accountName = u.accountName || user.accountName })
-      .catch((err: any) => { user.name = old; toast.flash('保存失败：' + err.message) })
+    AuthAPI.updateMe({ name: v }).then((u: User) => { user.name = u.name || v; user.accountName = u.accountName || user.accountName })
+      .catch((err: unknown) => { user.name = old; toast.flash('保存失败：' + errMsg(err)) })
   }
   function onAccountName(e: Event) {
     const v = (e.target as HTMLInputElement).value.trim()
     const old = user.accountName
     if (!v) { toast.flash('账户名不能为空'); return }
     user.accountName = v
-    AuthAPI.updateMe({ accountName: v }).then((u: any) => { user.accountName = u.accountName || v; toast.flash('账户名已更新') })
-      .catch((err: any) => { user.accountName = old; toast.flash('保存失败：' + err.message) })
+    AuthAPI.updateMe({ accountName: v }).then((u: User) => { user.accountName = u.accountName || v; toast.flash('账户名已更新') })
+      .catch((err: unknown) => { user.accountName = old; toast.flash('保存失败：' + errMsg(err)) })
   }
   function toggleTheme() {
     s.theme = s.theme === 'dark' ? 'light' : 'dark'

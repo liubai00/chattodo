@@ -3,7 +3,6 @@
 import { useTaskDetail, type TaskDetailProps } from '@/modules/tasks/composables/useTaskDetail'
 import { useToast } from '@/stores/toast'
 import { lxFmtDue } from '@/shared/utils/format'
-import Button from '@/components/ui/button/Button.vue'
 
 const props = defineProps<TaskDetailProps>()
 const emit = defineEmits<{ close: [] }>()
