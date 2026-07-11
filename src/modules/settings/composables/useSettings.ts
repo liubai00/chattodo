@@ -1,7 +1,7 @@
 // 设置域 composable：账号 / 通用 / AI 接入 / 通知 / 隐私 / 数据 全部状态与操作下沉。
 // 视图只负责模板与分段样式（seg）。toast 经 useToast——与视图共用同一 store 实例
 // （Pinia 单例），故视图保留自己的 useToast() 供模板内联 toast.flash，模板无需改动。
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, type InjectionKey } from 'vue'
 import { AuthAPI } from '@/modules/auth/api'
 import { AppAPI } from '@/modules/app/api'
 import { SettingsAPI } from '@/modules/settings/api'
@@ -194,3 +194,7 @@ export function useSettings() {
     clearOwnAi, submitPwd, doExport, doClearData, onName, onAccountName, toggleTheme, logout,
   }
 }
+
+// 供 SettingsView 向 6 个 section 组件注入同一份 useSettings 实例（避免逐 section 传 30+ props）。
+export type SettingsFacade = ReturnType<typeof useSettings>
+export const SETTINGS_KEY: InjectionKey<SettingsFacade> = Symbol('settings')
