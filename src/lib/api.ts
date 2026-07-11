@@ -69,7 +69,7 @@ export interface ApiClient {
   getAgent(): Promise<Agent>
   updateAgent(patch: Partial<Agent>): Promise<Agent>
   getSettings(): Promise<Settings>
-  updateSettings(patch: Partial<Settings>): Promise<Settings>
+  updateSettings(patch: Record<string, unknown>): Promise<Settings>
 
   search(q: string): Promise<SearchResult[]>
   mentions(q: string): Promise<User[]>

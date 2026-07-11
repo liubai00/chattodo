@@ -102,7 +102,11 @@
 
 <script>
 import { reactive, computed, onMounted } from 'vue'
-import { api, setToken, getToken } from '../src/lib/api'
+import { AuthAPI } from '../src/modules/auth/api'
+import { AdminAPI } from '../src/modules/admin/api'
+import { setToken, getToken } from '../src/infrastructure/request'
+// admin 跨 auth/admin 两域：显式合并所需域 API（保持 api.xxx 调用语法，import 来自 modules）。
+const api = { ...AuthAPI, ...AdminAPI }
 
 export default {
   name: 'AdminApp',

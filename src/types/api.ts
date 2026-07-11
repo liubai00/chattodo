@@ -174,6 +174,11 @@ export interface Notification {
   time?: string
   read?: boolean
   icon?: string
+  color?: string
+  createdAt?: string
+  actionType?: string
+  actionRef?: string
+  handled?: boolean
 }
 
 export interface Project {

@@ -9,9 +9,15 @@ import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 import { useEventsStore } from '@/stores/events'
 import { useToast } from '@/stores/toast'
-import { api } from '@/lib/api'
+import { TasksAPI } from '@/modules/tasks/api'
+import { FriendsAPI } from '@/modules/friends/api'
+import { AppAPI } from '@/modules/app/api'
+import type { ServerEvent } from '@/modules/chat/api'
+import type { Notification, SearchResult } from '@/types/api'
 import { lxFmtDue } from '@/shared/utils/format'
 import { applyTheme } from '@/shared/utils/theme'
+// AppShell 跨 tasks/friends/app 三域：显式合并所需域 API（保持 api.xxx 调用语法，import 来自 modules）。
+const api = { ...TasksAPI, ...FriendsAPI, ...AppAPI }
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
 import ChatView from '@/views/ChatView.vue'
 const DatabaseView = defineAsyncComponent(() => import('@/views/DatabaseView.vue'))
@@ -34,27 +40,30 @@ const authMode = ref<'login' | 'register'>('login')
 const authName = ref(''); const authEmail = ref(''); const authPassword = ref(''); const authError = ref(''); const authBusy = ref(false)
 const booting = ref(true)
 
+// 命令面板条目（导航项 / 搜索结果统一形状）。
+interface PaletteItem { icon: string; label: string; subtitle?: string; run: () => void }
+
 const view = computed(() => route.name as string)
 const meBig = computed(() => (auth.user.name || '我').slice(-1))
 const adminUrl = computed(() => (import.meta.env.BASE_URL || '/') + 'admin/')
 
 // 通知
-const unread = computed(() => ui.notifs.filter((n: any) => !n.read).length)
+const unread = computed(() => ui.notifs.filter((n) => !n.read).length)
 const hasUnread = computed(() => unread.value > 0)
-const notifList = computed(() => ui.notifs.map((n: any) => ({
+const notifList = computed(() => ui.notifs.map((n: Notification) => ({
   ...n, icon: n.icon || 'ph-bell', color: n.color || 'var(--accent-ink)', time: lxFmtDue(n.createdAt),
   isInvite: n.actionType === 'invite', isFriendReq: n.actionType === 'friend_request',
   wasInvite: n.actionType === 'invite' && n.handled, wasFriendReq: n.actionType === 'friend_request' && n.handled,
   dot: n.read ? 'var(--text3)' : 'var(--accent)',
 })))
-async function acceptInvite(r: string) { await api.respondInvite(r, 'accept', true).catch(() => {}); ui.loadNotifs(); toast.flash('已加入协作') }
-async function followInvite(r: string) { await api.respondInvite(r, 'follow').catch(() => {}); ui.loadNotifs(); toast.flash('已关注 · 进展会通知你') }
-async function declineInvite(r: string) { await api.respondInvite(r, 'decline').catch(() => {}); ui.loadNotifs(); toast.flash('已婉拒') }
-async function acceptFriend(r: string) { await api.friendRespond(r, true).catch(() => {}); ui.loadNotifs(); toast.flash('已成为好友') }
-async function declineFriend(r: string) { await api.friendRespond(r, false).catch(() => {}); ui.loadNotifs(); toast.flash('已拒绝') }
+async function acceptInvite(r: string | undefined) { await api.respondInvite(r || '', 'accept', true).catch(() => {}); ui.loadNotifs(); toast.flash('已加入协作') }
+async function followInvite(r: string | undefined) { await api.respondInvite(r || '', 'follow').catch(() => {}); ui.loadNotifs(); toast.flash('已关注 · 进展会通知你') }
+async function declineInvite(r: string | undefined) { await api.respondInvite(r || '', 'decline').catch(() => {}); ui.loadNotifs(); toast.flash('已婉拒') }
+async function acceptFriend(r: string | undefined) { await api.friendRespond(r || '', true).catch(() => {}); ui.loadNotifs(); toast.flash('已成为好友') }
+async function declineFriend(r: string | undefined) { await api.friendRespond(r || '', false).catch(() => {}); ui.loadNotifs(); toast.flash('已拒绝') }
 
 // 搜索 ⌘K
-const searchResults = ref<any[]>([])
+const searchResults = ref<SearchResult[]>([])
 const searchInput = ref<HTMLInputElement | null>(null)
 let _searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(() => ui.searchQuery, (q) => {
@@ -65,16 +74,16 @@ watch(() => ui.searchQuery, (q) => {
 watch(() => ui.searchOpen, (open) => { if (open) nextTick(() => searchInput.value?.focus()) })
 const SEARCH_LABELS: Record<string, string> = { task: '任务', idea: '待澄清', nono: '非 todo', project: '项目' }
 const paletteGroups = computed(() => {
-  const groups: Array<{ name: string; items: any[] }> = []
+  const groups: Array<{ name: string; items: PaletteItem[] }> = []
   if (!ui.searchQuery) groups.push({ name: '前往', items: NAV.map(([k, n, ic]) => ({ icon: ic, label: `前往 · ${n}`, run: () => { go(k); ui.searchQuery = ''; ui.closeSearch() } })) })
   if (searchResults.value.length) {
-    const byType: Record<string, any[]> = {}
+    const byType: Record<string, SearchResult[]> = {}
     for (const r of searchResults.value) { const t = r.type || 'other'; (byType[t] ||= []).push(r) }
     for (const t of Object.keys(byType)) groups.push({ name: SEARCH_LABELS[t] || t, items: byType[t].map((r) => ({ icon: r.icon || 'ph-at', label: r.title || '', subtitle: r.subtitle || '', run: () => { executeSearch(r); ui.searchQuery = ''; ui.closeSearch() } })) })
   }
   return groups
 })
-function executeSearch(r: any) {
+function executeSearch(r: SearchResult) {
   if (r.type === 'task') openTask(r.id)
   else if (r.type === 'idea') router.push({ name: 'clarify', params: { selId: r.id } })
   else if (r.type === 'nono') router.push({ name: 'nontodo', params: { selId: r.id } })
@@ -127,7 +136,7 @@ async function submitAuth() {
     await ui.load(); ui.loadNotifs(); events.connect(); subscribeEvents()
     router.push({ name: 'chat' })
     toast.flash(authMode.value === 'register' ? '注册成功 · 欢迎使用' : '欢迎回来')
-  } catch (e: any) { authError.value = (e && e.message) || '请求失败，请稍后再试' }
+  } catch (e: unknown) { authError.value = (e instanceof Error ? e.message : '') || '请求失败，请稍后再试' }
   finally { authBusy.value = false }
 }
 async function logout() { events.disconnect(); await auth.logout(); router.push({ name: 'home' }) }
@@ -137,7 +146,7 @@ let _evtTimer: ReturnType<typeof setTimeout> | null = null
 let _unsub: (() => void) | null = null
 function subscribeEvents() {
   if (_unsub) return
-  _unsub = events.subscribe((e: any) => {
+  _unsub = events.subscribe((e: ServerEvent) => {
     if (e.kind === 'notify' && e.text) toast.flash('🔔 ' + String(e.text).slice(0, 46))
     const now = Date.now()
     if (!_evtTimer) { _evtTimer = setTimeout(() => { _evtTimer = null; ui.load(); ui.loadNotifs() }, 2600) }

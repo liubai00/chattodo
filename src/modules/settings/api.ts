@@ -4,7 +4,7 @@ import type { Settings, AiConfig } from '@/types/api'
 
 export const SettingsAPI = {
   getSettings: () => request<Settings>('GET', '/settings'),
-  updateSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/settings', patch),
+  updateSettings: (patch: Record<string, unknown>) => request<Settings>('PUT', '/settings', patch),
 
   getAiConfig: () => request<AiConfig>('GET', '/ai/config'),
   updateAiConfig: (patch: Partial<AiConfig>) => request<AiConfig>('PUT', '/ai/config', patch),
