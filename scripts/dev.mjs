@@ -48,30 +48,51 @@ for (const dir of pgdataDirs) {
 }
 
 // ── 3. 启动后端 ──────────────────────────────────────────────────
-console.log('[server] 启动后端 (port 8787) …')
-const server = spawn('npm', ['run', 'dev'], {
+// 直接用 node 启动（不经 npm 包装层），stdio: 'inherit' 让终端 Ctrl+C 的 SIGINT
+// 直达后端进程，触发 server.js 里的优雅关闭：app.close() + PGlite syncToFs 落盘。
+// 若经 npm run dev -> node --watch，Windows 下 SIGINT 不向子进程转发，后端会被
+// 强杀，PGlite 半写入的数据目录下次启动 _pg_initdb 直接 Aborted()。
+console.log('[server] 启动后端 (port 18787) …')
+const server = spawn(process.execPath, ['--env-file-if-exists=.env', 'src/server.js'], {
   cwd: SERVER_DIR,
   stdio: 'inherit',
-  shell: true,
 })
 
 // 给后端 1 秒先启动，避免前端 proxy 请求过早失败
 await new Promise(resolve => setTimeout(resolve, 1000))
 
 // ── 4. 启动前端 ──────────────────────────────────────────────────
+// 同样直接跑 vite 入口（不经 npm/.cmd 包装），Ctrl+C SIGINT 直达 vite 进程。
 console.log('[vite] 启动前端 (port 3000) …')
-const vite = spawn('npm', ['run', 'dev'], {
+const vite = spawn(process.execPath, [join(ROOT, 'node_modules/vite/bin/vite.js')], {
   cwd: ROOT,
   stdio: 'inherit',
-  shell: true,
 })
 
 // ── 5. 优雅退出 ──────────────────────────────────────────────────
-function cleanup() {
-  console.log('\n[shutdown] 正在关闭…')
-  vite.kill('SIGTERM')
-  server.kill('SIGTERM')
-  // 二次清理：正常退出后也删掉 PID 文件，保证下次启动干净
+// 关键：必须给后端时间走 server.js 的优雅关闭（app.close() + PGlite syncToFs 落盘）。
+// 若 kill 后立即 process.exit，后端被强杀 -> PGlite 半写入 -> 下次启动 _pg_initdb Aborted()。
+// 所以 SIGINT 后等后端自行退出（最多 8s），再兜底 SIGKILL，最后清理残留 pid。
+let closing = false
+async function cleanup(signal) {
+  if (closing) return
+  closing = true
+  console.log(`\n[shutdown] 收到 ${signal}，正在优雅关闭…`)
+  // vite 可直接终止（无持久化状态）
+  try { vite.kill('SIGTERM') } catch {}
+  // 后端：先 SIGINT（触发 server.js 的 graceful shutdown + PGlite 落盘），等其自行退出
+  try { server.kill('SIGINT') } catch {}
+  const exited = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), 8000)
+    server.once('exit', () => { clearTimeout(timer); resolve(true) })
+  })
+  if (!exited) {
+    console.warn('[shutdown] 后端 8s 未退出，强制终止（数据目录可能需要下次启动重建）')
+    try { server.kill('SIGKILL') } catch {}
+  } else {
+    console.log('[shutdown] 后端已优雅退出（PGlite 已落盘）')
+  }
+  // 兜底清理残留 pid（正常优雅退出不应有；防极端情况卡下次启动）
   for (const dir of pgdataDirs) {
     const pidFile = join(dir, 'postmaster.pid')
     try { if (existsSync(pidFile)) unlinkSync(pidFile) } catch {}
@@ -79,8 +100,8 @@ function cleanup() {
   process.exit(0)
 }
 
-process.on('SIGINT', cleanup)
-process.on('SIGTERM', cleanup)
+process.on('SIGINT', () => cleanup('SIGINT'))
+process.on('SIGTERM', () => cleanup('SIGTERM'))
 
 // 子进程退出时也退出父进程
 server.on('exit', (code) => {

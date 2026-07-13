@@ -10,6 +10,7 @@ const CHANNEL_PREFIX = 'linx:evt:'
 
 let mode = 'local'
 let pub = null
+let sub = null
 
 function frameOf(event) {
   return `event: ${event.kind || 'refresh'}\ndata: ${JSON.stringify(event)}\n\n`
@@ -43,7 +44,7 @@ export async function initEvents({ redisUrl, publisher, subscriber, logger } = {
     if (!redisUrl) { mode = 'local'; return mode }
     const { createClient } = await import('redis')
     const client = createClient({ url: redisUrl })
-    const sub = client.duplicate()
+    sub = client.duplicate()
     client.on('error', (e) => log.error && log.error('events: redis publisher error: ' + e.message))
     sub.on('error', (e) => log.error && log.error('events: redis subscriber error: ' + e.message))
     await client.connect()
@@ -64,6 +65,20 @@ export async function initEvents({ redisUrl, publisher, subscriber, logger } = {
 }
 
 export function eventsMode() { return mode }
+
+// 优雅关闭：断开 Redis pub/sub 连接（local 模式无资源需释放）。
+// 不抛错，以便 shutdown 流程总能继续走到 DB 落盘。
+export async function closeEvents() {
+  if (mode !== 'redis') return
+  const clients = [pub, sub]
+  pub = null
+  sub = null
+  mode = 'local'
+  for (const c of clients) {
+    if (!c) continue
+    try { await c.quit() } catch { try { await c.disconnect() } catch { /* ignore */ } }
+  }
+}
 
 export function subscribe(userId, res) {
   if (!local.has(userId)) local.set(userId, new Set())

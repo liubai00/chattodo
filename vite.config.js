@@ -37,7 +37,7 @@ export default defineConfig({
     port: Number(process.env.PORT) || 3000,
     allowedHosts: true,
     proxy: {
-      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+      '/api': { target: 'http://localhost:18787', changeOrigin: true },
     },
   },
   preview: {
@@ -45,7 +45,7 @@ export default defineConfig({
     port: Number(process.env.PORT) || 3000,
     allowedHosts: true,
     proxy: {
-      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+      '/api': { target: 'http://localhost:18787', changeOrigin: true },
     },
   },
 })
