@@ -80,8 +80,10 @@ async function cleanup(signal) {
   console.log(`\n[shutdown] 收到 ${signal}，正在优雅关闭…`)
   // vite 可直接终止（无持久化状态）
   try { vite.kill('SIGTERM') } catch {}
-  // 后端：先 SIGINT（触发 server.js 的 graceful shutdown + PGlite 落盘），等其自行退出
-  try { server.kill('SIGINT') } catch {}
+  // 后端：终端 Ctrl+C 已通过 stdio:inherit 直达后端，server.js 的 graceful shutdown
+  // （app.close + PGlite syncToFs）正在自行执行。Windows 上 server.kill('SIGINT') 实为
+  // TerminateProcess（强杀），会打断 PGlite 落盘导致数据目录损坏——故不主动发信号，
+  // 只等其自行退出，超时再 SIGKILL 兜底。
   const exited = await new Promise((resolve) => {
     const timer = setTimeout(() => resolve(false), 8000)
     server.once('exit', () => { clearTimeout(timer); resolve(true) })
@@ -103,15 +105,19 @@ async function cleanup(signal) {
 process.on('SIGINT', () => cleanup('SIGINT'))
 process.on('SIGTERM', () => cleanup('SIGTERM'))
 
-// 子进程退出时也退出父进程
+// 子进程意外退出（非 cleanup 触发）时，连带退出另一个并结束父进程。
+// cleanup 进行中（closing=true）时跳过：避免 vite 被 cleanup 终止后触发此处强杀后端、
+// 打断 PGlite 落盘。
 server.on('exit', (code) => {
+  if (closing) return
   console.log(`[server] 已退出 (code=${code})`)
-  vite.kill('SIGTERM')
+  try { vite.kill('SIGTERM') } catch {}
   process.exit(code ?? 0)
 })
 
 vite.on('exit', (code) => {
+  if (closing) return
   console.log(`[vite] 已退出 (code=${code})`)
-  server.kill('SIGTERM')
+  try { server.kill('SIGTERM') } catch {}
   process.exit(code ?? 0)
 })

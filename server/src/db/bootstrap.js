@@ -15,4 +15,4 @@ if (Number(c) > 0) {
   if (migrated > 0) console.log(`bootstrap: migrated ${migrated} users (+ their data) from SQLite → Postgres`)
   else { await seedDb(db); console.log('bootstrap: empty DB → seeded demo data') }
 }
-process.exit(0)
+try { await db.close() } catch (e) { console.error('bootstrap: db close failed:', e.message) }; process.exit(0)
