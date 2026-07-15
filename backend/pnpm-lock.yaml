@@ -59,6 +59,9 @@ importers:
       '@linx/domain-projects':
         specifier: workspace:*
         version: link:../../packages/domain-projects
+      '@linx/domain-settings':
+        specifier: workspace:*
+        version: link:../../packages/domain-settings
       '@linx/domain-social':
         specifier: workspace:*
         version: link:../../packages/domain-social
@@ -74,6 +77,9 @@ importers:
       '@linx/infra-projects-pg':
         specifier: workspace:*
         version: link:../../packages/infra-projects-pg
+      '@linx/infra-settings-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-settings-pg
       '@linx/infra-social-pg':
         specifier: workspace:*
         version: link:../../packages/infra-social-pg
@@ -207,6 +213,8 @@ importers:
 
   packages/domain-projects: {}
 
+  packages/domain-settings: {}
+
   packages/domain-social: {}
 
   packages/domain-tasks: {}
@@ -245,6 +253,16 @@ importers:
       '@linx/kernel-ids':
         specifier: workspace:*
         version: link:../kernel-ids
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+
+  packages/infra-settings-pg:
+    dependencies:
+      '@linx/domain-settings':
+        specifier: workspace:*
+        version: link:../domain-settings
     devDependencies:
       '@electric-sql/pglite':
         specifier: ^0.2.17

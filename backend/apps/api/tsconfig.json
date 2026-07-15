@@ -13,6 +13,7 @@
     { "path": "../../packages/domain-collab" },
     { "path": "../../packages/domain-notifications" },
     { "path": "../../packages/domain-projects" },
+    { "path": "../../packages/domain-settings" },
     { "path": "../../packages/domain-social" },
     { "path": "../../packages/domain-tasks" },
     { "path": "../../packages/infra-collab-pg" },
