@@ -29,15 +29,24 @@ importers:
 
   apps/api:
     dependencies:
+      '@linx/app-projects':
+        specifier: workspace:*
+        version: link:../../packages/app-projects
       '@linx/app-tasks':
         specifier: workspace:*
         version: link:../../packages/app-tasks
       '@linx/contracts-http':
         specifier: workspace:*
         version: link:../../packages/contracts-http
+      '@linx/domain-projects':
+        specifier: workspace:*
+        version: link:../../packages/domain-projects
       '@linx/domain-tasks':
         specifier: workspace:*
         version: link:../../packages/domain-tasks
+      '@linx/infra-projects-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-projects-pg
       '@linx/infra-tasks-pg':
         specifier: workspace:*
         version: link:../../packages/infra-tasks-pg
@@ -76,6 +85,12 @@ importers:
         specifier: ^0.2.17
         version: 0.2.17
 
+  packages/app-projects:
+    dependencies:
+      '@linx/domain-projects':
+        specifier: workspace:*
+        version: link:../domain-projects
+
   packages/app-tasks:
     dependencies:
       '@linx/domain-tasks':
@@ -97,7 +112,22 @@ importers:
         specifier: ^4.0.0
         version: 4.4.3
 
+  packages/domain-projects: {}
+
   packages/domain-tasks: {}
+
+  packages/infra-projects-pg:
+    dependencies:
+      '@linx/domain-projects':
+        specifier: workspace:*
+        version: link:../domain-projects
+      '@linx/kernel-ids':
+        specifier: workspace:*
+        version: link:../kernel-ids
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
 
   packages/infra-tasks-pg:
     dependencies:

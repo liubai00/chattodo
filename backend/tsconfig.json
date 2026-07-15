@@ -23,6 +23,9 @@
     { "path": "packages/domain-tasks" },
     { "path": "packages/infra-tasks-pg" },
     { "path": "packages/app-tasks" },
+    { "path": "packages/domain-projects" },
+    { "path": "packages/infra-projects-pg" },
+    { "path": "packages/app-projects" },
     { "path": "apps/api" }
   ]
 }
