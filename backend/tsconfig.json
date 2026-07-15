@@ -18,6 +18,7 @@
     { "path": "packages/platform-ratelimit" },
     { "path": "packages/platform-cache" },
     { "path": "packages/platform-idempotency" },
+    { "path": "packages/platform-auth" },
     { "path": "apps/api" }
   ]
 }
