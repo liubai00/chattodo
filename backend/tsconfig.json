@@ -19,6 +19,7 @@
     { "path": "packages/platform-cache" },
     { "path": "packages/platform-idempotency" },
     { "path": "packages/platform-auth" },
+    { "path": "packages/platform-llm" },
     { "path": "packages/legacy" },
     { "path": "packages/domain-tasks" },
     { "path": "packages/infra-tasks-pg" },

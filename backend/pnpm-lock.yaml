@@ -394,6 +394,8 @@ importers:
 
   packages/platform-idempotency: {}
 
+  packages/platform-llm: {}
+
   packages/platform-logger:
     dependencies:
       pino:
