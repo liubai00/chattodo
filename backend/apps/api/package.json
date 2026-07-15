@@ -12,6 +12,8 @@
     "dev": "tsx watch src/main.ts"
   },
   "dependencies": {
+    "@linx/agent-planner-rule": "workspace:*",
+    "@linx/app-capture": "workspace:*",
     "@linx/app-projects": "workspace:*",
     "@linx/app-tasks": "workspace:*",
     "@linx/contracts-http": "workspace:*",

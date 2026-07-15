@@ -8,5 +8,8 @@ export default defineConfig({
     include: ['{packages,apps}/*/test/**/*.test.ts', '{packages,apps}/*/src/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
     environment: 'node',
+    // 每个 test 文件独立进程；限并发 fork 数，避免大量 PGlite(wasm) 并行 init 在 Windows 上偶发 abort。
+    pool: 'forks',
+    poolOptions: { forks: { maxForks: 4, minForks: 1 } },
   },
 })

@@ -3,6 +3,8 @@
   "compilerOptions": { "rootDir": "src", "outDir": "dist" },
   "include": ["src"],
   "references": [
+    { "path": "../../packages/agent-planner-rule" },
+    { "path": "../../packages/app-capture" },
     { "path": "../../packages/app-projects" },
     { "path": "../../packages/app-tasks" },
     { "path": "../../packages/contracts-http" },

@@ -26,6 +26,8 @@
     { "path": "packages/domain-projects" },
     { "path": "packages/infra-projects-pg" },
     { "path": "packages/app-projects" },
+    { "path": "packages/agent-planner-rule" },
+    { "path": "packages/app-capture" },
     { "path": "apps/api" }
   ]
 }

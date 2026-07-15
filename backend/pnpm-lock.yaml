@@ -29,6 +29,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@linx/agent-planner-rule':
+        specifier: workspace:*
+        version: link:../../packages/agent-planner-rule
+      '@linx/app-capture':
+        specifier: workspace:*
+        version: link:../../packages/app-capture
       '@linx/app-projects':
         specifier: workspace:*
         version: link:../../packages/app-projects
@@ -84,6 +90,30 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.2.17
         version: 0.2.17
+
+  packages/agent-planner-rule: {}
+
+  packages/app-capture:
+    dependencies:
+      '@linx/agent-planner-rule':
+        specifier: workspace:*
+        version: link:../agent-planner-rule
+      '@linx/domain-tasks':
+        specifier: workspace:*
+        version: link:../domain-tasks
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+      '@linx/app-projects':
+        specifier: workspace:*
+        version: link:../app-projects
+      '@linx/infra-projects-pg':
+        specifier: workspace:*
+        version: link:../infra-projects-pg
+      '@linx/infra-tasks-pg':
+        specifier: workspace:*
+        version: link:../infra-tasks-pg
 
   packages/app-projects:
     dependencies:
