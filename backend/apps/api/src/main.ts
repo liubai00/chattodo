@@ -23,6 +23,7 @@ import { makeAdminPlugin } from './routes/admin.routes.js'
 import { makeChatPlugin } from './routes/chat.routes.js'
 import { makeAiConfigPlugin } from './routes/ai.routes.js'
 import { makeEventsPlugin } from './routes/events.routes.js'
+import { makeStatePlugin } from './routes/state.routes.js'
 
 const config = loadConfig()
 
@@ -43,6 +44,7 @@ const MIGRATED_GROUPS = [
   'chat',
   'ai',
   'events',
+  'state',
 ] as const
 
 async function main(): Promise<void> {
@@ -103,6 +105,7 @@ async function main(): Promise<void> {
       makeAiConfigPlugin({ db }),
       // 实时 SSE 订阅：挂在与上面各插件 publish 相同的 bus 上，闭合发布→投递回环。
       makeEventsPlugin({ bus }),
+      makeStatePlugin({ db }),
     )
     for (const g of MIGRATED_GROUPS) registry.set(g, 'new')
     baseLogger.info({ groups: MIGRATED_GROUPS.length }, '[linx-api] migrated plugins live (new stack authoritative)')
