@@ -1,6 +1,15 @@
 // @linx/infra-tasks-pg · row ↔ domain 显式映射（snake_case → camelCase）。
 // 逐字段承接现网 repositories toTask/toIdea/toNon/toRecord。
-import type { Task, TodoIdea, NonTodo, CaptureRecord, Priority } from '@linx/domain-tasks'
+import type {
+  Task,
+  TodoIdea,
+  NonTodo,
+  CaptureRecord,
+  Subtask,
+  Comment,
+  Activity,
+  Priority,
+} from '@linx/domain-tasks'
 
 type Row = Record<string, unknown>
 
@@ -68,6 +77,23 @@ export function rowToNon(r: Row): NonTodo {
     createdAt: str(r.created_at),
     updatedAt: str(r.updated_at),
   }
+}
+
+export function rowToSubtask(r: Row): Subtask {
+  return { id: str(r.id), text: str(r.text), done: Boolean(r.done), createdAt: str(r.created_at) }
+}
+
+export function rowToComment(r: Row): Comment {
+  return {
+    id: str(r.id),
+    author: str(r.author),
+    text: str(r.text),
+    createdAt: str(r.created_at),
+  }
+}
+
+export function rowToActivity(r: Row): Activity {
+  return { id: str(r.id), text: str(r.text), createdAt: str(r.created_at) }
 }
 
 export function rowToRecord(r: Row): CaptureRecord {

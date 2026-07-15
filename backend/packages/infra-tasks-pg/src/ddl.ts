@@ -83,7 +83,33 @@ export const TASKS_DDL: readonly string[] = [
     created_at TEXT NOT NULL,
     responded_at TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS subtasks (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT 'u_default',
+    task_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS comments (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT 'u_default',
+    task_id TEXT NOT NULL,
+    author TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS activity (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT 'u_default',
+    task_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_subtasks_task ON subtasks(task_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_activity_task ON activity(task_id)`,
   `CREATE INDEX IF NOT EXISTS idx_ideas_user ON todo_ideas(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_nons_user ON non_todo_outputs(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_collab_task ON task_collaborators(task_id)`,

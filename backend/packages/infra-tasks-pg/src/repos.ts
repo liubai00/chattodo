@@ -8,13 +8,27 @@ import type {
   NonTodoRepo,
   CaptureRecordRepo,
   CorrectionRepo,
+  SubtaskRepo,
+  CommentRepo,
+  ActivityRepo,
   Task,
   TodoIdea,
   NonTodo,
   CaptureRecord,
+  Subtask,
+  Comment,
+  Activity,
   TaskAccess,
 } from '@linx/domain-tasks'
-import { rowToTask, rowToIdea, rowToNon, rowToRecord } from './mappers.js'
+import {
+  rowToTask,
+  rowToIdea,
+  rowToNon,
+  rowToRecord,
+  rowToSubtask,
+  rowToComment,
+  rowToActivity,
+} from './mappers.js'
 
 /** 最小 DB 执行面（platform-db 的 DbHandle 结构性满足）。 */
 export interface Queryable {
@@ -31,6 +45,21 @@ export interface RepoDeps {
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0')
+
+/** 任务访问权判定（owner/collaborator/null），承接现网 taskAccess；被 TaskRepo 与 SubtaskRepo 共用。 */
+async function taskAccessOf(db: Queryable, userId: string, taskId: string): Promise<TaskAccess> {
+  const rows = await db.execute<{ user_id: string }>('SELECT user_id FROM tasks WHERE id = $1', [
+    taskId,
+  ])
+  const row = rows[0]
+  if (!row) return null
+  if (row.user_id === userId) return 'owner'
+  const collab = await db.execute(
+    `SELECT 1 AS ok FROM task_collaborators WHERE task_id = $1 AND user_id = $2 AND status = 'accepted'`,
+    [taskId, userId],
+  )
+  return collab[0] ? 'collaborator' : null
+}
 
 interface Resolved {
   db: Queryable
@@ -94,19 +123,7 @@ export function makeTaskRepo(deps: RepoDeps): TaskRepo {
     return rows[0] ? rowToTask(rows[0]) : undefined
   }
 
-  const access = async (id: string): Promise<TaskAccess> => {
-    const rows = await db.execute<{ user_id: string }>('SELECT user_id FROM tasks WHERE id = $1', [
-      id,
-    ])
-    const row = rows[0]
-    if (!row) return null
-    if (row.user_id === userId) return 'owner'
-    const collab = await db.execute(
-      `SELECT 1 AS ok FROM task_collaborators WHERE task_id = $1 AND user_id = $2 AND status = 'accepted'`,
-      [id, userId],
-    )
-    return collab[0] ? 'collaborator' : null
-  }
+  const access = (id: string): Promise<TaskAccess> => taskAccessOf(db, userId, id)
 
   return {
     access,
@@ -385,6 +402,104 @@ export function makeCorrectionRepo(deps: RepoDeps): CorrectionRepo {
         ],
       )
       return id
+    },
+  }
+}
+
+export function makeSubtaskRepo(deps: RepoDeps): SubtaskRepo {
+  const { db, userId, nowIso, genId } = resolve(deps)
+
+  return {
+    async byTask(taskId): Promise<Subtask[]> {
+      if ((await taskAccessOf(db, userId, taskId)) === null) return []
+      const rows = await db.execute(
+        'SELECT * FROM subtasks WHERE task_id = $1 ORDER BY created_at, id',
+        [taskId],
+      )
+      return rows.map(rowToSubtask)
+    },
+
+    async create(taskId, text): Promise<Subtask> {
+      const id = genId('sub')
+      await db.execute(
+        'INSERT INTO subtasks (id,user_id,task_id,text,done,created_at) VALUES ($1,$2,$3,$4,0,$5)',
+        [id, userId, taskId, text, nowIso()],
+      )
+      const rows = await db.execute('SELECT * FROM subtasks WHERE id = $1', [id])
+      if (!rows[0]) throw new Error('subtask create failed')
+      return rowToSubtask(rows[0])
+    },
+
+    async toggle(id): Promise<Subtask | undefined> {
+      const rows = await db.execute<{ task_id: string; done: number }>(
+        'SELECT task_id, done FROM subtasks WHERE id = $1',
+        [id],
+      )
+      const row = rows[0]
+      if (!row) return undefined
+      if ((await taskAccessOf(db, userId, row.task_id)) === null) return undefined
+      await db.execute('UPDATE subtasks SET done = $1 WHERE id = $2', [row.done ? 0 : 1, id])
+      const after = await db.execute('SELECT * FROM subtasks WHERE id = $1', [id])
+      return after[0] ? rowToSubtask(after[0]) : undefined
+    },
+
+    async remove(id): Promise<void> {
+      const rows = await db.execute<{ task_id: string }>(
+        'SELECT task_id FROM subtasks WHERE id = $1',
+        [id],
+      )
+      const row = rows[0]
+      if (!row) return
+      if ((await taskAccessOf(db, userId, row.task_id)) === null) return
+      await db.execute('DELETE FROM subtasks WHERE id = $1', [id])
+    },
+  }
+}
+
+export function makeCommentRepo(deps: RepoDeps): CommentRepo {
+  const { db, userId, nowIso, genId } = resolve(deps)
+
+  return {
+    async byTask(taskId): Promise<Comment[]> {
+      if ((await taskAccessOf(db, userId, taskId)) === null) return []
+      const rows = await db.execute(
+        'SELECT * FROM comments WHERE task_id = $1 ORDER BY created_at, id',
+        [taskId],
+      )
+      return rows.map(rowToComment)
+    },
+
+    async create(taskId, author, text): Promise<Comment> {
+      const id = genId('cmt')
+      await db.execute(
+        'INSERT INTO comments (id,user_id,task_id,author,text,created_at) VALUES ($1,$2,$3,$4,$5,$6)',
+        [id, userId, taskId, author, text, nowIso()],
+      )
+      const rows = await db.execute('SELECT * FROM comments WHERE id = $1', [id])
+      if (!rows[0]) throw new Error('comment create failed')
+      return rowToComment(rows[0])
+    },
+  }
+}
+
+export function makeActivityRepo(deps: RepoDeps): ActivityRepo {
+  const { db, userId, nowIso, genId } = resolve(deps)
+
+  return {
+    async byTask(taskId): Promise<Activity[]> {
+      if ((await taskAccessOf(db, userId, taskId)) === null) return []
+      const rows = await db.execute(
+        'SELECT * FROM activity WHERE task_id = $1 ORDER BY created_at DESC, id DESC',
+        [taskId],
+      )
+      return rows.map(rowToActivity)
+    },
+
+    async log(taskId, text): Promise<void> {
+      await db.execute(
+        'INSERT INTO activity (id,user_id,task_id,text,created_at) VALUES ($1,$2,$3,$4,$5)',
+        [genId('act'), userId, taskId, text, nowIso()],
+      )
     },
   }
 }

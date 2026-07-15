@@ -131,12 +131,63 @@ describe('Tasks BC — READ routes served from the NEW stack (registry tasks=new
   })
 })
 
-describe('Tasks BC — WRITE routes still fall through to legacy (side-effects preserved)', () => {
-  it('POST/PATCH/done/DELETE are NOT authoritative even when tasks=new (fall through)', async () => {
+describe('Tasks BC — activity-only WRITE routes served from NEW stack', () => {
+  it('POST /api/tasks creates on the new stack and logs activity', async () => {
     const legacy = await legacyStub()
     const app = await buildWith('new', legacy)
     try {
-      expect((await app.inject({ method: 'POST', url: '/api/tasks', headers: auth, payload: { title: 'x' } })).json()).toEqual({ from: 'legacy-create' })
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/tasks',
+        headers: auth,
+        payload: { title: '写周报' },
+      })
+      const task = created.json()
+      expect(task).toMatchObject({ title: '写周报', status: 'todo' })
+      // activity 已记（新栈）
+      const act = await db.execute<{ text: string }>('SELECT text FROM activity WHERE task_id = $1', [task.id])
+      expect(act.map((a) => a.text)).toContain('任务已创建')
+    } finally {
+      await app.close()
+      await legacy.close()
+    }
+  })
+
+  it('POST /api/tasks without title → 400 (title trim check, faithful to legacy)', async () => {
+    const legacy = await legacyStub()
+    const app = await buildWith('new', legacy)
+    try {
+      const res = await app.inject({ method: 'POST', url: '/api/tasks', headers: auth, payload: { title: '   ' } })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toBe('title is required')
+    } finally {
+      await app.close()
+      await legacy.close()
+    }
+  })
+
+  it('POST /:id/subtasks + move-out served from new stack', async () => {
+    const legacy = await legacyStub()
+    const app = await buildWith('new', legacy)
+    try {
+      await seedTask('task_9', '任务')
+      const sub = await app.inject({ method: 'POST', url: '/api/tasks/task_9/subtasks', headers: auth, payload: { text: '第一步' } })
+      expect(sub.json()).toMatchObject({ text: '第一步', done: false })
+      const moved = await app.inject({ method: 'POST', url: '/api/tasks/task_9/move-out', headers: auth })
+      expect(moved.json().nonTodo).toMatchObject({ title: '任务', corrected: true })
+    } finally {
+      await app.close()
+      await legacy.close()
+    }
+  })
+})
+
+describe('Tasks BC — cross-user WRITE routes still fall through to legacy', () => {
+  it('PATCH / done / DELETE stay legacy (notify side-effects preserved) even when tasks=new', async () => {
+    const legacy = await legacyStub()
+    const app = await buildWith('new', legacy)
+    try {
+      await seedTask('task_1', 't')
       expect((await app.inject({ method: 'PATCH', url: '/api/tasks/task_1', headers: auth, payload: { status: 'done' } })).json()).toEqual({ from: 'legacy-patch' })
       expect((await app.inject({ method: 'POST', url: '/api/tasks/task_1/done', headers: auth })).json()).toEqual({ from: 'legacy-done' })
       expect((await app.inject({ method: 'DELETE', url: '/api/tasks/task_1', headers: auth })).json()).toEqual({ from: 'legacy-delete' })

@@ -7,6 +7,8 @@ import {
   makeNonTodoRepo,
   makeCaptureRecordRepo,
   makeCorrectionRepo,
+  makeActivityRepo,
+  makeSubtaskRepo,
   type Queryable,
 } from '@linx/infra-tasks-pg'
 import type { PrivacySettings } from '@linx/domain-tasks'
@@ -39,6 +41,8 @@ async function wireApp(
     nonTodos: makeNonTodoRepo(repoDeps),
     captureRecords: makeCaptureRecordRepo(repoDeps),
     corrections: makeCorrectionRepo(repoDeps),
+    activity: makeActivityRepo(repoDeps),
+    subtasks: makeSubtaskRepo(repoDeps),
     getPrivacySettings: async () => settings,
     now: () => new Date('2026-07-15T12:00:00').getTime(),
   })
@@ -177,5 +181,57 @@ describe('TasksApp · idea + non conversions', () => {
     expect(res?.task.durationMinutes).toBe(30)
     expect(res?.task.sourceIdeaId).toBeNull()
     expect((await app.listNonTodos()).map((n) => n.id)).not.toContain('non1')
+  })
+})
+
+describe('TasksApp · activity + subtasks', () => {
+  async function activityTexts(taskId: string): Promise<string[]> {
+    const res = await client.query<{ text: string }>(
+      'SELECT text FROM activity WHERE task_id = $1 ORDER BY created_at, id',
+      [taskId],
+    )
+    return res.rows.map((r) => r.text)
+  }
+
+  it('createTask logs 任务已创建; reopenTask logs 状态改为「待办」', async () => {
+    const app = await wireApp()
+    const t = await app.createTask({ title: 'x' })
+    expect(await activityTexts(t.id)).toEqual(['任务已创建'])
+    await app.completeTask(t.id)
+    await app.reopenTask(t.id)
+    expect(await activityTexts(t.id)).toEqual(['任务已创建', '状态改为「待办」'])
+  })
+
+  it('convertIdea logs 由待澄清项转为任务', async () => {
+    const app = await wireApp()
+    await client.query(
+      `INSERT INTO todo_ideas (id,user_id,title,raw_text,status,privacy_scope,source,created_at,updated_at)
+       VALUES ('i9','uA','I','raw','clarifying','work','chat','2026-07-15T09:00:00','2026-07-15T09:00:00')`,
+    )
+    const res = await app.convertIdea('i9')
+    expect(await activityTexts(res!.task.id)).toEqual(['由待澄清项转为任务'])
+  })
+
+  it('addSubtask (with activity) / toggle / list / remove — access gated', async () => {
+    const app = await wireApp()
+    const t = await app.createTask({ title: 'x' })
+    const sub = await app.addSubtask(t.id, '第一步')
+    expect(sub?.done).toBe(false)
+    expect(await activityTexts(t.id)).toContain('添加子任务：第一步')
+
+    const toggled = await app.toggleSubtask(sub!.id)
+    expect(toggled?.done).toBe(true)
+
+    expect((await app.listSubtasks(t.id)).map((s) => s.text)).toEqual(['第一步'])
+
+    await app.removeSubtask(sub!.id)
+    expect(await app.listSubtasks(t.id)).toHaveLength(0)
+
+    // 陌生任务：addSubtask → null（无访问权）
+    await client.query(
+      `INSERT INTO tasks (id,user_id,title,tags,status,privacy_scope,priority,created_at,updated_at)
+       VALUES ('task_stranger','uZ','s','[]','todo','work',3,'2026-07-15T08:00:00','2026-07-15T08:00:00')`,
+    )
+    expect(await app.addSubtask('task_stranger', 'x')).toBeNull()
   })
 })

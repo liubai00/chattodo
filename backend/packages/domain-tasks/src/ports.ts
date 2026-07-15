@@ -4,6 +4,9 @@ import type {
   TodoIdea,
   NonTodo,
   CaptureRecord,
+  Subtask,
+  Comment,
+  Activity,
   TaskAccess,
   NewTaskInput,
   TaskPatch,
@@ -50,4 +53,23 @@ export interface CaptureRecordRepo {
 
 export interface CorrectionRepo {
   create(input: NewCorrectionInput): Promise<string>
+}
+
+export interface SubtaskRepo {
+  /** 有任务访问权才返回，否则 []（承接现网 taskAccess 门禁）。 */
+  byTask(taskId: string): Promise<Subtask[]>
+  create(taskId: string, text: string): Promise<Subtask>
+  /** 切换 done；无访问权返回 undefined。 */
+  toggle(id: string): Promise<Subtask | undefined>
+  remove(id: string): Promise<void>
+}
+
+export interface CommentRepo {
+  byTask(taskId: string): Promise<Comment[]>
+  create(taskId: string, author: string, text: string): Promise<Comment>
+}
+
+export interface ActivityRepo {
+  byTask(taskId: string): Promise<Activity[]>
+  log(taskId: string, text: string): Promise<void>
 }

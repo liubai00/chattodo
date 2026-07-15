@@ -56,6 +56,26 @@ export interface NonTodo {
   updatedAt: string
 }
 
+export interface Subtask {
+  id: string
+  text: string
+  done: boolean
+  createdAt: string
+}
+
+export interface Comment {
+  id: string
+  author: string
+  text: string
+  createdAt: string
+}
+
+export interface Activity {
+  id: string
+  text: string
+  createdAt: string
+}
+
 export interface CaptureRecord {
   id: string
   rawInput: string
