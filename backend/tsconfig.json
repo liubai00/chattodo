@@ -9,6 +9,9 @@
     { "path": "packages/kernel-clock" },
     { "path": "packages/contracts-http" },
     { "path": "packages/contracts-events" },
+    { "path": "packages/platform-config" },
+    { "path": "packages/platform-logger" },
+    { "path": "packages/platform-observability" },
     { "path": "apps/api" }
   ]
 }

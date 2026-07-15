@@ -5,6 +5,9 @@
   "references": [
     { "path": "../../packages/contracts-http" },
     { "path": "../../packages/kernel-clock" },
-    { "path": "../../packages/kernel-errors" }
+    { "path": "../../packages/kernel-errors" },
+    { "path": "../../packages/platform-config" },
+    { "path": "../../packages/platform-logger" },
+    { "path": "../../packages/platform-observability" }
   ]
 }

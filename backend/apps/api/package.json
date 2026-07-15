@@ -15,6 +15,10 @@
     "@linx/contracts-http": "workspace:*",
     "@linx/kernel-clock": "workspace:*",
     "@linx/kernel-errors": "workspace:*",
-    "fastify": "^5.2.0"
+    "@linx/platform-config": "workspace:*",
+    "@linx/platform-logger": "workspace:*",
+    "@linx/platform-observability": "workspace:*",
+    "fastify": "^5.2.0",
+    "fastify-plugin": "^5.0.1"
   }
 }
