@@ -38,6 +38,8 @@
     { "path": "packages/infra-notifications-pg" },
     { "path": "packages/domain-settings" },
     { "path": "packages/infra-settings-pg" },
+    { "path": "packages/app-plan" },
+    { "path": "packages/app-search" },
     { "path": "apps/api" }
   ]
 }

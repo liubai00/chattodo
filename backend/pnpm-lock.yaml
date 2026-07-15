@@ -38,9 +38,15 @@ importers:
       '@linx/app-collab':
         specifier: workspace:*
         version: link:../../packages/app-collab
+      '@linx/app-plan':
+        specifier: workspace:*
+        version: link:../../packages/app-plan
       '@linx/app-projects':
         specifier: workspace:*
         version: link:../../packages/app-projects
+      '@linx/app-search':
+        specifier: workspace:*
+        version: link:../../packages/app-search
       '@linx/app-social':
         specifier: workspace:*
         version: link:../../packages/app-social
@@ -167,11 +173,23 @@ importers:
         specifier: workspace:*
         version: link:../infra-collab-pg
 
+  packages/app-plan:
+    dependencies:
+      '@linx/domain-settings':
+        specifier: workspace:*
+        version: link:../domain-settings
+
   packages/app-projects:
     dependencies:
       '@linx/domain-projects':
         specifier: workspace:*
         version: link:../domain-projects
+
+  packages/app-search:
+    dependencies:
+      '@linx/domain-settings':
+        specifier: workspace:*
+        version: link:../domain-settings
 
   packages/app-social:
     dependencies:
