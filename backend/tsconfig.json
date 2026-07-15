@@ -20,6 +20,8 @@
     { "path": "packages/platform-idempotency" },
     { "path": "packages/platform-auth" },
     { "path": "packages/legacy" },
+    { "path": "packages/domain-tasks" },
+    { "path": "packages/infra-tasks-pg" },
     { "path": "apps/api" }
   ]
 }
