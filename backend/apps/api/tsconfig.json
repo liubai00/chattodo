@@ -4,6 +4,7 @@
   "include": ["src"],
   "references": [
     { "path": "../../packages/agent-planner-rule" },
+    { "path": "../../packages/agent-triage-llm" },
     { "path": "../../packages/app-capture" },
     { "path": "../../packages/app-chat" },
     { "path": "../../packages/app-collab" },
@@ -13,6 +14,7 @@
     { "path": "../../packages/app-social" },
     { "path": "../../packages/app-tasks" },
     { "path": "../../packages/contracts-http" },
+    { "path": "../../packages/domain-ai-config" },
     { "path": "../../packages/domain-collab" },
     { "path": "../../packages/domain-conversations" },
     { "path": "../../packages/domain-notifications" },
@@ -36,6 +38,7 @@
     { "path": "../../packages/platform-config" },
     { "path": "../../packages/platform-db" },
     { "path": "../../packages/platform-eventbus" },
+    { "path": "../../packages/platform-llm" },
     { "path": "../../packages/platform-logger" },
     { "path": "../../packages/platform-observability" },
     { "path": "../../packages/platform-ratelimit" }

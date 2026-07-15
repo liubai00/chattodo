@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@linx/agent-planner-rule": "workspace:*",
+    "@linx/agent-triage-llm": "workspace:*",
     "@linx/app-capture": "workspace:*",
     "@linx/app-chat": "workspace:*",
     "@linx/app-collab": "workspace:*",
@@ -22,6 +23,7 @@
     "@linx/app-social": "workspace:*",
     "@linx/app-tasks": "workspace:*",
     "@linx/contracts-http": "workspace:*",
+    "@linx/domain-ai-config": "workspace:*",
     "@linx/domain-collab": "workspace:*",
     "@linx/domain-conversations": "workspace:*",
     "@linx/domain-notifications": "workspace:*",
@@ -46,6 +48,7 @@
     "@linx/platform-config": "workspace:*",
     "@linx/platform-db": "workspace:*",
     "@linx/platform-eventbus": "workspace:*",
+    "@linx/platform-llm": "workspace:*",
     "@linx/platform-logger": "workspace:*",
     "@linx/platform-observability": "workspace:*",
     "@linx/platform-ratelimit": "workspace:*",

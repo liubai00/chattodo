@@ -32,6 +32,9 @@ importers:
       '@linx/agent-planner-rule':
         specifier: workspace:*
         version: link:../../packages/agent-planner-rule
+      '@linx/agent-triage-llm':
+        specifier: workspace:*
+        version: link:../../packages/agent-triage-llm
       '@linx/app-capture':
         specifier: workspace:*
         version: link:../../packages/app-capture
@@ -59,6 +62,9 @@ importers:
       '@linx/contracts-http':
         specifier: workspace:*
         version: link:../../packages/contracts-http
+      '@linx/domain-ai-config':
+        specifier: workspace:*
+        version: link:../../packages/domain-ai-config
       '@linx/domain-collab':
         specifier: workspace:*
         version: link:../../packages/domain-collab
@@ -131,6 +137,9 @@ importers:
       '@linx/platform-eventbus':
         specifier: workspace:*
         version: link:../../packages/platform-eventbus
+      '@linx/platform-llm':
+        specifier: workspace:*
+        version: link:../../packages/platform-llm
       '@linx/platform-logger':
         specifier: workspace:*
         version: link:../../packages/platform-logger
