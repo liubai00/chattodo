@@ -34,6 +34,8 @@
     { "path": "packages/domain-collab" },
     { "path": "packages/infra-collab-pg" },
     { "path": "packages/app-collab" },
+    { "path": "packages/domain-notifications" },
+    { "path": "packages/infra-notifications-pg" },
     { "path": "apps/api" }
   ]
 }
