@@ -15,6 +15,9 @@
     { "path": "packages/platform-db" },
     { "path": "packages/platform-redis" },
     { "path": "packages/platform-eventbus" },
+    { "path": "packages/platform-ratelimit" },
+    { "path": "packages/platform-cache" },
+    { "path": "packages/platform-idempotency" },
     { "path": "apps/api" }
   ]
 }
