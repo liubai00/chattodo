@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/contracts-http" },
+    { "path": "../../packages/kernel-clock" },
+    { "path": "../../packages/kernel-errors" }
+  ]
+}

@@ -1,0 +1,38 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck + build (tsc -b, gate 1 project references)
+        run: pnpm run build
+      - name: Boundary check (gate 2 dependency-cruiser)
+        run: pnpm run depcruise
+      - name: Test (vitest + PGlite in later phases)
+        run: pnpm run test
+      # P1 起加入：pnpm run lint（eslint-boundaries）、contract:diff、migrate:check

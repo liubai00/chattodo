@@ -1,0 +1,14 @@
+{
+  "// note": "Solution 文件：IDE 单一入口 + `tsc -b` 按依赖顺序增量构建全量包。",
+  "files": [],
+  "references": [
+    { "path": "packages/kernel-types" },
+    { "path": "packages/kernel-result" },
+    { "path": "packages/kernel-errors" },
+    { "path": "packages/kernel-ids" },
+    { "path": "packages/kernel-clock" },
+    { "path": "packages/contracts-http" },
+    { "path": "packages/contracts-events" },
+    { "path": "apps/api" }
+  ]
+}
