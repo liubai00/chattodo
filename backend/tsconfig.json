@@ -48,6 +48,7 @@
     { "path": "packages/infra-conversations-pg" },
     { "path": "packages/app-plan" },
     { "path": "packages/app-search" },
+    { "path": "packages/app-chat" },
     { "path": "apps/api" }
   ]
 }

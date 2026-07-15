@@ -14,6 +14,7 @@
   "dependencies": {
     "@linx/agent-planner-rule": "workspace:*",
     "@linx/app-capture": "workspace:*",
+    "@linx/app-chat": "workspace:*",
     "@linx/app-collab": "workspace:*",
     "@linx/app-plan": "workspace:*",
     "@linx/app-projects": "workspace:*",
@@ -28,6 +29,8 @@
     "@linx/domain-settings": "workspace:*",
     "@linx/domain-social": "workspace:*",
     "@linx/domain-tasks": "workspace:*",
+    "@linx/infra-ai-config-pg": "workspace:*",
+    "@linx/infra-ai-errors-pg": "workspace:*",
     "@linx/infra-collab-pg": "workspace:*",
     "@linx/infra-conversations-pg": "workspace:*",
     "@linx/infra-notifications-pg": "workspace:*",

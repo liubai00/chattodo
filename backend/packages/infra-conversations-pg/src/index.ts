@@ -171,3 +171,49 @@ export function makeChatReadRepo(deps: { db: Queryable; userId: string }): ChatR
     },
   }
 }
+
+export interface ChatWriteRepo extends ChatReadRepo {
+  /** 落一条消息（承 repos.chat.create）：INSERT chat_messages + 触碰会话 updated_at。 */
+  create(data: {
+    role: string
+    text: string
+    isError?: boolean
+    conversationId?: string
+  }): Promise<ChatMessage>
+}
+
+/** 聊天消息读写仓储（P7 聊天发送落库）。created_at 分精度，会话 updated_at 毫秒精度。 */
+export function makeChatRepo(deps: ConversationRepoDeps): ChatWriteRepo {
+  const { db, userId } = deps
+  const clock = deps.clock ?? ((): Date => new Date())
+  const nowIso = (): string => {
+    const d = clock()
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`
+  }
+  const nowIsoMs = (): string => {
+    const d = clock()
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}`
+  }
+  const genId = deps.genId ?? ((prefix: string): string => makePrefixedId(prefix)())
+  const defaultConvId = `conv_${userId}`
+  const read = makeChatReadRepo({ db, userId })
+
+  return {
+    all: read.all,
+    async create(data): Promise<ChatMessage> {
+      const id = genId('msg')
+      const convId = data.conversationId || defaultConvId
+      await db.execute(
+        `INSERT INTO chat_messages (id,user_id,conversation_id,role,text,is_error,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [id, userId, convId, data.role, data.text, data.isError ? 1 : 0, nowIso()],
+      )
+      await db.execute('UPDATE conversations SET updated_at = $1 WHERE id = $2 AND user_id = $3', [
+        nowIsoMs(),
+        convId,
+        userId,
+      ])
+      const row = (await db.execute('SELECT * FROM chat_messages WHERE id = $1', [id]))[0]
+      return toChat(row!)
+    },
+  }
+}

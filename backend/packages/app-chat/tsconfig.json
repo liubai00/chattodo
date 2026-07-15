@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "references": [
+    { "path": "../agent-planner-rule" },
+    { "path": "../domain-settings" },
+    { "path": "../domain-collab" },
+    { "path": "../app-plan" }
+  ]
+}

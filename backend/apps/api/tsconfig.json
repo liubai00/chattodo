@@ -5,6 +5,7 @@
   "references": [
     { "path": "../../packages/agent-planner-rule" },
     { "path": "../../packages/app-capture" },
+    { "path": "../../packages/app-chat" },
     { "path": "../../packages/app-collab" },
     { "path": "../../packages/app-plan" },
     { "path": "../../packages/app-projects" },
@@ -19,6 +20,8 @@
     { "path": "../../packages/domain-settings" },
     { "path": "../../packages/domain-social" },
     { "path": "../../packages/domain-tasks" },
+    { "path": "../../packages/infra-ai-config-pg" },
+    { "path": "../../packages/infra-ai-errors-pg" },
     { "path": "../../packages/infra-collab-pg" },
     { "path": "../../packages/infra-conversations-pg" },
     { "path": "../../packages/infra-notifications-pg" },

@@ -35,6 +35,9 @@ importers:
       '@linx/app-capture':
         specifier: workspace:*
         version: link:../../packages/app-capture
+      '@linx/app-chat':
+        specifier: workspace:*
+        version: link:../../packages/app-chat
       '@linx/app-collab':
         specifier: workspace:*
         version: link:../../packages/app-collab
@@ -77,6 +80,12 @@ importers:
       '@linx/domain-tasks':
         specifier: workspace:*
         version: link:../../packages/domain-tasks
+      '@linx/infra-ai-config-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-ai-config-pg
+      '@linx/infra-ai-errors-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-ai-errors-pg
       '@linx/infra-collab-pg':
         specifier: workspace:*
         version: link:../../packages/infra-collab-pg
@@ -174,6 +183,21 @@ importers:
       '@linx/infra-tasks-pg':
         specifier: workspace:*
         version: link:../infra-tasks-pg
+
+  packages/app-chat:
+    dependencies:
+      '@linx/agent-planner-rule':
+        specifier: workspace:*
+        version: link:../agent-planner-rule
+      '@linx/app-plan':
+        specifier: workspace:*
+        version: link:../app-plan
+      '@linx/domain-collab':
+        specifier: workspace:*
+        version: link:../domain-collab
+      '@linx/domain-settings':
+        specifier: workspace:*
+        version: link:../domain-settings
 
   packages/app-collab:
     dependencies:
