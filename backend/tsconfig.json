@@ -22,6 +22,7 @@
     { "path": "packages/legacy" },
     { "path": "packages/domain-tasks" },
     { "path": "packages/infra-tasks-pg" },
+    { "path": "packages/app-tasks" },
     { "path": "apps/api" }
   ]
 }

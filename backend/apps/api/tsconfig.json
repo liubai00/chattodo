@@ -3,7 +3,10 @@
   "compilerOptions": { "rootDir": "src", "outDir": "dist" },
   "include": ["src"],
   "references": [
+    { "path": "../../packages/app-tasks" },
     { "path": "../../packages/contracts-http" },
+    { "path": "../../packages/domain-tasks" },
+    { "path": "../../packages/infra-tasks-pg" },
     { "path": "../../packages/kernel-clock" },
     { "path": "../../packages/kernel-errors" },
     { "path": "../../packages/legacy" },

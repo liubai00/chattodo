@@ -12,7 +12,10 @@
     "dev": "tsx watch src/main.ts"
   },
   "dependencies": {
+    "@linx/app-tasks": "workspace:*",
     "@linx/contracts-http": "workspace:*",
+    "@linx/domain-tasks": "workspace:*",
+    "@linx/infra-tasks-pg": "workspace:*",
     "@linx/kernel-clock": "workspace:*",
     "@linx/kernel-errors": "workspace:*",
     "@linx/legacy": "workspace:*",
@@ -23,5 +26,8 @@
     "@linx/platform-observability": "workspace:*",
     "fastify": "^5.2.0",
     "fastify-plugin": "^5.0.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.2.17"
   }
 }

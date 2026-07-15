@@ -29,9 +29,18 @@ importers:
 
   apps/api:
     dependencies:
+      '@linx/app-tasks':
+        specifier: workspace:*
+        version: link:../../packages/app-tasks
       '@linx/contracts-http':
         specifier: workspace:*
         version: link:../../packages/contracts-http
+      '@linx/domain-tasks':
+        specifier: workspace:*
+        version: link:../../packages/domain-tasks
+      '@linx/infra-tasks-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-tasks-pg
       '@linx/kernel-clock':
         specifier: workspace:*
         version: link:../../packages/kernel-clock
@@ -62,6 +71,23 @@ importers:
       fastify-plugin:
         specifier: ^5.0.1
         version: 5.1.0
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+
+  packages/app-tasks:
+    dependencies:
+      '@linx/domain-tasks':
+        specifier: workspace:*
+        version: link:../domain-tasks
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+      '@linx/infra-tasks-pg':
+        specifier: workspace:*
+        version: link:../infra-tasks-pg
 
   packages/contracts-events: {}
 
