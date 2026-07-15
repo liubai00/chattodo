@@ -59,6 +59,9 @@ importers:
       '@linx/domain-collab':
         specifier: workspace:*
         version: link:../../packages/domain-collab
+      '@linx/domain-conversations':
+        specifier: workspace:*
+        version: link:../../packages/domain-conversations
       '@linx/domain-notifications':
         specifier: workspace:*
         version: link:../../packages/domain-notifications
@@ -77,6 +80,9 @@ importers:
       '@linx/infra-collab-pg':
         specifier: workspace:*
         version: link:../../packages/infra-collab-pg
+      '@linx/infra-conversations-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-conversations-pg
       '@linx/infra-notifications-pg':
         specifier: workspace:*
         version: link:../../packages/infra-notifications-pg
@@ -227,6 +233,8 @@ importers:
 
   packages/domain-collab: {}
 
+  packages/domain-conversations: {}
+
   packages/domain-notifications: {}
 
   packages/domain-projects: {}
@@ -242,6 +250,19 @@ importers:
       '@linx/domain-collab':
         specifier: workspace:*
         version: link:../domain-collab
+      '@linx/kernel-ids':
+        specifier: workspace:*
+        version: link:../kernel-ids
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+
+  packages/infra-conversations-pg:
+    dependencies:
+      '@linx/domain-conversations':
+        specifier: workspace:*
+        version: link:../domain-conversations
       '@linx/kernel-ids':
         specifier: workspace:*
         version: link:../kernel-ids
