@@ -13,6 +13,7 @@ import type { AuthUser } from '@linx/platform-auth'
 import { buildApi } from '../src/facade/build-api.js'
 import { RouteRegistry } from '../src/facade/route-registry.js'
 import { makeTasksPlugin } from '../src/routes/tasks.routes.js'
+import { makeTaskWritesPlugin } from '../src/routes/task-writes.routes.js'
 import { makeProjectsPlugin } from '../src/routes/projects.routes.js'
 import { makeCapturePlugin } from '../src/routes/capture.routes.js'
 import { makeSocialPlugin } from '../src/routes/social.routes.js'
@@ -67,6 +68,7 @@ async function buildAll(): Promise<FastifyInstance> {
     legacyApp: await legacyStub(),
     migratedPlugins: [
       makeTasksPlugin({ db, getPrivacySettings }),
+      makeTaskWritesPlugin({ db, publish: () => {}, publishMany: () => {} }),
       makeProjectsPlugin({ db }),
       makeCapturePlugin({ db }),
       makeSocialPlugin({ db, publish: () => {} }),
@@ -105,6 +107,7 @@ describe('Composition smoke — all 13 migrated plugins co-registered (main.ts s
         ['GET', '/api/ai/config', 200],
         ['GET', '/api/admin/overview', 200],
         ['GET', '/api/conversations', 200],
+        ['GET', '/api/tasks/t1/detail', 404], // 两个 tasks 插件共存：detail 由 task-writes 处理（无此任务→404，非 legacy）
       ]
       for (const [method, url, code] of checks) {
         const res = await app.inject({ method: method as 'GET', url, headers: auth })
@@ -123,8 +126,8 @@ describe('Composition smoke — all 13 migrated plugins co-registered (main.ts s
   it('an unmigrated route still falls through to legacy', async () => {
     const app = await buildAll()
     try {
-      // /api/tasks/:id/detail 未迁移 → Facade 404 → legacy fall-through（此处 legacy stub 也 404，但走的是 fall-through）。
-      const res = await app.inject({ method: 'GET', url: '/api/tasks/xyz/detail', headers: auth })
+      // data.js（导出/导入/备份）等尾部路由仍未迁移 → Facade 无匹配 → fall-through 到 legacy。
+      const res = await app.inject({ method: 'GET', url: '/api/data/export', headers: auth })
       expect(res.json()).toMatchObject({ error: 'legacy 404' })
     } finally {
       await app.close()

@@ -9,6 +9,7 @@ import { buildApi, type MigratedPlugin } from './facade/build-api.js'
 import { RouteRegistry } from './facade/route-registry.js'
 import type { AuthPluginOptions } from './plugins/auth.plugin.js'
 import { makeTasksPlugin } from './routes/tasks.routes.js'
+import { makeTaskWritesPlugin } from './routes/task-writes.routes.js'
 import { makeProjectsPlugin } from './routes/projects.routes.js'
 import { makeCapturePlugin } from './routes/capture.routes.js'
 import { makeSocialPlugin } from './routes/social.routes.js'
@@ -87,6 +88,7 @@ async function main(): Promise<void> {
 
     migratedPlugins.push(
       makeTasksPlugin({ db, getPrivacySettings }),
+      makeTaskWritesPlugin({ db, publish, publishMany }),
       makeProjectsPlugin({ db }),
       makeCapturePlugin({ db }),
       makeSocialPlugin({ db, publish }),
