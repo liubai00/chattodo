@@ -12,6 +12,7 @@
     { "path": "packages/platform-config" },
     { "path": "packages/platform-logger" },
     { "path": "packages/platform-observability" },
+    { "path": "packages/platform-db" },
     { "path": "apps/api" }
   ]
 }
