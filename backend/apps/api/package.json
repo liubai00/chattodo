@@ -36,6 +36,7 @@
     "@linx/infra-ai-errors-pg": "workspace:*",
     "@linx/infra-collab-pg": "workspace:*",
     "@linx/infra-conversations-pg": "workspace:*",
+    "@linx/infra-identity-pg": "workspace:*",
     "@linx/infra-notifications-pg": "workspace:*",
     "@linx/infra-projects-pg": "workspace:*",
     "@linx/infra-settings-pg": "workspace:*",

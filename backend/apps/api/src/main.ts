@@ -25,6 +25,7 @@ import { makeAiConfigPlugin } from './routes/ai.routes.js'
 import { makeEventsPlugin } from './routes/events.routes.js'
 import { makeStatePlugin } from './routes/state.routes.js'
 import { makeDataPlugin } from './routes/data.routes.js'
+import { makeAuthPlugin } from './routes/auth.routes.js'
 
 const config = loadConfig()
 
@@ -47,6 +48,7 @@ const MIGRATED_GROUPS = [
   'events',
   'state',
   'data',
+  'auth',
 ] as const
 
 async function main(): Promise<void> {
@@ -109,6 +111,8 @@ async function main(): Promise<void> {
       makeEventsPlugin({ bus }),
       makeStatePlugin({ db }),
       makeDataPlugin({ db }),
+      // 认证：复用同一 SessionStore（与 authPlugin 读同一 sessions 表）。
+      makeAuthPlugin({ db, sessions: store }),
     )
     for (const g of MIGRATED_GROUPS) registry.set(g, 'new')
     baseLogger.info({ groups: MIGRATED_GROUPS.length }, '[linx-api] migrated plugins live (new stack authoritative)')

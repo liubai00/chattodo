@@ -27,6 +27,7 @@
     { "path": "../../packages/infra-ai-errors-pg" },
     { "path": "../../packages/infra-collab-pg" },
     { "path": "../../packages/infra-conversations-pg" },
+    { "path": "../../packages/infra-identity-pg" },
     { "path": "../../packages/infra-notifications-pg" },
     { "path": "../../packages/infra-projects-pg" },
     { "path": "../../packages/infra-social-pg" },

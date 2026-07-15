@@ -101,6 +101,9 @@ importers:
       '@linx/infra-conversations-pg':
         specifier: workspace:*
         version: link:../../packages/infra-conversations-pg
+      '@linx/infra-identity-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-identity-pg
       '@linx/infra-notifications-pg':
         specifier: workspace:*
         version: link:../../packages/infra-notifications-pg
@@ -302,6 +305,8 @@ importers:
 
   packages/domain-conversations: {}
 
+  packages/domain-identity: {}
+
   packages/domain-notifications: {}
 
   packages/domain-projects: {}
@@ -353,6 +358,19 @@ importers:
       '@linx/domain-conversations':
         specifier: workspace:*
         version: link:../domain-conversations
+      '@linx/kernel-ids':
+        specifier: workspace:*
+        version: link:../kernel-ids
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+
+  packages/infra-identity-pg:
+    dependencies:
+      '@linx/domain-identity':
+        specifier: workspace:*
+        version: link:../domain-identity
       '@linx/kernel-ids':
         specifier: workspace:*
         version: link:../kernel-ids
