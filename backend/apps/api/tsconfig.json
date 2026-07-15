@@ -3,6 +3,7 @@
   "compilerOptions": { "rootDir": "src", "outDir": "dist" },
   "include": ["src"],
   "references": [
+    { "path": "../../packages/agent-chat-llm" },
     { "path": "../../packages/agent-planner-rule" },
     { "path": "../../packages/agent-triage-llm" },
     { "path": "../../packages/app-capture" },

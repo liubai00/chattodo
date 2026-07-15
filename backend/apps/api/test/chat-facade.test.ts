@@ -11,6 +11,7 @@ import { SOCIAL_DDL } from '@linx/infra-social-pg'
 import { COLLAB_DDL } from '@linx/infra-collab-pg'
 import { NOTIFICATIONS_DDL } from '@linx/infra-notifications-pg'
 import type { AuthUser } from '@linx/platform-auth'
+import type { LlmClient } from '@linx/platform-llm'
 import { buildApi } from '../src/facade/build-api.js'
 import { RouteRegistry } from '../src/facade/route-registry.js'
 import { makeChatPlugin } from '../src/routes/chat.routes.js'
@@ -139,6 +140,56 @@ describe('Chat facade — POST /api/chat (rule path)', () => {
     const app = await buildWith('legacy')
     try {
       expect((await app.inject({ method: 'POST', url: '/api/chat', headers: auth, payload: { message: 'x' } })).json()).toEqual({ from: 'legacy' })
+    } finally {
+      await app.close()
+    }
+  })
+})
+
+describe('Chat facade — LLM path (configured provider)', () => {
+  const AGENT_JSON = '{"reply":"好的，已记为任务。","actions":[{"type":"create_task","title":"写季度总结","priority":2}]}'
+  const fakeLlm: LlmClient = {
+    async messagesText() { return AGENT_JSON },
+    async streamText(_s, _t, _c, onToken) { if (onToken) onToken(AGENT_JSON); return AGENT_JSON },
+    async messagesJson() { return JSON.parse(AGENT_JSON) },
+    async complete() { return AGENT_JSON },
+  }
+  async function buildLlm(): Promise<FastifyInstance> {
+    return buildApi({
+      legacyApp: await legacyStub(),
+      migratedPlugins: [makeChatPlugin({ db, publish: () => {}, publishMany: () => {}, llm: fakeLlm, clock: () => FIXED, genId: (p) => `${p}_t${++idc}` })],
+      registry: new RouteRegistry({ groups: { chat: 'new' } }),
+      auth: { resolveSession: async (t) => (t === 'tok' ? alice : undefined) },
+    })
+  }
+
+  it('configured aiConfig → agent path → executes LLM create_task action', async () => {
+    // 配置团队 LLM（provider≠rule + apiKey）→ useLlm=true
+    await client.query(`INSERT INTO ai_config (id,provider,base_url,model,api_key,fallback_to_rule,updated_at) VALUES ('default','anthropic','','claude','k',1,'2026-07-15T09:00:00')`)
+    const app = await buildLlm()
+    try {
+      const res = await app.inject({ method: 'POST', url: '/api/chat', headers: auth, payload: { message: '记一下写季度总结' } })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.intent).toBe('agent')
+      expect(body.reply).toContain('已记为任务')
+      expect(body.entities[0]).toMatchObject({ type: 'task' })
+      expect(body.performed[0]).toMatchObject({ type: 'create_task' })
+      const tasks = await db.execute<{ title: string }>(`SELECT title FROM tasks WHERE user_id = 'uA'`)
+      expect(tasks[0]?.title).toBe('写季度总结')
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('SSE agent path streams reply deltas then done', async () => {
+    await client.query(`INSERT INTO ai_config (id,provider,base_url,model,api_key,fallback_to_rule,updated_at) VALUES ('default','anthropic','','claude','k',1,'2026-07-15T09:00:00')`)
+    const app = await buildLlm()
+    try {
+      const res = await app.inject({ method: 'POST', url: '/api/chat/stream', headers: auth, payload: { message: '记一下写季度总结' } })
+      expect(res.payload).toMatch(/event: status\ndata: \{"intent":"agent"\}\n\n/)
+      expect(res.payload).toMatch(/event: delta\ndata: \{"text":"好的，已记为任务。"\}/)
+      expect(res.payload).toMatch(/event: done\ndata: /)
     } finally {
       await app.close()
     }

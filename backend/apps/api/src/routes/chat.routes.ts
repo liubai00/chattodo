@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { Queryable } from '@linx/infra-tasks-pg'
 import type { Mention } from '@linx/domain-collab'
+import type { LlmClient } from '@linx/platform-llm'
 import { createMemoryRateLimiter, type RateLimiter } from '@linx/platform-ratelimit'
 import type { MigratedPlugin } from '../facade/build-api.js'
 import { buildChatApp } from '../composition/chat-wiring.js'
@@ -9,6 +10,8 @@ export interface ChatPluginDeps {
   db: Queryable
   publish: (userId: string, payload: unknown) => void
   publishMany: (userIds: readonly string[], payload: unknown) => void
+  /** LLM 客户端（agent 路径）；省略则真实 fetch。 */
+  llm?: LlmClient
   /** 聊天限流器；省略则进程内 40/60s（key chat:<userId>）。 */
   chatLimiter?: RateLimiter
   clock?: () => Date
@@ -32,6 +35,7 @@ export function makeChatPlugin(deps: ChatPluginDeps): MigratedPlugin {
     db,
     publish,
     publishMany,
+    ...(deps.llm ? { llm: deps.llm } : {}),
     ...(deps.clock ? { clock: deps.clock } : {}),
     ...(deps.genId ? { genId: deps.genId } : {}),
   }

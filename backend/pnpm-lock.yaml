@@ -29,6 +29,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@linx/agent-chat-llm':
+        specifier: workspace:*
+        version: link:../../packages/agent-chat-llm
       '@linx/agent-planner-rule':
         specifier: workspace:*
         version: link:../../packages/agent-planner-rule
@@ -159,6 +162,24 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.2.17
         version: 0.2.17
+
+  packages/agent-chat-llm:
+    dependencies:
+      '@linx/agent-planner-rule':
+        specifier: workspace:*
+        version: link:../agent-planner-rule
+      '@linx/app-plan':
+        specifier: workspace:*
+        version: link:../app-plan
+      '@linx/domain-collab':
+        specifier: workspace:*
+        version: link:../domain-collab
+      '@linx/domain-settings':
+        specifier: workspace:*
+        version: link:../domain-settings
+      '@linx/platform-llm':
+        specifier: workspace:*
+        version: link:../platform-llm
 
   packages/agent-planner-rule: {}
 

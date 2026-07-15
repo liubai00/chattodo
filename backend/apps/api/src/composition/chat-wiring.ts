@@ -21,6 +21,8 @@ import { makeCaptureApp } from '@linx/app-capture'
 import { makeTasksApp } from '@linx/app-tasks'
 import { makeCollabApp } from '@linx/app-collab'
 import { makeChatApp, type ChatAppDeps } from '@linx/app-chat'
+import { makeAgentChatApp, type AgentChatDeps } from '@linx/agent-chat-llm'
+import { makeLlmClient, type LlmClient } from '@linx/platform-llm'
 import {
   makeClocks,
   makeActivityGateway,
@@ -38,6 +40,8 @@ export interface ChatWiringDeps {
   userId: string
   publish: (userId: string, payload: unknown) => void
   publishMany: (userIds: readonly string[], payload: unknown) => void
+  /** LLM 客户端（agent 路径）；省略则真实 fetch。注入以便测试。 */
+  llm?: LlmClient
   clock?: () => Date
   genId?: (prefix: string) => string
 }
@@ -115,6 +119,38 @@ export function buildChatApp(deps: ChatWiringDeps): ReturnType<typeof makeChatAp
 
   const collab = buildCollabApp(deps)
   const social = buildSocialApp({ db, publish, nowIso, genId, clock })
+  const userDir = makeUserDirectory(db)
+
+  // agent-chat-llm（LLM 脑）：与 ruleChat 复用同批 repos/apps；结构一致处的差异经组合根边界强转。
+  const agentChatFn = makeAgentChatApp({
+    llm: deps.llm ?? makeLlmClient(),
+    settings,
+    tasks: tasks as unknown as AgentChatDeps['tasks'],
+    ideas: ideas as unknown as AgentChatDeps['ideas'],
+    nonTodos: nonTodos as unknown as AgentChatDeps['nonTodos'],
+    projects: projects as unknown as AgentChatDeps['projects'],
+    projectIdForText: (t: string) => projectsApp.projectIdForText(t),
+    agent,
+    chat,
+    captureRecords: { create: (i: Record<string, unknown>) => captureRecords.create(i as never) },
+    activity,
+    collaborators,
+    capture: capture as unknown as AgentChatDeps['capture'],
+    tasksApp: tasksApp as unknown as AgentChatDeps['tasksApp'],
+    collab: collab as unknown as NonNullable<AgentChatDeps['collab']>,
+    social: social as unknown as NonNullable<AgentChatDeps['social']>,
+    users: userDir,
+    teamNames: async (): Promise<string[]> => {
+      const ids = await social.friendIds(userId)
+      const out: string[] = []
+      for (const id of ids.slice(0, 20)) {
+        const u = await userDir.byId(id)
+        if (u?.name) out.push(u.name)
+      }
+      return out
+    },
+    clock,
+  })
 
   const chatDeps: ChatAppDeps = {
     tasks,
@@ -134,6 +170,8 @@ export function buildChatApp(deps: ChatWiringDeps): ReturnType<typeof makeChatAp
     collab: collab as unknown as NonNullable<ChatAppDeps['collab']>,
     collaborators,
     social: social as unknown as NonNullable<ChatAppDeps['social']>,
+    // agent 路径：适配 aiConfig(unknown) → LlmConfig。
+    agentChat: (args) => agentChatFn({ ...args, aiConfig: args.aiConfig as never }),
     clock,
   }
   return makeChatApp(chatDeps)

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "references": [
+    { "path": "../platform-llm" },
+    { "path": "../agent-planner-rule" },
+    { "path": "../app-plan" },
+    { "path": "../domain-settings" },
+    { "path": "../domain-collab" }
+  ]
+}

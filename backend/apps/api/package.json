@@ -12,6 +12,7 @@
     "dev": "tsx watch src/main.ts"
   },
   "dependencies": {
+    "@linx/agent-chat-llm": "workspace:*",
     "@linx/agent-planner-rule": "workspace:*",
     "@linx/agent-triage-llm": "workspace:*",
     "@linx/app-capture": "workspace:*",

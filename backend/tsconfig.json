@@ -25,6 +25,7 @@
     { "path": "packages/domain-ai-errors" },
     { "path": "packages/infra-ai-errors-pg" },
     { "path": "packages/agent-triage-llm" },
+    { "path": "packages/agent-chat-llm" },
     { "path": "packages/legacy" },
     { "path": "packages/domain-tasks" },
     { "path": "packages/infra-tasks-pg" },
