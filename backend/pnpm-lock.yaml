@@ -231,6 +231,8 @@ importers:
         specifier: ^4.0.0
         version: 4.4.3
 
+  packages/domain-ai-config: {}
+
   packages/domain-collab: {}
 
   packages/domain-conversations: {}
@@ -244,6 +246,16 @@ importers:
   packages/domain-social: {}
 
   packages/domain-tasks: {}
+
+  packages/infra-ai-config-pg:
+    dependencies:
+      '@linx/domain-ai-config':
+        specifier: workspace:*
+        version: link:../domain-ai-config
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
 
   packages/infra-collab-pg:
     dependencies:

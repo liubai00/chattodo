@@ -20,6 +20,8 @@
     { "path": "packages/platform-idempotency" },
     { "path": "packages/platform-auth" },
     { "path": "packages/platform-llm" },
+    { "path": "packages/domain-ai-config" },
+    { "path": "packages/infra-ai-config-pg" },
     { "path": "packages/legacy" },
     { "path": "packages/domain-tasks" },
     { "path": "packages/infra-tasks-pg" },
