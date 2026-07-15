@@ -54,7 +54,10 @@ const MIGRATED_GROUPS = [
 async function main(): Promise<void> {
   // 默认 legacy；DB 就绪则把已迁移组翻 'new'；环境变量最后覆盖（可临时回滚某组到 legacy）。
   const registry = new RouteRegistry({ default: 'legacy' })
-  const legacyApp = await buildLegacyApp()
+
+  // Legacy 已全量迁移（全部 69 条路由均有新栈归属）。默认【不再】挂 legacy fall-through；
+  // 万一漏迁，设 LINX_LEGACY_FALLTHROUGH=1 可一键恢复兜底子应用（安全阀，非常态）。
+  const legacyApp = process.env.LINX_LEGACY_FALLTHROUGH === '1' ? await buildLegacyApp() : undefined
 
   let auth: AuthPluginOptions | undefined
   const migratedPlugins: MigratedPlugin[] = []
@@ -123,15 +126,23 @@ async function main(): Promise<void> {
   // 环境变量最后覆盖（LINX_ROUTE_<GROUP>=legacy 可把某组临时回滚）。
   registry.applyEnv(process.env)
 
-  const app = await buildApi({ legacyApp, registry, migratedPlugins, ...(auth ? { auth } : {}) })
+  const app = await buildApi({
+    ...(legacyApp ? { legacyApp } : {}),
+    registry,
+    migratedPlugins,
+    ...(auth ? { auth } : {}),
+  })
 
   await app.listen({ port: config.port, host: config.host })
-  baseLogger.info({ port: config.port, host: config.host, auth: Boolean(auth), migrated: migratedPlugins.length }, '[linx-api] listening (facade)')
+  baseLogger.info(
+    { port: config.port, host: config.host, auth: Boolean(auth), migrated: migratedPlugins.length, legacyFallthrough: Boolean(legacyApp) },
+    '[linx-api] listening (facade)',
+  )
 
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     process.once(sig, () => {
       baseLogger.info({ sig }, '[linx-api] shutting down')
-      void Promise.all([app.close(), legacyApp.close()]).then(() => process.exit(0))
+      void Promise.all([app.close(), legacyApp?.close()].filter(Boolean)).then(() => process.exit(0))
     })
   }
 }
