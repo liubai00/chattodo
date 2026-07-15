@@ -38,6 +38,9 @@ importers:
       '@linx/app-projects':
         specifier: workspace:*
         version: link:../../packages/app-projects
+      '@linx/app-social':
+        specifier: workspace:*
+        version: link:../../packages/app-social
       '@linx/app-tasks':
         specifier: workspace:*
         version: link:../../packages/app-tasks
@@ -47,12 +50,18 @@ importers:
       '@linx/domain-projects':
         specifier: workspace:*
         version: link:../../packages/domain-projects
+      '@linx/domain-social':
+        specifier: workspace:*
+        version: link:../../packages/domain-social
       '@linx/domain-tasks':
         specifier: workspace:*
         version: link:../../packages/domain-tasks
       '@linx/infra-projects-pg':
         specifier: workspace:*
         version: link:../../packages/infra-projects-pg
+      '@linx/infra-social-pg':
+        specifier: workspace:*
+        version: link:../../packages/infra-social-pg
       '@linx/infra-tasks-pg':
         specifier: workspace:*
         version: link:../../packages/infra-tasks-pg
@@ -62,6 +71,9 @@ importers:
       '@linx/kernel-errors':
         specifier: workspace:*
         version: link:../../packages/kernel-errors
+      '@linx/kernel-ids':
+        specifier: workspace:*
+        version: link:../../packages/kernel-ids
       '@linx/legacy':
         specifier: workspace:*
         version: link:../../packages/legacy
@@ -74,12 +86,18 @@ importers:
       '@linx/platform-db':
         specifier: workspace:*
         version: link:../../packages/platform-db
+      '@linx/platform-eventbus':
+        specifier: workspace:*
+        version: link:../../packages/platform-eventbus
       '@linx/platform-logger':
         specifier: workspace:*
         version: link:../../packages/platform-logger
       '@linx/platform-observability':
         specifier: workspace:*
         version: link:../../packages/platform-observability
+      '@linx/platform-ratelimit':
+        specifier: workspace:*
+        version: link:../../packages/platform-ratelimit
       fastify:
         specifier: ^5.2.0
         version: 5.10.0
@@ -121,6 +139,19 @@ importers:
         specifier: workspace:*
         version: link:../domain-projects
 
+  packages/app-social:
+    dependencies:
+      '@linx/domain-social':
+        specifier: workspace:*
+        version: link:../domain-social
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+      '@linx/infra-social-pg':
+        specifier: workspace:*
+        version: link:../infra-social-pg
+
   packages/app-tasks:
     dependencies:
       '@linx/domain-tasks':
@@ -142,15 +173,45 @@ importers:
         specifier: ^4.0.0
         version: 4.4.3
 
+  packages/domain-collab: {}
+
   packages/domain-projects: {}
 
+  packages/domain-social: {}
+
   packages/domain-tasks: {}
+
+  packages/infra-collab-pg:
+    dependencies:
+      '@linx/domain-collab':
+        specifier: workspace:*
+        version: link:../domain-collab
+      '@linx/kernel-ids':
+        specifier: workspace:*
+        version: link:../kernel-ids
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
 
   packages/infra-projects-pg:
     dependencies:
       '@linx/domain-projects':
         specifier: workspace:*
         version: link:../domain-projects
+      '@linx/kernel-ids':
+        specifier: workspace:*
+        version: link:../kernel-ids
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+
+  packages/infra-social-pg:
+    dependencies:
+      '@linx/domain-social':
+        specifier: workspace:*
+        version: link:../domain-social
       '@linx/kernel-ids':
         specifier: workspace:*
         version: link:../kernel-ids

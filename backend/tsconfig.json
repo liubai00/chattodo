@@ -28,6 +28,11 @@
     { "path": "packages/app-projects" },
     { "path": "packages/agent-planner-rule" },
     { "path": "packages/app-capture" },
+    { "path": "packages/domain-social" },
+    { "path": "packages/infra-social-pg" },
+    { "path": "packages/app-social" },
+    { "path": "packages/domain-collab" },
+    { "path": "packages/infra-collab-pg" },
     { "path": "apps/api" }
   ]
 }

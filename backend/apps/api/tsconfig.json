@@ -6,19 +6,25 @@
     { "path": "../../packages/agent-planner-rule" },
     { "path": "../../packages/app-capture" },
     { "path": "../../packages/app-projects" },
+    { "path": "../../packages/app-social" },
     { "path": "../../packages/app-tasks" },
     { "path": "../../packages/contracts-http" },
     { "path": "../../packages/domain-projects" },
+    { "path": "../../packages/domain-social" },
     { "path": "../../packages/domain-tasks" },
     { "path": "../../packages/infra-projects-pg" },
+    { "path": "../../packages/infra-social-pg" },
     { "path": "../../packages/infra-tasks-pg" },
     { "path": "../../packages/kernel-clock" },
     { "path": "../../packages/kernel-errors" },
+    { "path": "../../packages/kernel-ids" },
     { "path": "../../packages/legacy" },
     { "path": "../../packages/platform-auth" },
     { "path": "../../packages/platform-config" },
     { "path": "../../packages/platform-db" },
+    { "path": "../../packages/platform-eventbus" },
     { "path": "../../packages/platform-logger" },
-    { "path": "../../packages/platform-observability" }
+    { "path": "../../packages/platform-observability" },
+    { "path": "../../packages/platform-ratelimit" }
   ]
 }
