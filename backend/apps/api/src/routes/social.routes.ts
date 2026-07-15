@@ -1,9 +1,10 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { makePrefixedId } from '@linx/kernel-ids'
-import { makeFriendshipRepo, type Queryable } from '@linx/infra-social-pg'
-import { makeSocialApp, type SocialApp, type SocialNotification } from '@linx/app-social'
+import { type Queryable } from '@linx/infra-social-pg'
+import { type SocialApp } from '@linx/app-social'
 import { createMemoryRateLimiter, type RateLimiter } from '@linx/platform-ratelimit'
 import type { MigratedPlugin } from '../facade/build-api.js'
+import { makeClocks, buildSocialApp } from '../composition/wiring.js'
 
 export interface SocialPluginDeps {
   db: Queryable
@@ -14,8 +15,6 @@ export interface SocialPluginDeps {
   clock?: () => Date
   genId?: (prefix: string) => string
 }
-
-const pad = (n: number): string => String(n).padStart(2, '0')
 
 /**
  * Social BC 已迁移路由（组 'social'）：好友总览/请求/响应/解除 + 选人目录 /api/team。
@@ -33,71 +32,12 @@ export function makeSocialPlugin(deps: SocialPluginDeps): MigratedPlugin {
   const { db, publish } = deps
   const clock = deps.clock ?? ((): Date => new Date())
   const genId = deps.genId ?? ((prefix: string): string => makePrefixedId(prefix)())
-  const nowIso = (): string => {
-    const d = clock()
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`
-  }
+  const { nowIso } = makeClocks(clock)
   const friendReqLimiter =
     deps.friendReqLimiter ?? createMemoryRateLimiter({ limit: 15, windowMs: 60_000 })
 
-  const social: SocialApp = makeSocialApp({
-    friendships: makeFriendshipRepo({ db, clock, genId }),
-    users: {
-      async byId(id) {
-        const rows = await db.execute<{ id: string; name: string | null; email: string | null }>(
-          'SELECT id, name, email FROM users WHERE id = $1',
-          [id],
-        )
-        const u = rows[0]
-        return u ? { id: u.id, name: u.name ?? '', email: u.email ?? '' } : undefined
-      },
-      async byEmailLower(emailLower) {
-        const rows = await db.execute<{ id: string }>(
-          'SELECT id FROM users WHERE lower(email) = $1',
-          [emailLower],
-        )
-        return rows[0] ? { id: rows[0].id } : undefined
-      },
-    },
-    notifier: {
-      // 1:1 承接 collab.pushNotification：INSERT notifications + publish {kind:'notify'}
-      async push(userId: string, n: SocialNotification) {
-        await db.execute(
-          `INSERT INTO notifications (id,user_id,type,icon,color,text,read,action_type,action_ref,handled,created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,0,$9)`,
-          [
-            genId('nt'),
-            userId,
-            n.type || 'assign',
-            n.icon || 'ph-user-switch',
-            n.color || 'var(--accent-ink)',
-            n.text,
-            n.actionType ?? null,
-            n.actionRef ?? null,
-            nowIso(),
-          ],
-        )
-        publish(userId, { kind: 'notify', text: n.text, actionType: n.actionType ?? null })
-      },
-      async markHandledFor(actionRef: string, userId: string) {
-        await db.execute(
-          'UPDATE notifications SET handled = 1, read = 1 WHERE action_ref = $1 AND user_id = $2',
-          [actionRef, userId],
-        )
-      },
-      async markHandled(actionRef: string) {
-        await db.execute('UPDATE notifications SET handled = 1 WHERE action_ref = $1', [actionRef])
-      },
-    },
-    publishFriends: (userId: string) => publish(userId, { kind: 'friends' }),
-    friendPolicyClosed: async (userId: string) => {
-      const rows = await db.execute<{ friend_policy: string | null }>(
-        'SELECT friend_policy FROM app_settings WHERE user_id = $1',
-        [userId],
-      )
-      return rows[0]?.friend_policy === 'closed'
-    },
-  })
+  // 好友相关跨界副作用（notifications/users/app_settings/eventbus）统一走组合根 wiring（单一真相源）。
+  const social: SocialApp = buildSocialApp({ db, publish, nowIso, genId, clock })
 
   const actor = (
     req: FastifyRequest,

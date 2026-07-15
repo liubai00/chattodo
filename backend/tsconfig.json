@@ -33,6 +33,7 @@
     { "path": "packages/app-social" },
     { "path": "packages/domain-collab" },
     { "path": "packages/infra-collab-pg" },
+    { "path": "packages/app-collab" },
     { "path": "apps/api" }
   ]
 }
