@@ -13,6 +13,8 @@
     { "path": "packages/platform-logger" },
     { "path": "packages/platform-observability" },
     { "path": "packages/platform-db" },
+    { "path": "packages/platform-redis" },
+    { "path": "packages/platform-eventbus" },
     { "path": "apps/api" }
   ]
 }
