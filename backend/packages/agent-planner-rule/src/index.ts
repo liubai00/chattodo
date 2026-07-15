@@ -12,7 +12,8 @@ export interface TriageTask {
   confidence: number
   dueAt: string | null
   plannedAt: null
-  durationMinutes: null
+  // 规则引擎恒为 null；LLM triage 可给出估时数字（agent-triage-llm.mergeResult）。
+  durationMinutes: number | null
   priority: number
   privacyScope: PrivacyScope
   tags: string[]

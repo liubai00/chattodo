@@ -144,6 +144,15 @@ importers:
 
   packages/agent-planner-rule: {}
 
+  packages/agent-triage-llm:
+    dependencies:
+      '@linx/agent-planner-rule':
+        specifier: workspace:*
+        version: link:../agent-planner-rule
+      '@linx/platform-llm':
+        specifier: workspace:*
+        version: link:../platform-llm
+
   packages/app-capture:
     dependencies:
       '@linx/agent-planner-rule':
@@ -233,6 +242,8 @@ importers:
 
   packages/domain-ai-config: {}
 
+  packages/domain-ai-errors: {}
+
   packages/domain-collab: {}
 
   packages/domain-conversations: {}
@@ -252,6 +263,19 @@ importers:
       '@linx/domain-ai-config':
         specifier: workspace:*
         version: link:../domain-ai-config
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.2.17
+        version: 0.2.17
+
+  packages/infra-ai-errors-pg:
+    dependencies:
+      '@linx/domain-ai-errors':
+        specifier: workspace:*
+        version: link:../domain-ai-errors
+      '@linx/kernel-ids':
+        specifier: workspace:*
+        version: link:../kernel-ids
     devDependencies:
       '@electric-sql/pglite':
         specifier: ^0.2.17
