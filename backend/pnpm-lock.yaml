@@ -38,9 +38,18 @@ importers:
       '@linx/kernel-errors':
         specifier: workspace:*
         version: link:../../packages/kernel-errors
+      '@linx/legacy':
+        specifier: workspace:*
+        version: link:../../packages/legacy
+      '@linx/platform-auth':
+        specifier: workspace:*
+        version: link:../../packages/platform-auth
       '@linx/platform-config':
         specifier: workspace:*
         version: link:../../packages/platform-config
+      '@linx/platform-db':
+        specifier: workspace:*
+        version: link:../../packages/platform-db
       '@linx/platform-logger':
         specifier: workspace:*
         version: link:../../packages/platform-logger
@@ -75,6 +84,12 @@ importers:
   packages/kernel-result: {}
 
   packages/kernel-types: {}
+
+  packages/legacy:
+    dependencies:
+      fastify:
+        specifier: ^5.2.0
+        version: 5.10.0
 
   packages/platform-auth:
     dependencies:

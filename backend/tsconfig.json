@@ -19,6 +19,7 @@
     { "path": "packages/platform-cache" },
     { "path": "packages/platform-idempotency" },
     { "path": "packages/platform-auth" },
+    { "path": "packages/legacy" },
     { "path": "apps/api" }
   ]
 }

@@ -6,7 +6,10 @@
     { "path": "../../packages/contracts-http" },
     { "path": "../../packages/kernel-clock" },
     { "path": "../../packages/kernel-errors" },
+    { "path": "../../packages/legacy" },
+    { "path": "../../packages/platform-auth" },
     { "path": "../../packages/platform-config" },
+    { "path": "../../packages/platform-db" },
     { "path": "../../packages/platform-logger" },
     { "path": "../../packages/platform-observability" }
   ]
