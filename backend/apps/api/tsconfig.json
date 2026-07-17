@@ -35,7 +35,6 @@
     { "path": "../../packages/kernel-clock" },
     { "path": "../../packages/kernel-errors" },
     { "path": "../../packages/kernel-ids" },
-    { "path": "../../packages/legacy" },
     { "path": "../../packages/platform-auth" },
     { "path": "../../packages/platform-config" },
     { "path": "../../packages/platform-db" },

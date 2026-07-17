@@ -4,7 +4,6 @@ import { createDb } from '@linx/platform-db'
 import { createEventBus, type LiveEvent } from '@linx/platform-eventbus'
 import { createSessionStore } from '@linx/platform-auth'
 import { makeSettingsRepo } from '@linx/infra-settings-pg'
-import { buildLegacyApp } from '@linx/legacy'
 import { bootstrapSchema } from './composition/ddl-bootstrap.js'
 import { buildApi, type MigratedPlugin } from './facade/build-api.js'
 import { RouteRegistry } from './facade/route-registry.js'
@@ -55,16 +54,12 @@ async function main(): Promise<void> {
   // 默认 legacy；DB 就绪则把已迁移组翻 'new'；环境变量最后覆盖（可临时回滚某组到 legacy）。
   const registry = new RouteRegistry({ default: 'legacy' })
 
-  // Legacy 已全量迁移（全部 69 条路由均有新栈归属）。默认【不再】挂 legacy fall-through；
-  // 万一漏迁，设 LINX_LEGACY_FALLTHROUGH=1 可一键恢复兜底子应用（安全阀，非常态）。
-  const legacyApp = process.env.LINX_LEGACY_FALLTHROUGH === '1' ? await buildLegacyApp() : undefined
-
   let auth: AuthPluginOptions | undefined
   const migratedPlugins: MigratedPlugin[] = []
 
+  // DB 双模式：有 DATABASE_URL 走 pg；否则 PGlite 本地零配置（进程内真 PG，数据落 PGLITE_DIR）。
+  const db = await createDb({ databaseUrl: config.databaseUrl, pgliteDir: config.pgliteDir })
   {
-    // DB 双模式：有 DATABASE_URL 走 pg；否则 PGlite 本地零配置（进程内真 PG，数据落 PGLITE_DIR）。
-    const db = await createDb({ databaseUrl: config.databaseUrl, pgliteDir: config.pgliteDir })
     if (db.kind === 'pglite') {
       baseLogger.info({ dir: config.pgliteDir }, '[linx-api] 本地 PGlite 模式（零配置，仅供本地/演示）')
     }
@@ -131,7 +126,6 @@ async function main(): Promise<void> {
   registry.applyEnv(process.env)
 
   const app = await buildApi({
-    ...(legacyApp ? { legacyApp } : {}),
     registry,
     migratedPlugins,
     ...(auth ? { auth } : {}),
@@ -139,14 +133,18 @@ async function main(): Promise<void> {
 
   await app.listen({ port: config.port, host: config.host })
   baseLogger.info(
-    { port: config.port, host: config.host, auth: Boolean(auth), migrated: migratedPlugins.length, legacyFallthrough: Boolean(legacyApp) },
+    { port: config.port, host: config.host, auth: Boolean(auth), migrated: migratedPlugins.length, db: db.kind },
     '[linx-api] listening (facade)',
   )
 
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     process.once(sig, () => {
       baseLogger.info({ sig }, '[linx-api] shutting down')
-      void Promise.all([app.close(), legacyApp?.close()].filter(Boolean)).then(() => process.exit(0))
+      // 先关 HTTP（排空在途请求）再关 DB——持久化 PGlite 需在退出前落盘。
+      void app
+        .close()
+        .then(() => db.close())
+        .finally(() => process.exit(0))
     })
   }
 }

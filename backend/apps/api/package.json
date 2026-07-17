@@ -45,7 +45,6 @@
     "@linx/kernel-clock": "workspace:*",
     "@linx/kernel-errors": "workspace:*",
     "@linx/kernel-ids": "workspace:*",
-    "@linx/legacy": "workspace:*",
     "@linx/platform-auth": "workspace:*",
     "@linx/platform-config": "workspace:*",
     "@linx/platform-db": "workspace:*",
