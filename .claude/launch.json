@@ -10,8 +10,8 @@
     },
     {
       "name": "api",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "server", "start"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-api.mjs"],
       "port": 18787
     }
   ]

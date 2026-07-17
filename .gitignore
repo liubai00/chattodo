@@ -31,3 +31,6 @@ yarn-error.log*
 
 # local tools (cloudflared binary)
 /tools/cloudflared.exe
+
+# 本地 PGlite 开发库
+/data/pgdata-dev

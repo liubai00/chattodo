@@ -5,6 +5,7 @@ import { createEventBus, type LiveEvent } from '@linx/platform-eventbus'
 import { createSessionStore } from '@linx/platform-auth'
 import { makeSettingsRepo } from '@linx/infra-settings-pg'
 import { buildLegacyApp } from '@linx/legacy'
+import { bootstrapSchema } from './composition/ddl-bootstrap.js'
 import { buildApi, type MigratedPlugin } from './facade/build-api.js'
 import { RouteRegistry } from './facade/route-registry.js'
 import type { AuthPluginOptions } from './plugins/auth.plugin.js'
@@ -29,8 +30,7 @@ import { makeAuthPlugin } from './routes/auth.routes.js'
 
 const config = loadConfig()
 
-// 已迁移路由组：DB 就绪时全部置 'new'（权威）。未迁移的尾部路由（tasks 写路由、data.js 等）
-// 仍在 Facade 里 404 → fall-through 到 legacy 子应用。
+// 已迁移路由组（全部 69 条路由的归属，恒置 'new' 权威；pg 与 PGlite 两种 DB 模式一致）。
 const MIGRATED_GROUPS = [
   'tasks',
   'projects',
@@ -62,8 +62,14 @@ async function main(): Promise<void> {
   let auth: AuthPluginOptions | undefined
   const migratedPlugins: MigratedPlugin[] = []
 
-  if (config.databaseUrl) {
-    const db = await createDb({ databaseUrl: config.databaseUrl })
+  {
+    // DB 双模式：有 DATABASE_URL 走 pg；否则 PGlite 本地零配置（进程内真 PG，数据落 PGLITE_DIR）。
+    const db = await createDb({ databaseUrl: config.databaseUrl, pgliteDir: config.pgliteDir })
+    if (db.kind === 'pglite') {
+      baseLogger.info({ dir: config.pgliteDir }, '[linx-api] 本地 PGlite 模式（零配置，仅供本地/演示）')
+    }
+    // PGlite 空库自建 schema；真 PG 仅在显式 LINX_DDL_BOOTSTRAP=1 时应用（全幂等，不动既有数据）。
+    if (db.kind === 'pglite' || process.env.LINX_DDL_BOOTSTRAP === '1') await bootstrapSchema(db)
 
     // 统一鉴权：读现网同一 sessions 表；DB 异常 → fail-closed 到 401。
     const store = createSessionStore({ db })
@@ -119,8 +125,6 @@ async function main(): Promise<void> {
     )
     for (const g of MIGRATED_GROUPS) registry.set(g, 'new')
     baseLogger.info({ groups: MIGRATED_GROUPS.length }, '[linx-api] migrated plugins live (new stack authoritative)')
-  } else {
-    baseLogger.warn('[linx-api] DATABASE_URL 未配置：以开放模式运行（无鉴权、无迁移插件，全 legacy），仅供本地。')
   }
 
   // 环境变量最后覆盖（LINX_ROUTE_<GROUP>=legacy 可把某组临时回滚）。
