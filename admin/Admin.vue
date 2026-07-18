@@ -2,14 +2,14 @@
   <div style="min-height:100vh;display:flex;flex-direction:column;">
     <!-- 顶栏 -->
     <div style="height:56px;flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line);">
-      <div style="width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--display);">灵</div>
+      <div style="width:32px;height:32px;border-radius:9px;background:var(--text);color:var(--panel);display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--display);">灵</div>
       <span style="font:600 16px/1 var(--display);color:var(--text);">监控后台</span>
       <span style="font:500 12px/1 var(--font);color:var(--text3);">LinX 灵信 · 只读观察</span>
       <div style="flex:1"></div>
       <template v-if="s.me">
         <span style="font:500 12.5px/1 var(--font);color:var(--text2);">{{ s.me.accountName || s.me.name }} · 管理员</span>
-        <a :href="mainUrl" style="height:32px;padding:0 13px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text2);font:600 12px/32px var(--font);text-decoration:none;">← 返回主站</a>
-        <button @click="logout" style="height:32px;padding:0 13px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text2);font:600 12px/1 var(--font);cursor:pointer;">退出</button>
+        <a :href="mainUrl" style="height:32px;padding:0 13px;border:1px solid var(--line2);border-radius:999px;background:var(--panel);color:var(--text2);font:600 12px/32px var(--font);text-decoration:none;">← 返回主站</a>
+        <button @click="logout" style="height:32px;padding:0 13px;border:1px solid var(--line2);border-radius:999px;background:var(--panel);color:var(--text2);font:600 12px/1 var(--font);cursor:pointer;">退出</button>
       </template>
     </div>
 
@@ -22,7 +22,7 @@
           <input v-model="s.email" @keydown.enter="login" placeholder="邮箱" style="width:100%;border:1px solid var(--line2);border-radius:10px;padding:11px 13px;background:var(--bg);color:var(--text);font:500 14px/1 var(--font);margin-bottom:10px;"/>
           <input v-model="s.password" @keydown.enter="login" type="password" placeholder="密码" style="width:100%;border:1px solid var(--line2);border-radius:10px;padding:11px 13px;background:var(--bg);color:var(--text);font:500 14px/1 var(--font);margin-bottom:14px;"/>
           <template v-if="s.error"><div style="font:500 12.5px/1.5 var(--font);color:var(--danger);margin-bottom:12px;">{{ s.error }}</div></template>
-          <button @click="login" :disabled="s.busy" style="width:100%;height:42px;border:0;border-radius:11px;background:var(--accent);color:#fff;font:600 14px/1 var(--font);cursor:pointer;">{{ s.busy ? '登录中…' : '登录' }}</button>
+          <button @click="login" :disabled="s.busy" style="width:100%;height:42px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:600 14px/1 var(--font);cursor:pointer;">{{ s.busy ? '登录中…' : '登录' }}</button>
         </div>
       </div>
     </template>
@@ -42,7 +42,7 @@
             <template v-if="s.loading && !s.users.length"><div style="display:flex;flex-direction:column;align-items:center;gap:9px;color:var(--text3);padding:34px 12px;"><i class="ph ph-circle-notch lx-spin" style="font-size:22px;"></i><div style="font:500 12px/1 var(--font);">加载中…</div></div></template>
             <template v-for="u in s.users" :key="u.id">
               <a @click="selectUser(u.id)" :style="rowStyle(u.id)">
-                <span style="width:30px;height:30px;flex:0 0 auto;border-radius:50%;background:#D9CFC0;color:#5b5348;display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font);">{{ (u.name||'?').slice(-1) }}</span>
+                <span style="width:30px;height:30px;flex:0 0 auto;border-radius:50%;background:var(--surface-active);color:var(--text2);display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font);">{{ (u.name||'?').slice(-1) }}</span>
                 <span style="flex:1;min-width:0;">
                   <span style="display:block;font:600 13px/1.3 var(--font);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ u.name }}<span style="font:500 11px/1 var(--font);color:var(--text3);"> @{{ u.accountName || u.name }}</span></span>
                   <span style="display:block;font:500 11px/1.2 var(--font);color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ u.email }}</span>
@@ -56,12 +56,12 @@
 
         <!-- 右：详情 -->
         <main style="flex:1;min-width:0;overflow:auto;padding:22px 24px;background:var(--bg);">
-          <template v-if="s.overviewError"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:70px 12px;"><i class="ph ph-warning-circle" style="font-size:28px;color:var(--danger);"></i><div style="font:500 13px/1.5 var(--font);color:var(--danger);">{{ s.overviewError }}</div><button @click="loadOverview" style="height:34px;padding:0 16px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">重试</button></div></template>
+          <template v-if="s.overviewError"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text3);padding:70px 12px;"><i class="ph ph-warning-circle" style="font-size:28px;color:var(--danger);"></i><div style="font:500 13px/1.5 var(--font);color:var(--danger);">{{ s.overviewError }}</div><button @click="loadOverview" style="height:34px;padding:0 16px;border:1px solid var(--line2);border-radius:999px;background:var(--panel);color:var(--text);font:600 12px/1 var(--font);cursor:pointer;">重试</button></div></template>
           <template v-else-if="s.sel">
             <!-- 概览卡 -->
             <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px;">
               <div v-for="c in statCards" :key="c.label" style="flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
-                <div :style="`font:600 26px/1 var(--display);color:${c.color};`">{{ c.value }}</div>
+                <div :style="`font:600 26px/1 var(--mono);letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:${c.color};`">{{ c.value }}</div>
                 <div style="font:500 12px/1 var(--font);color:var(--text3);margin-top:6px;">{{ c.label }}</div>
               </div>
             </div>

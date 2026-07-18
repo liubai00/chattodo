@@ -218,13 +218,13 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
     <div v-if="booting" class="flex h-full w-full items-center justify-center text-[var(--text3)]">加载中…</div>
 
     <!-- 登录屏 -->
-    <div v-else-if="!auth.authed" class="flex h-full w-full items-center justify-center p-6" style="background:radial-gradient(120% 90% at 50% 0%, var(--surface-base) 0%, var(--bg) 60%);">
+    <div v-else-if="!auth.authed" class="flex h-full w-full items-center justify-center p-6" style="background:var(--canvas);">
       <div v-fade class="flex w-[400px] max-w-full flex-col gap-[22px]">
         <div class="flex flex-col items-center gap-[14px]">
-          <div class="flex h-[52px] w-[52px] items-center justify-center rounded-[15px] bg-[var(--accent)] text-[26px] font-semibold text-[var(--accent-contrast)]" style="font-family:var(--display);box-shadow:var(--shadow-md);">灵</div>
+          <div class="flex h-[52px] w-[52px] items-center justify-center rounded-[15px] bg-[var(--text)] text-[26px] font-semibold text-[var(--panel)]" style="font-family:var(--display);">灵</div>
           <div class="text-center"><div class="text-[24px] font-semibold text-[var(--text)]" style="font-family:var(--display);">登录 LinX 灵信</div><div class="mt-[5px] text-[13.5px] font-medium text-[var(--text3)]">AI 原生 todo · 内部测试版</div></div>
         </div>
-        <Card class="gap-[14px] rounded-[18px] border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow)]">
+        <Card class="gap-[14px] rounded-[18px] border-[var(--line)] bg-[var(--panel)] p-6 shadow-[var(--shadow-float)]">
           <label v-if="authMode === 'register'" class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">显示名称</span><Input v-model="authName" placeholder="你的名字" class="h-11 rounded-[10px] border-[var(--line2)] bg-[var(--bg)] px-[13px] text-sm font-medium" /></label>
           <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">邮箱</span><Input v-model="authEmail" @keydown.enter="submitAuth" type="email" placeholder="you@team.com" class="h-11 rounded-[10px] border-[var(--line2)] bg-[var(--bg)] px-[13px] text-sm font-medium" /></label>
           <label class="flex flex-col gap-1.5"><span class="text-xs font-semibold text-[var(--text2)]">密码</span><Input v-model="authPassword" @keydown.enter="submitAuth" type="password" :placeholder="authMode==='register'?'至少 8 位':'输入密码'" class="h-11 rounded-[10px] border-[var(--line2)] bg-[var(--bg)] px-[13px] text-sm font-medium" /></label>
