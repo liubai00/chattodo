@@ -67,14 +67,14 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:6px;border:2.5px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-track{background:transparent}
-@keyframes lx-fade{0%{opacity:0;transform:translateY(18px) scale(.97);filter:blur(5px)}70%{opacity:1;transform:translateY(-3px) scale(1.01);filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
-@keyframes lx-pulse{0%,100%{opacity:.3}50%{opacity:.9}}
+@keyframes lx-fade{0%{opacity:0;transform:translateY(14px) scale(.98)}100%{opacity:1;transform:none}}
+@keyframes lx-pulse{0%,100%{opacity:.25}50%{opacity:.85}}
 @keyframes lx-shimmer{0%{background-position:180% 0}100%{background-position:-80% 0}}
 @keyframes lx-blink{0%,100%{opacity:1}50%{opacity:0}}
 /* one-line "thinking" status: shimmering text, clamped to a single row */
 .lx-think{display:inline-block;max-width:min(420px,60vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:var(--font-medium) 12.5px/1.4 var(--font);background:linear-gradient(90deg,var(--text3) 32%,var(--accent-ink) 50%,var(--text3) 68%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--text3);animation:lx-shimmer 1.6s linear infinite}
 @keyframes lx-slide{0%{opacity:0;transform:translateX(48px)}100%{opacity:1;transform:none}}
-@keyframes lx-pop{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes lx-pop{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes lx-spin{to{transform:rotate(360deg)}}
 .lx-spin{display:inline-block;animation:lx-spin .8s linear infinite}
 /* numeric/date/id/code runs — the Attio "feel" cue */
@@ -106,32 +106,32 @@ button:active{transform:scale(.97)}
   #lx-root .lx-route-enter-active{animation-name:lx-route-in-fade}
   #lx-root .lx-route-leave-active{animation-name:lx-route-out-fade}
 }
-/* P14 抽屉（TaskDetail）：scrim 淡入 + 面板右侧 x+20px 滑入 350ms / leave 250ms */
+/* 抽屉（TaskDetail）：scrim 淡入 + 面板右侧 x+20px 滑入 250ms / leave 200ms(Apple 克制纪律 ≤250ms) */
 @keyframes lx-scrim-in{from{opacity:0}to{opacity:1}}
 @keyframes lx-scrim-out{from{opacity:1}to{opacity:0}}
 @keyframes lx-drawer-in{from{opacity:0;transform:translate3d(20px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes lx-drawer-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(20px,0,0)}}
-#lx-root .lx-drawer-enter-active .lx-drawer-scrim{animation:lx-scrim-in 350ms cubic-bezier(0.4,0,1,1) both}
-#lx-root .lx-drawer-enter-active .lx-drawer-panel{animation:lx-drawer-in 350ms cubic-bezier(0.4,0,1,1) both}
-#lx-root .lx-drawer-leave-active .lx-drawer-scrim{animation:lx-scrim-out 250ms cubic-bezier(0.4,0,0.6,1) both}
-#lx-root .lx-drawer-leave-active .lx-drawer-panel{animation:lx-drawer-out 250ms cubic-bezier(0.4,0,0.6,1) both}
-/* P14 中心弹窗（⌘K / 快捷键）：scrim 淡入 + 面板 scale 0.98→1 350ms / leave 250ms */
+#lx-root .lx-drawer-enter-active .lx-drawer-scrim{animation:lx-scrim-in 250ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-drawer-enter-active .lx-drawer-panel{animation:lx-drawer-in 250ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-drawer-leave-active .lx-drawer-scrim{animation:lx-scrim-out 200ms cubic-bezier(0.4,0,0.6,1) both}
+#lx-root .lx-drawer-leave-active .lx-drawer-panel{animation:lx-drawer-out 200ms cubic-bezier(0.4,0,0.6,1) both}
+/* 中心弹窗（⌘K / 快捷键）：scrim 淡入 + 面板 scale 0.98→1 250ms / leave 200ms */
 @keyframes lx-modal-in{from{opacity:0;transform:scale(0.98)}to{opacity:1;transform:scale(1)}}
 @keyframes lx-modal-out{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(0.98)}}
-#lx-root .lx-modal-enter-active{animation:lx-scrim-in 350ms cubic-bezier(0.4,0,1,1) both}
-#lx-root .lx-modal-enter-active .lx-modal-panel{animation:lx-modal-in 350ms cubic-bezier(0.4,0,1,1) both}
-#lx-root .lx-modal-leave-active{animation:lx-scrim-out 250ms cubic-bezier(0.4,0,0.6,1) both}
-#lx-root .lx-modal-leave-active .lx-modal-panel{animation:lx-modal-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+#lx-root .lx-modal-enter-active{animation:lx-scrim-in 250ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-modal-enter-active .lx-modal-panel{animation:lx-modal-in 250ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-modal-leave-active{animation:lx-scrim-out 200ms cubic-bezier(0.4,0,0.6,1) both}
+#lx-root .lx-modal-leave-active .lx-modal-panel{animation:lx-modal-out 200ms cubic-bezier(0.4,0,0.6,1) both}
 /* P14 通知飞入：x+20px 350ms / leave 250ms */
 @keyframes lx-flyout-in{from{opacity:0;transform:translate3d(20px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes lx-flyout-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(20px,0,0)}}
-#lx-root .lx-flyout-enter-active{animation:lx-flyout-in 350ms cubic-bezier(0.4,0,1,1) both}
-#lx-root .lx-flyout-leave-active{animation:lx-flyout-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+#lx-root .lx-flyout-enter-active{animation:lx-flyout-in 250ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-flyout-leave-active{animation:lx-flyout-out 200ms cubic-bezier(0.4,0,0.6,1) both}
 /* P14 Toast：底部居中 x+20px enter 350ms / leave 250ms */
 @keyframes lx-toast-in{from{opacity:0;transform:translate3d(calc(-50% + 20px),0,0)}to{opacity:1;transform:translate3d(-50%,0,0)}}
 @keyframes lx-toast-out{from{opacity:1;transform:translate3d(-50%,0,0)}to{opacity:0;transform:translate3d(calc(-50% + 20px),0,0)}}
-#lx-root .lx-toast-enter-active{animation:lx-toast-in 350ms cubic-bezier(0.4,0,1,1) both}
-#lx-root .lx-toast-leave-active{animation:lx-toast-out 250ms cubic-bezier(0.4,0,0.6,1) both}
+#lx-root .lx-toast-enter-active{animation:lx-toast-in 250ms cubic-bezier(0.4,0,1,1) both}
+#lx-root .lx-toast-leave-active{animation:lx-toast-out 200ms cubic-bezier(0.4,0,0.6,1) both}
 .lx-batch-enter-active,.lx-batch-leave-active{transition:opacity var(--duration-linear-view, 250ms) var(--ease-in-out),transform var(--duration-linear-view, 250ms) var(--ease-in-out)}
 .lx-batch-enter-from,.lx-batch-leave-to{opacity:0;transform:translateY(-4px)}
 /* P15 主题切换过渡：View Transitions API 伪元素，节奏对齐 Attio/Linear 300ms ease-in-out */

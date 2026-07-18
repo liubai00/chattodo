@@ -299,7 +299,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         </Transition>
 
         <!-- 任务详情抽屉（P14: lx-drawer 右侧滑入 + scrim 淡入） -->
-        <Transition name="lx-drawer" :duration="{ enter: 350, leave: 250 }">
+        <Transition name="lx-drawer" :duration="{ enter: 250, leave: 200 }">
           <TaskDetailView
             v-if="ui.detailId"
             :key="ui.detailId"
@@ -316,7 +316,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
       </nav>
 
       <!-- 通知面板（P14: lx-flyout 右上 x+20px 350ms） -->
-      <Transition name="lx-flyout" :duration="{ enter: 350, leave: 250 }">
+      <Transition name="lx-flyout" :duration="{ enter: 250, leave: 200 }">
         <div
           v-if="ui.notifOpen"
           key="notif"
@@ -333,7 +333,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
       </Transition>
 
       <!-- 搜索面板 ⌘K（P14: lx-modal 中心 scale 0.98→1 350ms + scrim） -->
-      <Transition name="lx-modal" :duration="{ enter: 350, leave: 250 }">
+      <Transition name="lx-modal" :duration="{ enter: 250, leave: 200 }">
         <div
           v-if="ui.searchOpen"
           key="search"
@@ -361,7 +361,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
       </Transition>
 
       <!-- 快捷键 modal（P14: lx-modal 中心 scale 0.98→1 350ms + scrim） -->
-      <Transition name="lx-modal" :duration="{ enter: 350, leave: 250 }">
+      <Transition name="lx-modal" :duration="{ enter: 250, leave: 200 }">
         <div
           v-if="ui.shortcutsOpen"
           key="shortcuts"
@@ -388,7 +388,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
     </template>
 
     <!-- toast（P14: lx-toast x+20px enter 350ms / leave 250ms） -->
-    <Transition name="lx-toast" :duration="{ enter: 350, leave: 250 }">
+    <Transition name="lx-toast" :duration="{ enter: 250, leave: 200 }">
       <div
         v-if="toast.msg"
         key="toast"

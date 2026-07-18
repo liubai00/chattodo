@@ -60,26 +60,26 @@
     transform: scale(0.97);
   }
 
-  /* ── Button 交互（MD §4.1.2：hover scale 1.02 + active scale 0.97，200ms ease-in-out）── */
+  /* ── Button 交互（Apple 纪律：hover brightness 1.08 + active scale 0.97，150ms）── */
   .lx-btn-interact {
-    transition-duration: var(--duration-standard, 200ms);
+    transition-duration: 150ms;
     transition-timing-function: var(--ease-neutral);
-    transition-property: color, background-color, border-color, transform;
+    transition-property: color, background-color, border-color, transform, filter;
   }
   .lx-btn-interact:hover:not(:disabled) {
-    transform: scale(1.02);
+    filter: brightness(1.08);
   }
   .lx-btn-interact:active:not(:disabled) {
     transition-duration: var(--duration-immediate, 120ms);
     transform: scale(0.97);
   }
 
-  /* ── Card 交互（MD §4.1.3：hover 上浮 -4px + shadow-md，200ms）── */
+  /* ── Card 交互（Apple 纪律：hover 阴影抬升 + accent 边框染色，不位移，150ms）── */
   .lx-card-interact {
-    transition: all var(--duration-standard, 200ms) var(--ease-neutral);
+    transition: box-shadow 150ms var(--ease-neutral), border-color 150ms var(--ease-neutral), background-color 150ms var(--ease-neutral);
   }
   .lx-card-interact:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    box-shadow: var(--shadow-hover);
   }
 }

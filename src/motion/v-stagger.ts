@@ -25,10 +25,11 @@ export const vStagger: Directive<
       return
     }
     try {
+      // Apple 克制纪律:轻位移、无回弹、无 blur
       gsap.fromTo(
         children,
-        { opacity: 0, y: 20, scale: 0.94, filter: 'blur(4px)' },
-        { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: 0.5, ease: 'back.out(1.5)', stagger: binding.value?.delay ?? 0.05 },
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, duration: 0.25, ease: 'power2.out', stagger: binding.value?.delay ?? 0.04 },
       )
     } catch (e) {
       console.error('[v-stagger] gsap failed, showing children:', e)
