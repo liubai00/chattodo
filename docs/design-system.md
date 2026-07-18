@@ -1,4 +1,13 @@
-# 设计系统（Attio 风格）
+# 设计系统（Apple 级质感,AB 阶段起;Attio 底座沿革见 git 史）
+
+**AB1–AB8 全局升级(依据设计稿 `LinX Apple 全套.dc.html`)**:点睛色 #0071e3(深色 #0a84ff),
+全局无彩灰阶 + 红 #e8503a/橙 #b25000 优先级信号;rgba 发丝线(浅 .07/深 .08)取代实色边框;
+侧栏/悬浮面板毛玻璃材质(`--material-*` + `--blur-panel`,`@supports` 回落);主按钮胶囊
+(rounded-full)+hover brightness(1.08);卡片阴影梯 `--shadow-card/hover/drag/float/seg`;
+iOS 开关(40×24,`--switch-on`)与圆形勾选(17px,`--check-border`);分段控件 `--seg-active`+
+`--shadow-seg`;标题字距 `--tracking-display`(-0.022em);动效纪律 0.12–0.25s(lx-fade y14
+scale.98、lx-pop y6、浮层 250/200ms、拖拽 scale1.04+rotate2°)。深色为 Apple HIG 等价
+(#1c1c1e 面板、白发丝、内描边阴影),tokens.css 深色**双块**(属性选择器+媒体查询)须同步改。
 
 P12 起沉淀的视觉与动效规范。前置：`src/styles/tokens.css`（Attio 令牌）、`src/styles.css`（应用语义层）、`src/styles/tailwind.css`（Tailwind v4 + 作用域 preflight + `@theme inline` 映射）。
 
@@ -25,7 +34,7 @@ tokens.css（原始：--surface-* / --border-* / --text-* / --accent / --radius-
               └─ 新 ui/base 组件用工具类，dark 经 @custom-variant dark 自动流转
 ```
 
-关键映射（见 `tailwind.css`）：`--color-primary=--accent`（紫）、`--color-border=--border-default`、`--color-ring=--accent`、`--color-popover=--surface-raised`、`--color-accent=--surface-hover`（Tailwind 的 `accent` 是 hover 浅底，**不**覆盖 Attio 紫色 `--accent`，两者各司其职）。
+关键映射（见 `tailwind.css`）：`--color-primary=--accent`（Apple 蓝）、`--color-border=--border-default`、`--color-ring=--accent`、`--color-popover=--surface-raised`、`--color-accent=--surface-hover`（Tailwind 的 `accent` 是 hover 浅底，**不**覆盖 Attio 紫色 `--accent`，两者各司其职）。
 
 ## 3. 动效令牌（对齐 Attio/Notion MD §3）
 

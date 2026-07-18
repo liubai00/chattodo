@@ -1,3 +1,5 @@
+> **AB3 起**:Button 全变体胶囊(rounded-full);Checkbox 为 17px 圆形勾选;Switch 为 iOS 制式(40×24、白 knob、`--switch-on`);SegmentedControl/TabPills 活动块 `--seg-active`+`--shadow-seg`;SearchField 胶囊 `--field-bg`。
+
 # 组件分层 · Component Layers
 
 前端组件按 **ui → base → business → views** 四层组织，依赖只能向下。目标是 "页面由组件名组成，不是 div+class 墙"。
