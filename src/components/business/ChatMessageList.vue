@@ -19,8 +19,8 @@ defineProps<{
     <template v-else>
       <component v-for="m in messages" :key="m.id" :is="resolveRenderer(m)" :m="m" />
       <div v-if="thinking" v-message-enter class="flex gap-[9px] self-start">
-        <span class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[9px] bg-[var(--accent)] text-[13px] font-semibold text-[var(--accent-contrast)] opacity-85" style="font-family:var(--display);margin-top:2px;">灵</span>
-        <div class="inline-flex items-center gap-2 rounded-[5px_14px_14px_14px] bg-[var(--mid)] px-[14px] py-2.5"><span class="inline-flex gap-1" style="flex:0 0 auto;"><span class="h-[5px] w-[5px] rounded-full bg-[var(--accent-ink)]" style="animation:lx-pulse 1s infinite;"></span><span class="h-[5px] w-[5px] rounded-full bg-[var(--accent-ink)]" style="animation:lx-pulse 1s infinite .2s;"></span><span class="h-[5px] w-[5px] rounded-full bg-[var(--accent-ink)]" style="animation:lx-pulse 1s infinite .4s;"></span></span><span class="lx-think">{{ thinkText }}</span></div>
+        <span class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[9px] bg-[var(--text)] text-[13px] font-semibold text-[var(--panel)] opacity-85" style="font-family:var(--display);margin-top:2px;">灵</span>
+        <div class="inline-flex items-center gap-2 rounded-2xl bg-[var(--bubble-ai)] px-[14px] py-2.5"><span class="inline-flex gap-1" style="flex:0 0 auto;"><span class="h-[5px] w-[5px] rounded-full bg-[var(--text3)]" style="animation:lx-pulse 1s infinite;"></span><span class="h-[5px] w-[5px] rounded-full bg-[var(--text3)]" style="animation:lx-pulse 1s infinite .18s;"></span><span class="h-[5px] w-[5px] rounded-full bg-[var(--text3)]" style="animation:lx-pulse 1s infinite .36s;"></span></span><span v-if="thinkText" class="lx-think">{{ thinkText }}</span></div>
       </div>
     </template>
   </div>
