@@ -157,7 +157,7 @@ onBeforeUnmount(() => kanban.destroyDraggable())
       <Transition name="lx-batch">
         <div
           v-if="dbSelected.length > 0"
-          class="flex h-12 flex-none items-center gap-[9px] border-b border-[var(--line)] bg-[var(--accent-bg)] px-[18px]"
+          class="flex h-12 flex-none items-center gap-[9px] border-b border-[var(--line)] bg-[var(--batch-bg)] px-[18px]"
         >
           <span class="text-[13px] font-semibold text-[var(--accent-ink)]">已选 {{ dbSelected.length }} 项</span>
           <div class="flex-1"></div>

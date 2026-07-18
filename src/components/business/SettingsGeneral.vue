@@ -12,14 +12,14 @@ const seg = (on: boolean) => on
 
 <template>
   <div class="rounded-[14px] border border-[var(--line)] bg-[var(--panel)] px-[18px] py-1 shadow-md">
-    <div class="flex items-center gap-[14px] border-b border-[var(--line)] py-[15px]">
+    <div class="flex items-center gap-[14px] border-b border-[var(--border-subtle)] py-[15px]">
       <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">外观主题</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">明亮 / 深色，保存到账号，下次登录生效</div></div>
       <div class="inline-flex gap-0.5 rounded-lg bg-[var(--mid)] p-[3px]">
         <button class="rounded-md px-3 py-1 text-xs font-semibold" :class="seg(s.theme === 'light')" @click="s.theme !== 'light' && toggleTheme()">明亮</button>
         <button class="rounded-md px-3 py-1 text-xs font-semibold" :class="seg(s.theme === 'dark')" @click="s.theme !== 'dark' && toggleTheme()">深色</button>
       </div>
     </div>
-    <div class="flex items-center gap-[14px] border-b border-[var(--line)] py-[15px]">
+    <div class="flex items-center gap-[14px] border-b border-[var(--border-subtle)] py-[15px]">
       <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">默认工作区</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">下次登录时进入的空间</div></div>
       <div class="inline-flex gap-0.5 rounded-lg bg-[var(--mid)] p-[3px]">
         <button class="rounded-md px-3 py-1 text-xs font-semibold" :class="seg(s.defaultWs === 'work')" @click="updateSetting('defaultWs', 'work')">工作</button>

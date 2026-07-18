@@ -41,7 +41,7 @@ const { loading, visIdeas, selIdea, selId, modeLabel, modeIcon, select, convertI
       <!-- 详情 -->
       <div v-if="!isMobile" @mousedown="startResize" title="拖动调整宽度" class="flex-none cursor-col-resize" style="width:5px;position:relative;z-index:6;"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div>
       <div v-if="!isMobile || !!selId" class="flex-1 overflow-auto px-6 py-[30px]">
-        <div v-if="!loading && selIdea" class="mx-auto flex max-w-[640px] flex-col gap-[18px]" style="animation: lx-pop .3s ease;">
+        <div v-if="!loading && selIdea" class="mx-auto flex max-w-[640px] flex-col gap-[18px]" style="animation: lx-pop .2s ease;">
           <div class="text-[22px] font-semibold leading-relaxed text-[var(--text)]" style="font-family: var(--display)">{{ selIdea.title }}</div>
           <div class="rounded-xl border-l-[3px] border-[var(--idea)] bg-[var(--idea-bg)] p-[14px_16px]">
             <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--idea)]"><i class="ph ph-arrow-bend-down-right"></i>建议下一步</div>

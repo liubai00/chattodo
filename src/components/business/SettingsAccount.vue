@@ -19,19 +19,19 @@ const { user, sAccountName, roleLabel, meBig, pwdOpen, pwdOld, pwdNew, pwdBusy, 
   </div>
 
   <div class="rounded-[14px] border border-[var(--line)] bg-[var(--panel)] px-[18px] py-1 shadow-md">
-    <div class="flex items-center gap-[14px] border-b border-[var(--line)] py-[15px]">
+    <div class="flex items-center gap-[14px] border-b border-[var(--border-subtle)] py-[15px]">
       <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">账户名</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">你的唯一账号标识，用于系统展示（登录仍用邮箱）</div></div>
       <input :value="sAccountName" @change="onAccountName" maxlength="24" placeholder="账户名" class="w-[150px] rounded-[9px] border border-[var(--line2)] bg-[var(--bg)] px-[11px] py-2 text-[13px] font-medium text-[var(--text)]" />
     </div>
-    <div class="flex items-center gap-[14px] border-b border-[var(--line)] py-[15px]">
+    <div class="flex items-center gap-[14px] border-b border-[var(--border-subtle)] py-[15px]">
       <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">称呼</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">聊天、问候与协作里对你的称谓，可随时修改</div></div>
       <input :value="user.name" @change="onName" maxlength="24" placeholder="称呼" class="w-[150px] rounded-[9px] border border-[var(--line2)] bg-[var(--bg)] px-[11px] py-2 text-[13px] font-medium text-[var(--text)]" />
     </div>
-    <div class="flex items-center gap-[14px] border-b border-[var(--line)] py-[15px]">
+    <div class="flex items-center gap-[14px] border-b border-[var(--border-subtle)] py-[15px]">
       <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">邮箱</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">登录账号，不可修改</div></div>
       <span class="text-[13.5px] font-medium text-[var(--text2)]">{{ user.email }}</span>
     </div>
-    <div class="flex items-center gap-[14px] border-b border-[var(--line)] py-[15px]">
+    <div class="flex items-center gap-[14px] border-b border-[var(--border-subtle)] py-[15px]">
       <div class="flex-1"><div class="text-[13.5px] font-semibold text-[var(--text)]">角色</div><div class="mt-[3px] text-xs font-medium text-[var(--text3)]">首个注册账号为管理员，决定后台访问权限</div></div>
       <span class="rounded-full bg-[var(--accent-bg)] px-3 py-[5px] text-xs font-semibold text-[var(--accent-ink)]">{{ roleLabel }}</span>
     </div>

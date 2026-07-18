@@ -31,7 +31,7 @@ const headers = [
   <div class="flex-1 overflow-auto">
     <!-- 表头 -->
     <div
-      class="db-grid sticky top-0 z-[1] border-b border-[var(--line)] bg-[var(--bg)]"
+      class="db-grid lx-sticky-head sticky top-0 z-[1] border-b border-[var(--line)]"
       :class="{ 'db-grid--mobile': props.isMobile }"
     >
       <div class="flex items-center py-3">
@@ -47,7 +47,7 @@ const headers = [
         {{ h.l }}
         <i
           :class="['ph', props.sortKey === h.k ? (props.sortDir === 'asc' ? 'ph-caret-up' : 'ph-caret-down') : 'ph-arrows-down-up']"
-          :style="{ color: props.sortKey === h.k ? 'var(--accent-ink)' : 'var(--text3)' }"
+          :style="{ color: props.sortKey === h.k ? 'var(--accent)' : 'var(--text-disabled)' }"
         ></i>
       </div>
       <div class="db-head db-head--static">负责人</div>
@@ -122,15 +122,15 @@ const headers = [
   min-width: 640px;
 }
 .db-row {
-  border-bottom: 1px solid var(--line);
-  transition: background-color var(--duration-base) var(--ease-in-out);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 140ms var(--ease-neutral);
 }
 .db-row:hover {
-  background: var(--mid);
+  background: var(--row-hover);
 }
 .db-row--selected,
 .db-row--selected:hover {
-  background: var(--accent-bg);
+  background: var(--row-selected);
 }
 .db-head {
   padding: 12px 8px;

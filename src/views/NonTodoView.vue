@@ -40,7 +40,7 @@ const { loading, visNons, selNon, selId, modeLabel, modeIcon, cnDest, select, no
       <!-- 详情 -->
       <div v-if="!isMobile" @mousedown="startResize" title="拖动调整宽度" class="flex-none cursor-col-resize" style="width:5px;position:relative;z-index:6;"><div style="position:absolute;inset:0 2px;background:var(--line);"></div></div>
       <div v-if="!isMobile || !!selId" class="flex-1 overflow-auto px-6 py-[30px]">
-        <div v-if="!loading && selNon" class="mx-auto flex max-w-[640px] flex-col gap-[18px]" style="animation: lx-pop .3s ease;">
+        <div v-if="!loading && selNon" class="mx-auto flex max-w-[640px] flex-col gap-[18px]" style="animation: lx-pop .2s ease;">
           <div class="text-[22px] font-semibold leading-relaxed text-[var(--text2)]" style="font-family: var(--display)">{{ selNon.title }}</div>
           <div class="rounded-xl border border-dashed border-[var(--line2)] bg-[var(--nono-bg)] p-[14px_16px]">
             <div class="text-sm font-medium leading-relaxed text-[var(--text2)]">{{ selNon.text }}</div>
