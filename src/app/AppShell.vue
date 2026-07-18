@@ -213,7 +213,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
 </script>
 
 <template>
-  <div id="lx-root" class="flex h-screen w-full overflow-hidden" :class="{'flex-col': ui.isMobile}" style="background:var(--bg);color:var(--text);font-family:var(--font);">
+  <div id="lx-root" class="flex h-screen w-full overflow-hidden" :class="{'flex-col': ui.isMobile}" style="background:var(--canvas);color:var(--text);font-family:var(--font);">
     <!-- 启动中 -->
     <div v-if="booting" class="flex h-full w-full items-center justify-center text-[var(--text3)]">加载中…</div>
 
@@ -238,8 +238,8 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
 
     <!-- 壳：rail + 视图区 -->
     <template v-else>
-      <nav v-if="!ui.isMobile" class="flex flex-none flex-col items-center gap-[6px] bg-[var(--rail)] px-[9px] py-3" style="width:64px;">
-        <div class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--accent)] text-[19px] font-semibold text-[var(--accent-contrast)]" style="font-family:var(--display);box-shadow:var(--shadow);">灵</div>
+      <nav v-if="!ui.isMobile" class="lx-material flex flex-none flex-col items-center gap-[6px] border-r border-[var(--line)] px-[9px] py-3" style="width:64px;">
+        <div class="mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[var(--text)] text-[19px] font-semibold text-[var(--panel)]" style="font-family:var(--display);">灵</div>
         <IconButton icon="ph-magnifying-glass" label="搜索 (⌘K)" variant="subtle" size="md" class="mb-2" @click="ui.openSearch()" />
         <TooltipProvider :delay-duration="400">
           <Tooltip v-for="n in NAV" :key="n[0]">
@@ -269,7 +269,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
 
       <!-- 移动端顶栏 -->
       <div v-if="ui.isMobile" class="flex flex-none items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-2">
-        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-semibold text-[var(--accent-contrast)]">灵</div>
+        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--text)] text-sm font-semibold text-[var(--panel)]">灵</div>
         <span class="text-sm font-bold text-[var(--text)]">LinX 灵信</span>
         <div class="flex-1"></div>
         <IconButton icon="ph-magnifying-glass" label="搜索" variant="ghost" size="sm" @click="ui.openSearch()" />
@@ -320,8 +320,8 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
         <div
           v-if="ui.notifOpen"
           key="notif"
-          class="fixed bottom-4 z-[41] w-[340px] max-w-[80vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]"
-          style="left:74px;box-shadow:var(--shadow-md);"
+          class="lx-material-float fixed bottom-4 z-[41] w-[340px] max-w-[80vw] overflow-hidden rounded-[var(--radius-float)] border border-[var(--line)]"
+          style="left:74px;box-shadow:var(--shadow-float);"
         >
           <div @click="ui.closeNotif()" class="fixed inset-0 z-[-1]"></div>
           <div class="flex items-center gap-2 border-b border-[var(--line)] px-4 py-[14px]"><i class="ph ph-bell text-[var(--accent-ink)]"></i><span class="text-sm font-semibold text-[var(--text)]" style="font-family:var(--display);">通知</span><div class="flex-1"></div><button @click="ui.markAllRead()" class="text-[11.5px] font-semibold text-[var(--accent-ink)]" style="border:0;background:transparent;cursor:pointer;">全部已读</button></div>
@@ -343,7 +343,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
           @keydown.esc.prevent.stop="ui.closeSearch()"
         >
           <div
-            class="lx-modal-panel w-[560px] max-w-[90vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]"
+            class="lx-modal-panel lx-material-float w-[560px] max-w-[90vw] overflow-hidden rounded-[var(--radius-float)] border border-[var(--line)] shadow-[var(--shadow-float)]"
             style="box-shadow:var(--shadow-md);"
             @click.stop
           >
@@ -371,7 +371,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
           @keydown.esc.prevent.stop="ui.closeShortcuts()"
         >
           <div
-            class="lx-modal-panel w-[430px] max-w-[92vw] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elev)]"
+            class="lx-modal-panel lx-material-float w-[430px] max-w-[92vw] overflow-hidden rounded-[var(--radius-float)] border border-[var(--line)] shadow-[var(--shadow-float)]"
             style="box-shadow:var(--shadow-md);"
             @click.stop
           >

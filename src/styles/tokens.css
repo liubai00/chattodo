@@ -1,73 +1,98 @@
 /* =========================================================================
-   Attio-style design tokens
+   Apple-style design tokens (t4「Apple 级质感」— SF 字感 · 发丝线 · 毛玻璃 · 胶囊)
    -------------------------------------------------------------------------
    Pure styling layer. Primitives (gray scale) + semantic tokens (surface,
-   border, text, accent, status), typography, radius, shadow, spacing, motion.
-   Consumed by src/styles.css (which maps the app's own semantic vars onto
-   these) and by inline styles across App.vue.
+   border, text, accent, status, material), typography, radius, shadow,
+   spacing, motion. Consumed by src/styles.css (which maps the app's own
+   semantic vars onto these) and by inline styles across the views.
+
+   设计语言(权威稿 LinX Apple 全套.dc.html):近黑 #1d1d1f 主字 + #86868b 次级灰
+   的克制对比;rgba 发丝分隔线代替实色边框;侧栏毛玻璃(vibrancy);胶囊主按钮 +
+   iOS 分段控件;全局无彩,只留一个点睛色(#0071e3)+ 红/橙优先级信号。
 
    Dark theme is driven by BOTH  <html data-theme="dark">  and the OS
    `prefers-color-scheme`. A manual  data-theme="light"  always wins over the
    OS preference (see the :not() guard on the media query below).
+   ⚠ 深色是两个内容相同的块(属性选择器 + 媒体查询)——改深色必须两处同步。
    ========================================================================= */
 
 :root {
   color-scheme: light;
 
-  /* ---------- Neutral scale (skeleton, from Attio) ---------- */
+  /* ---------- Neutral scale (Apple gray ladder) ---------- */
   --gray-0:   #ffffff;
-  --gray-50:  #f6f7f7;
-  --gray-100: #f5f5f5;
-  --gray-200: #e6e6e6;
-  --gray-300: #cccccc;
-  --gray-400: #c7c7c7;
-  --gray-500: #999999;
-  --gray-600: #838383;
-  --gray-700: #666666;
-  --gray-800: #333333;
-  --gray-900: #222222;
+  --gray-50:  #f9f9fb;
+  --gray-100: #f5f5f7;
+  --gray-200: #e8e8ed;
+  --gray-300: #d2d2d7;
+  --gray-400: #c7c7cc;
+  --gray-500: #86868b;
+  --gray-600: #6e6e73;
+  --gray-700: #48484d;
+  --gray-800: #2c2c2e;
+  --gray-900: #1d1d1f;
   --gray-1000:#000000;
 
   /* ---------- Surface / background ---------- */
-  --surface-base:   #ffffff;   /* app canvas / cards */
+  --surface-base:   #ffffff;   /* app canvas / cards / 主内容区 */
   --surface-raised: #ffffff;   /* popovers, dropdowns, modals */
-  --surface-sunken: #f6f7f7;   /* sidebars, inset input wells */
-  --surface-hover:  #f6f7f7;   /* hover backdrop */
-  --surface-active: #f0f1f1;   /* pressed / selected */
+  --surface-sunken: #f5f5f7;   /* sidebars, inset input wells */
+  --surface-hover:  rgba(0, 0, 0, 0.05);   /* hover backdrop / 分段轨道 */
+  --surface-active: #e8e8ed;   /* pressed / selected */
   --overlay-scrim:  rgba(0, 0, 0, 0.32);
 
-  /* ---------- Borders (Attio uses "shadow-as-hairline") ---------- */
-  --border-subtle:  rgba(0, 0, 0, 0.06);
-  --border-default: #e6e6e6;
-  --border-strong:  #cccccc;
+  /* ---------- Canvas(整窗底色:Apple 微渐变画布) ---------- */
+  --canvas: linear-gradient(115deg, #eef0f4 0%, #f5f5f7 45%, #f4f1ee 100%);
 
-  /* ---------- Text ---------- */
-  --text-primary:   #222222;
-  --text-secondary: #666666;
-  --text-tertiary:  #999999;   /* meta / placeholder — large-text only, ~2.9:1 on white */
-  --text-disabled:  #c7c7c7;
+  /* ---------- Materials(毛玻璃材质;配 --blur-* 使用,@supports 降级 --material-solid) ---------- */
+  --material-panel:  rgba(249, 249, 251, 0.72);  /* rail / 列表侧栏 */
+  --material-float:  rgba(252, 252, 253, 0.88);  /* 悬浮窗 / 命令面板 */
+  --material-header: rgba(255, 255, 255, 0.9);   /* 表格 sticky 头 */
+  --material-solid:  #f7f7f9;                    /* backdrop-filter 不支持时的回落 */
+  --blur-panel:  saturate(180%) blur(20px);
+  --blur-header: blur(8px);
+
+  /* ---------- Borders(发丝线;Apple hairline) ---------- */
+  --border-subtle:  rgba(0, 0, 0, 0.05);   /* 行分隔 */
+  --border-default: rgba(0, 0, 0, 0.07);   /* 面板/卡片边 */
+  --border-strong:  rgba(0, 0, 0, 0.12);   /* 次级按钮描边 */
+
+  /* ---------- Text(Apple 文字梯) ---------- */
+  --text-primary:   #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary:  #86868b;   /* meta / placeholder */
+  --text-disabled:  #c7c7cc;
   --text-inverse:   #ffffff;
 
-  /* ---------- Accent (used sparingly: primary CTA / link / focus / selected)
+  /* ---------- Accent (Apple 蓝;used sparingly: primary CTA / link / focus / selected)
      Swap ONLY --accent + --accent-hover + --accent-active; everything else
      (soft fill, focus ring, info status) is derived from them via color-mix. */
-  --accent:         #5b63d3;
-  --accent-hover:   #4f56c4;
-  --accent-active:  #454bb0;
+  --accent:         #0071e3;
+  --accent-hover:   #0077ed;
+  --accent-active:  #0066cc;
   --accent-contrast:#ffffff;
-  --accent-soft:    color-mix(in srgb, var(--accent) 8%, var(--surface-base));
-  /* Pink alternative (Attio export, use with care):
-     --accent:#ea4c89; --accent-hover:#ec5e95; --accent-active:#d8447d; */
+  --accent-soft:    color-mix(in srgb, var(--accent) 10%, transparent);
 
-  /* ---------- Status ---------- */
-  --status-success: #68cd52;
-  --status-warning: #f5a623;
-  --status-error:   #f53f3f;
+  /* ---------- Status(红=P1/逾期/危险,橙=P2,绿=完成/在线) ---------- */
+  --status-success: #28a745;
+  --status-warning: #b25000;
+  --status-error:   #e8503a;
   --status-info:    var(--accent);
   /* soft fills derived so they track the base hue and the current surface */
   --status-success-soft: color-mix(in srgb, var(--status-success) 12%, var(--surface-base));
-  --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--surface-base));
+  --status-warning-soft: color-mix(in srgb, var(--status-warning) 10%, var(--surface-base));
   --status-error-soft:   color-mix(in srgb, var(--status-error)   12%, var(--surface-base));
+
+  /* ---------- Controls / rows(设计稿控件专用) ---------- */
+  --switch-on:    #34c759;                 /* iOS 开关 on 轨道 */
+  --seg-active:   #ffffff;                 /* 分段控件活动块底 */
+  --field-bg:     rgba(0, 0, 0, 0.04);     /* 搜索胶囊 / 输入底 */
+  --check-border: rgba(0, 0, 0, 0.25);     /* 圆勾未选描边 */
+  --row-hover:    #f9f9fb;                 /* 表格行 hover */
+  --row-selected: color-mix(in srgb, var(--accent) 6%, transparent);
+  --batch-bg:     color-mix(in srgb, var(--accent) 5%, transparent);
+  --bubble-ai:    rgba(0, 0, 0, 0.05);     /* AI 聊天气泡 */
+  --scroll-thumb: rgba(0, 0, 0, 0.18);
 
   /* ---------- Categorical (avatars / project dots — identity, not chrome)
      Desaturated so they sit calmly on neutral surfaces; theme-aware. */
@@ -79,11 +104,9 @@
   --cat-fallback: var(--gray-500);
 
   /* ---------- Typography ----------
-     Pure system font stack - zero CDN, zero webfont payload. system-ui leads so
-     each OS renders in its native UI face; CJK families cover the Chinese copy
-     on macOS/Windows/Android; emoji families sit last so emoji always resolve
-     in the system style. Mono mirrors the de-facto dev stack (Tailwind/shadcn). */
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Noto Sans SC', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+     Apple 字感:-apple-system 领跑(macOS/iOS 上即 SF Pro),Windows 落到
+     Segoe UI/system-ui;CJK 覆盖 PingFang/雅黑;零 webfont。Mono 用于计数/日期。 */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', system-ui, Roboto, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Noto Sans SC', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
   --text-xs:   12px;
@@ -100,7 +123,8 @@
 
   --leading-tight:  1.3;
   --leading-normal: 1.5;
-  --tracking-tight: -0.01em;
+  --tracking-tight:   -0.01em;   /* 正文级 */
+  --tracking-display: -0.022em;  /* 19px 级标题(设计稿 headline 字距) */
   --tracking-mono:  0;
 
   /* ---------- Radius ---------- */
@@ -109,14 +133,21 @@
   --radius-md:   8px;
   --radius-lg:   12px;
   --radius-xl:   16px;
-  --radius-pill: 999px;
+  --radius-float: 18px;   /* 悬浮窗 / 登录卡 */
+  --radius-pill: 999px;   /* 胶囊(视效同设计稿 980px) */
 
-  /* ---------- Shadow (hairline inner stroke + soft ambient) ---------- */
+  /* ---------- Shadow(Apple 阴影梯:静置极轻 → hover 抬升 → 拖拽/悬浮窗) ---------- */
   --shadow-hairline: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-card:  0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.07);
+  --shadow-drag:  0 22px 48px -8px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 24px 64px -12px rgba(0, 0, 0, 0.28), 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-seg:   0 1px 4px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.04);
+  /* 兼容旧名(xs/sm/md/lg 仍被 Tailwind 语义与部分组件引用) */
   --shadow-xs: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(28, 40, 64, 0.06);
-  --shadow-sm: 0 0 2px rgba(28, 40, 64, 0.18), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-lg: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-sm: var(--shadow-card);
+  --shadow-md: var(--shadow-hover);
+  --shadow-lg: var(--shadow-float);
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
 
   /* ---------- Spacing (4px base) ---------- */
@@ -130,15 +161,15 @@
   --space-8: 32px;
   --space-9: 40px;
 
-  /* ──────── Motion（Attio/Notion 标准 + P14 Linear 扩展）──────── */
-  --duration-immediate:  120ms;  /* MD immediate — tap / toggle / active */
-  --duration-standard:   200ms;  /* MD standard  — hover / dropdown / card */
-  --duration-functional: 300ms;  /* MD functional — page / notification / modal */
-  /* P14 Linear 三档 */
-  --duration-complex:    350ms;  /* P14 路由 / TaskDetail / 大浮层 */
-  --duration-linear-view:250ms;  /* P14 Database lx-view / 通知搜索面板 */
-  --duration-linear-chat:150ms;  /* P14 Chat 单条 enter / 拖拽发起 */
-  /* Backward-compat aliases（现有代码零破坏） */
+  /* ──────── Motion(Apple 克制纪律:0.12–0.25s 微动效)──────── */
+  --duration-immediate:  120ms;  /* tap / toggle / active */
+  --duration-standard:   200ms;  /* hover / dropdown / card */
+  --duration-functional: 300ms;  /* 主题切换 View Transition 专用 */
+  /* 浮层/路由三档(350ms 已按设计稿纪律压到 250ms) */
+  --duration-complex:    250ms;  /* 路由 / TaskDetail / 大浮层 enter */
+  --duration-linear-view:250ms;  /* Database lx-view / 通知搜索面板 */
+  --duration-linear-chat:150ms;  /* Chat 单条 enter / 拖拽发起 */
+  /* Backward-compat aliases(现有代码零破坏) */
   --duration-fast:    var(--duration-immediate);
   --duration-base:    160ms;
   --duration-medium:  var(--duration-standard);
@@ -153,12 +184,12 @@
   --ease-in-out: cubic-bezier(0.7, 0, 0.39, 0.98);
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Attio/Notion semantic easing（MD §3） */
-  --ease-neutral:  cubic-bezier(0.4, 0, 0.2, 1);  /* Notion 中性 / hover+color */
-  --ease-entrance: cubic-bezier(0.4, 0, 1, 1);    /* Linear 入场 / active+overlay-in */
-  --ease-exit:     cubic-bezier(0.4, 0, 0.6, 1);  /* MD exit / overlay-out */
+  /* semantic easing */
+  --ease-neutral:  cubic-bezier(0.4, 0, 0.2, 1);  /* 中性 / hover+color */
+  --ease-entrance: cubic-bezier(0.4, 0, 1, 1);    /* 入场 / active+overlay-in */
+  --ease-exit:     cubic-bezier(0.4, 0, 0.6, 1);  /* exit / overlay-out */
 
-  /* Overlay easing — entrance 保留 easeOutQuint，exit 统一走 MD --ease-exit */
+  /* Overlay easing — entrance 保留 easeOutQuint,exit 统一走 --ease-exit */
   --ease-overlay-in:  cubic-bezier(0.23, 1, 0.32, 1);
   --ease-overlay-out: var(--ease-exit);
 
@@ -171,36 +202,60 @@
   --transition-opacity:   opacity var(--duration-fast) var(--ease-in);
 }
 
-/* ========================= Dark theme =========================
-   NOTE: the original spec joined a selector and an @media rule with a comma —
-   that is invalid CSS and silently drops the whole block. They must be two
-   separate rules. The media query is guarded with :not([data-theme="light"])
+/* ========================= Dark theme(Apple HIG 等价)=========================
+   NOTE: the attribute selector and the @media rule MUST stay two separate,
+   content-identical rules(joined with a comma the whole block is invalid and
+   silently drops). The media query is guarded with :not([data-theme="light"])
    so a user who explicitly picks light mode is never overridden by a dark OS. */
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --surface-base:   #191919;
-  --surface-raised: #222222;
-  --surface-sunken: #1e1e1e;
-  --surface-hover:  #262626;
-  --surface-active: #2e2e2e;
+  --surface-base:   #1c1c1e;
+  --surface-raised: #2c2c2e;
+  --surface-sunken: #161617;
+  --surface-hover:  rgba(255, 255, 255, 0.08);
+  --surface-active: #3a3a3c;
   --overlay-scrim:  rgba(0, 0, 0, 0.55);
 
-  --border-subtle:  rgba(255, 255, 255, 0.08);
-  --border-default: #3b3b3b;
-  --border-strong:  #5c5c5c;
+  --canvas: linear-gradient(115deg, #111114 0%, #161618 45%, #151316 100%);
 
-  --text-primary:   #dbdbdb;
-  --text-secondary: #b3b3b3;
-  --text-tertiary:  #707070;
-  --text-disabled:  #666666;
-  --text-inverse:   #191919;
+  --material-panel:  rgba(28, 28, 30, 0.72);
+  --material-float:  rgba(36, 36, 38, 0.88);
+  --material-header: rgba(28, 28, 30, 0.9);
+  --material-solid:  #1c1c1e;
 
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+
+  --text-primary:   #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary:  #98989d;
+  --text-disabled:  #636366;
+  --text-inverse:   #1d1d1f;
+
+  --accent:         #0a84ff;
+  --accent-hover:   #2997ff;
+  --accent-active:  #409cff;
   --accent-soft:    color-mix(in srgb, var(--accent) 16%, transparent);
+
+  --status-success: #30d158;
+  --status-warning: #ff9f0a;
+  --status-error:   #ff453a;
   --status-success-soft: color-mix(in srgb, var(--status-success) 18%, transparent);
   --status-warning-soft: color-mix(in srgb, var(--status-warning) 18%, transparent);
   --status-error-soft:   color-mix(in srgb, var(--status-error)   18%, transparent);
+
+  --switch-on:    #30d158;
+  --seg-active:   #636366;
+  --field-bg:     rgba(255, 255, 255, 0.08);
+  --check-border: rgba(255, 255, 255, 0.3);
+  --row-hover:    rgba(255, 255, 255, 0.04);
+  --row-selected: color-mix(in srgb, var(--accent) 10%, transparent);
+  --batch-bg:     color-mix(in srgb, var(--accent) 9%, transparent);
+  --bubble-ai:    rgba(255, 255, 255, 0.09);
+  --scroll-thumb: rgba(255, 255, 255, 0.22);
 
   --cat-1: #86a6d6;
   --cat-2: #a79bda;
@@ -210,37 +265,66 @@
   --cat-fallback: var(--gray-600);
 
   --shadow-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-card:  inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-hover: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.55);
+  --shadow-drag:  0 22px 48px -8px rgba(0, 0, 0, 0.75), 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-float: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 64px -12px rgba(0, 0, 0, 0.85);
+  --shadow-seg:   0 1px 4px rgba(0, 0, 0, 0.5);
   --shadow-xs: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-sm: var(--shadow-card);
+  --shadow-md: var(--shadow-hover);
+  --shadow-lg: var(--shadow-float);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --surface-base:   #191919;
-    --surface-raised: #222222;
-    --surface-sunken: #1e1e1e;
-    --surface-hover:  #262626;
-    --surface-active: #2e2e2e;
+    --surface-base:   #1c1c1e;
+    --surface-raised: #2c2c2e;
+    --surface-sunken: #161617;
+    --surface-hover:  rgba(255, 255, 255, 0.08);
+    --surface-active: #3a3a3c;
     --overlay-scrim:  rgba(0, 0, 0, 0.55);
 
-    --border-subtle:  rgba(255, 255, 255, 0.08);
-    --border-default: #3b3b3b;
-    --border-strong:  #5c5c5c;
+    --canvas: linear-gradient(115deg, #111114 0%, #161618 45%, #151316 100%);
 
-    --text-primary:   #dbdbdb;
-    --text-secondary: #b3b3b3;
-    --text-tertiary:  #707070;
-    --text-disabled:  #666666;
-    --text-inverse:   #191919;
+    --material-panel:  rgba(28, 28, 30, 0.72);
+    --material-float:  rgba(36, 36, 38, 0.88);
+    --material-header: rgba(28, 28, 30, 0.9);
+    --material-solid:  #1c1c1e;
 
+    --border-subtle:  rgba(255, 255, 255, 0.06);
+    --border-default: rgba(255, 255, 255, 0.08);
+    --border-strong:  rgba(255, 255, 255, 0.16);
+
+    --text-primary:   #f5f5f7;
+    --text-secondary: #a1a1a6;
+    --text-tertiary:  #98989d;
+    --text-disabled:  #636366;
+    --text-inverse:   #1d1d1f;
+
+    --accent:         #0a84ff;
+    --accent-hover:   #2997ff;
+    --accent-active:  #409cff;
     --accent-soft:    color-mix(in srgb, var(--accent) 16%, transparent);
+
+    --status-success: #30d158;
+    --status-warning: #ff9f0a;
+    --status-error:   #ff453a;
     --status-success-soft: color-mix(in srgb, var(--status-success) 18%, transparent);
     --status-warning-soft: color-mix(in srgb, var(--status-warning) 18%, transparent);
     --status-error-soft:   color-mix(in srgb, var(--status-error)   18%, transparent);
+
+    --switch-on:    #30d158;
+    --seg-active:   #636366;
+    --field-bg:     rgba(255, 255, 255, 0.08);
+    --check-border: rgba(255, 255, 255, 0.3);
+    --row-hover:    rgba(255, 255, 255, 0.04);
+    --row-selected: color-mix(in srgb, var(--accent) 10%, transparent);
+    --batch-bg:     color-mix(in srgb, var(--accent) 9%, transparent);
+    --bubble-ai:    rgba(255, 255, 255, 0.09);
+    --scroll-thumb: rgba(255, 255, 255, 0.22);
 
     --cat-1: #86a6d6;
     --cat-2: #a79bda;
@@ -250,10 +334,15 @@
     --cat-fallback: var(--gray-600);
 
     --shadow-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-card:  inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-hover: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.55);
+    --shadow-drag:  0 22px 48px -8px rgba(0, 0, 0, 0.75), 0 4px 14px rgba(0, 0, 0, 0.4);
+    --shadow-float: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 64px -12px rgba(0, 0, 0, 0.85);
+    --shadow-seg:   0 1px 4px rgba(0, 0, 0, 0.5);
     --shadow-xs: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-sm: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --shadow-lg: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 16px 40px rgba(0, 0, 0, 0.6);
+    --shadow-sm: var(--shadow-card);
+    --shadow-md: var(--shadow-hover);
+    --shadow-lg: var(--shadow-float);
   }
 }
 
@@ -265,7 +354,7 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  /* P14 路由：降级为极短 opacity 淡入淡出（保留位移关闭） */
+  /* 路由:降级为极短 opacity 淡入淡出(保留位移关闭) */
   #lx-root .lx-route-enter-active,
   #lx-root .lx-route-leave-active {
     animation-duration: 150ms !important;

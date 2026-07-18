@@ -42,21 +42,30 @@ body{
   --mono:var(--font-mono);
   --r:var(--radius-lg);
   --r-sm:var(--radius-md);
-  --shadow:var(--shadow-md);
+  --shadow:var(--shadow-card);
 
   font-family:var(--font);
   font-size:var(--text-base);
-  background:var(--surface-base);
+  background:var(--canvas);
   color:var(--text-primary);
 }
+/* ---- Apple 材质(毛玻璃;不支持 backdrop-filter 时回落实色) ---- */
+.lx-material{background:var(--material-panel);-webkit-backdrop-filter:var(--blur-panel);backdrop-filter:var(--blur-panel)}
+.lx-material-float{background:var(--material-float);-webkit-backdrop-filter:var(--blur-panel);backdrop-filter:var(--blur-panel)}
+.lx-sticky-head{background:var(--material-header);-webkit-backdrop-filter:var(--blur-header);backdrop-filter:var(--blur-header)}
+@supports not (backdrop-filter: blur(1px)){
+  .lx-material,.lx-material-float,.lx-sticky-head{background:var(--material-solid)}
+}
+/* 圆形主操作钮(发送等)的重按压 */
+.lx-press-hard:active{transform:scale(.94)}
 summary::-webkit-details-marker{display:none}
 input::placeholder,textarea::placeholder{color:var(--text3)}
 input:focus,textarea:focus{outline:none}
 select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px !important;}
 :root[data-theme="dark"] select,
 :root:not([data-theme="light"]) select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23707070' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>")}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:var(--radius-sm);border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:6px;border:2.5px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-track{background:transparent}
 @keyframes lx-fade{0%{opacity:0;transform:translateY(18px) scale(.97);filter:blur(5px)}70%{opacity:1;transform:translateY(-3px) scale(1.01);filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
 @keyframes lx-pulse{0%,100%{opacity:.3}50%{opacity:.9}}
@@ -70,10 +79,10 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 .lx-spin{display:inline-block;animation:lx-spin .8s linear infinite}
 /* numeric/date/id/code runs — the Attio "feel" cue */
 .lx-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:var(--tracking-mono)}
-[data-hv="0"],[data-hv="1"],[data-hv="2"]{transition:var(--transition-colors),transform var(--duration-base) var(--ease-out)}
+[data-hv="0"],[data-hv="1"],[data-hv="2"]{transition:background-color 150ms var(--ease-neutral),color 150ms var(--ease-neutral),box-shadow 150ms var(--ease-neutral),border-color 150ms var(--ease-neutral),transform var(--duration-base) var(--ease-out)}
 [data-hv="0"]:hover{background:var(--mid) !important}
-[data-hv="1"]:hover{background:var(--line) !important}
-[data-hv="2"]:hover{border-color:var(--accent) !important;box-shadow:0 6px 22px color-mix(in srgb,var(--accent) 22%,transparent),0 0 0 1px var(--accent-bg) !important}
+[data-hv="1"]:hover{background:var(--surface-hover) !important}
+[data-hv="2"]:hover{border-color:color-mix(in srgb,var(--accent) 35%,transparent) !important;box-shadow:var(--shadow-hover) !important}
 [data-hv]:active{transform:scale(.98)}
 /* 按钮按压微动：120ms scale 0.97，ease-out，松手复原。
    规范：交互仅微量按压反馈，无大幅形变；色相过渡沿用 data-hv 的 200ms。 */

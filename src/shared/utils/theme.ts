@@ -18,7 +18,7 @@ const TOK: Record<Theme, Record<string, string>> = {
     '--line2': 'var(--border-strong)', '--accent-ink': 'var(--accent-active)', '--accent-bg': 'var(--accent-soft)',
     '--idea': 'var(--status-warning)', '--idea-bg': 'var(--status-warning-soft)', '--nono': 'var(--text-tertiary)',
     '--nono-bg': 'var(--surface-active)', '--danger': 'var(--status-error)', '--danger-bg': 'var(--status-error-soft)',
-    '--shadow': 'var(--shadow-md)',
+    '--shadow': 'var(--shadow-card)',
   },
   dark: {
     '--bg': 'var(--surface-sunken)', '--panel': 'var(--surface-base)', '--mid': 'var(--surface-hover)',
@@ -27,7 +27,7 @@ const TOK: Record<Theme, Record<string, string>> = {
     '--line2': 'var(--border-strong)', '--accent-ink': 'var(--accent-active)', '--accent-bg': 'var(--accent-soft)',
     '--idea': 'var(--status-warning)', '--idea-bg': 'var(--status-warning-soft)', '--nono': 'var(--text-tertiary)',
     '--nono-bg': 'var(--surface-active)', '--danger': 'var(--status-error)', '--danger-bg': 'var(--status-error-soft)',
-    '--shadow': 'var(--shadow-md)',
+    '--shadow': 'var(--shadow-card)',
   },
 }
 
