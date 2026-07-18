@@ -83,7 +83,9 @@ export function useKanbanDraggable(callbacks: KanbanDropCallbacks) {
             margin: '0',
             pointerEvents: 'none',
             zIndex: '9999',
-            boxShadow: '0 14px 30px rgba(0,0,0,0.18)',
+            cursor: 'grabbing',
+            boxShadow: 'var(--shadow-drag)',
+            borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)',
           })
           document.body.appendChild(_clone)
           gsap.set(_clone, { scale: SCALE_DRAG_START, rotate: ROTATE_DRAG, transformOrigin: 'center center' })
