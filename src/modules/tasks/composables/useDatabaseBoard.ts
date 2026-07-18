@@ -121,7 +121,7 @@ export function useDatabaseBoard(props: DatabaseProps, notify: (m: string) => vo
       id: t.id, title: t.title, project: t.project, due: t.due,
       statusLabel: fmtStatusLabel(t.status, t.collabFrom), collabFrom: t.collabFrom,
       selected, rowBg: selected ? 'var(--accent-bg)' : 'transparent',
-      selBoxStyle: 'width:17px;height:17px;border-radius:5px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;cursor:pointer;' + (selected ? 'background:var(--accent);border:1px solid var(--accent);' : 'border:1.5px solid var(--line2);background:var(--panel);'),
+      selBoxStyle: 'width:17px;height:17px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 120ms,border-color 120ms;' + (selected ? 'background:var(--accent);border:1.5px solid var(--accent);' : 'border:1.5px solid var(--check-border);background:var(--panel);'),
       selCheck: selected ? '' : 'display:none;',
       toggleSel: (e: Event) => { if (e && e.stopPropagation) e.stopPropagation(); toggleSelect(t.id) },
       titleColor: fmtTitleColor(done),

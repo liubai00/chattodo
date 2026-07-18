@@ -17,7 +17,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
 </script>
 
 <template>
-  <div :class="cn('inline-flex gap-0.5 rounded-[9px] bg-[var(--mid)] p-[3px]', props.class)">
+  <div :class="cn('inline-flex gap-0.5 rounded-[9px] bg-[var(--mid)] p-[2px]', props.class)">
     <button
       v-for="item in props.items"
       :key="item.value"
@@ -27,8 +27,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
         'inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border-0 px-3 py-[6px] text-[12.5px] leading-none outline-none',
         mot.transitionColors,
         props.modelValue === item.value
-          ? 'bg-[var(--panel)] font-semibold text-[var(--text)] shadow-[var(--shadow)]'
-          : 'bg-transparent font-medium text-[var(--text2)] hover:text-[var(--text)]',
+          ? 'bg-[var(--seg-active)] font-medium text-[var(--text)] shadow-[var(--shadow-seg)]'
+          : 'bg-transparent font-normal text-[var(--text)] hover:text-[var(--text)]',
       )"
       style="font-family: var(--font)"
     >

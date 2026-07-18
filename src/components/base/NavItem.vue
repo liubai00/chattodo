@@ -35,8 +35,8 @@ const emit = defineEmits<{ click: [] }>()
         ? 'gap-[9px] px-[10px] py-[9px] text-[13px]'
         : 'flex-shrink-0 gap-[5px] whitespace-nowrap px-[10px] py-[6px] text-[12px]',
       props.active
-        ? 'bg-[var(--accent-bg)] font-semibold text-[var(--accent-ink)]'
-        : 'font-medium text-[var(--text2)] hover:bg-[var(--mid)] hover:text-[var(--text)]',
+        ? 'bg-[var(--accent-bg)] font-medium text-[var(--accent)]'
+        : 'font-normal text-[var(--text)] hover:bg-[var(--mid)]',
       props.class,
     )"
     style="font-family: var(--font)"
@@ -48,8 +48,8 @@ const emit = defineEmits<{ click: [] }>()
     <span class="min-w-0 truncate">{{ props.label }}</span>
     <span
       v-if="props.count !== undefined"
-      :class="props.orientation === 'vertical' ? 'ml-auto text-[11px]' : 'text-[10px]'"
-      class="font-semibold text-[var(--text3)]"
+      :class="[props.orientation === 'vertical' ? 'ml-auto text-[11px]' : 'text-[10px]', props.active ? 'text-[var(--accent)]' : 'text-[var(--text3)]']"
+      class="lx-mono font-medium"
     >{{ props.count }}</span>
   </a>
 </template>

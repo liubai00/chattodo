@@ -251,8 +251,8 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
                 :class="cn(
                   'flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-[12px] text-[22px] transition-colors duration-[160ms] border-0',
                   view === n[0]
-                    ? 'bg-[var(--accent-bg)] text-[var(--accent-ink)]'
-                    : 'text-[var(--text2)] hover:bg-[var(--mid)] hover:text-[var(--text)] bg-transparent',
+                    ? 'bg-[var(--accent-bg)] text-[var(--accent)]'
+                    : 'text-[var(--text3)] hover:bg-[var(--mid)] hover:text-[var(--text)] bg-transparent',
                 )"
               ><i :class="['ph', n[2]]"></i></button>
             </TooltipTrigger>

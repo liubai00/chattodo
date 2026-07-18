@@ -8,7 +8,7 @@ defineProps<{ card: FmtTask }>()
 </script>
 
 <template>
-  <div :data-kanban-card="card.id" :data-flip-id="'flip-task-' + card.id" @click="card.open" class="cursor-grab rounded-[11px] border border-[var(--line)] bg-[var(--bg)] p-[11px_12px] shadow-md" data-hv="2">
+  <div :data-kanban-card="card.id" :data-flip-id="'flip-task-' + card.id" @click="card.open" class="cursor-grab rounded-xl border border-[var(--line)] bg-[var(--panel)] p-[13px_14px] shadow-[var(--shadow-card)]" data-hv="2">
     <div :style="`font:600 13px/1.4 var(--font);color:${card.titleColor};${card.titleDeco}`">{{ card.title }}</div>
     <div class="mt-[9px] flex flex-wrap items-center gap-1.5"><span :style="card.prioStyle">{{ card.prio }}</span><span class="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text2)]"><i class="ph ph-folder text-[11px]"></i>{{ card.project }}</span><span :style="`font:500 11px/1 var(--font);color:${card.dueColor};`"><span class="lx-mono">{{ card.due }}</span></span><span :title="card.assignee" :style="`width:20px;height:20px;border-radius:50%;background:${card.assigneeColor};color:var(--accent-contrast);display:flex;align-items:center;justify-content:center;font:600 10px/1 var(--font);margin-left:auto;flex:0 0 auto;`">{{ card.assigneeInitial }}</span></div>
   </div>

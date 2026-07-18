@@ -21,7 +21,7 @@ defineEmits<{ back: [] }>()
     <slot name="leading" />
     <i v-if="icon" :class="['ph', icon]" :style="{ fontSize: iconSize || '19px', color: iconColor || 'var(--accent-ink)' }"></i>
     <slot name="icon" />
-    <span class="text-base font-semibold text-[var(--text)]" style="font-family: var(--display)">{{ title }}</span>
+    <span class="text-[17px] font-semibold tracking-[var(--tracking-display)] text-[var(--text)]" style="font-family: var(--display)">{{ title }}</span>
     <span v-if="$slots.default" class="text-[12.5px] font-medium text-[var(--text3)]"><slot /></span>
     <template v-if="$slots.trailing"><div class="flex-1"></div><slot name="trailing" /></template>
   </div>

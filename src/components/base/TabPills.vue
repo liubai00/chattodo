@@ -17,15 +17,15 @@ const emit = defineEmits<{ 'update:modelValue': [id: T] }>()
 </script>
 
 <template>
-  <div :class="cn('flex flex-wrap gap-1 rounded-[10px] bg-[var(--mid)] p-[3px]', props.class)">
+  <div :class="cn('flex flex-wrap gap-1 rounded-[10px] bg-[var(--mid)] p-[2px]', props.class)">
     <button
       v-for="item in items"
       :key="item.id"
       @click="emit('update:modelValue', item.id)"
       :class="cn('cursor-pointer rounded-[7px] border-0 px-[13px] py-[7px] text-[12.5px] leading-none', mot.transitionColors,
         props.modelValue === item.id
-          ? 'bg-[var(--panel)] font-semibold text-[var(--text)] shadow-[var(--shadow)]'
-          : 'bg-transparent font-medium text-[var(--text2)]')"
+          ? 'bg-[var(--seg-active)] font-medium text-[var(--text)] shadow-[var(--shadow-seg)]'
+          : 'bg-transparent font-normal text-[var(--text)]')"
       style="font-family: var(--font)"
     >{{ item.label }}</button>
   </div>

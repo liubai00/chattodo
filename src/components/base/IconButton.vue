@@ -26,7 +26,7 @@ const sizeClass: Record<'sm' | 'md' | 'lg', string> = {
 const variantClass: Record<'ghost' | 'solid' | 'subtle', string> = {
   ghost: 'bg-transparent text-[var(--text2)] hover:bg-[var(--mid)] hover:text-[var(--text)]',
   solid: 'bg-[var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]',
-  subtle: 'bg-[var(--mid)] text-[var(--text2)] hover:bg-[var(--line)] hover:text-[var(--text)]',
+  subtle: 'bg-[var(--mid)] text-[var(--text2)] hover:bg-[var(--surface-active)] hover:text-[var(--text)]',
 }
 </script>
 

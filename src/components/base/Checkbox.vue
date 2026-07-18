@@ -24,11 +24,11 @@ const emit = defineEmits<{ click: [e: Event] }>()
     @keydown.enter.prevent="emit('click', $event)"
     @keydown.space.prevent="emit('click', $event)"
     :class="cn(
-      'flex h-[17px] w-[17px] flex-none cursor-pointer items-center justify-center rounded-[5px] outline-none',
+      'flex h-[17px] w-[17px] flex-none cursor-pointer items-center justify-center rounded-full outline-none',
       mot.transitionColors,
       props.checked || props.indeterminate
-        ? 'border border-[var(--accent)] bg-[var(--accent)]'
-        : 'border-[1.5px] border-[var(--line2)] bg-[var(--panel)] hover:border-[var(--accent)]',
+        ? 'border-[1.5px] border-[var(--accent)] bg-[var(--accent)]'
+        : 'border-[1.5px] border-[var(--check-border)] bg-[var(--panel)] hover:border-[var(--accent)]',
       props.class,
     )"
   >

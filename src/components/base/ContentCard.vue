@@ -9,7 +9,7 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 </script>
 
 <template>
-  <Card :class="cn('gap-0 rounded-[14px] border-[var(--line)] bg-[var(--panel)] p-[18px] shadow-md text-[var(--text)]', props.class)">
+  <Card :class="cn('gap-0 rounded-[14px] border-[var(--line)] bg-[var(--panel)] p-[18px] shadow-[var(--shadow-card)] text-[var(--text)]', props.class)">
     <slot />
   </Card>
 </template>

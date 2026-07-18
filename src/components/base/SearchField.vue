@@ -12,7 +12,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <template>
-  <div :class="cn('flex items-center gap-2 rounded-[9px] bg-[var(--mid)] px-[11px] py-[7px]', props.class)">
+  <div :class="cn('flex items-center gap-2 rounded-full bg-[var(--field-bg)] px-[13px] py-[7px]', props.class)">
     <i class="ph ph-magnifying-glass text-[15px] text-[var(--text3)] shrink-0"></i>
     <input
       :value="props.modelValue"
