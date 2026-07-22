@@ -1,13 +1,16 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
+import { makePrefixedId } from '@linx/kernel-ids'
 import type { Queryable } from '@linx/infra-tasks-pg'
 import type { Mention } from '@linx/domain-collab'
 import type { LlmClient } from '@linx/platform-llm'
 import { createMemoryRateLimiter, type RateLimiter } from '@linx/platform-ratelimit'
 import type { MigratedPlugin } from '../facade/build-api.js'
 import { buildChatApp } from '../composition/chat-wiring.js'
+import { createTaskRepoFactory, type TaskRepoFactory } from '../composition/task-repo-factory.js'
 
 export interface ChatPluginDeps {
   db: Queryable
+  taskRepos?: TaskRepoFactory
   publish: (userId: string, payload: unknown) => void
   publishMany: (userIds: readonly string[], payload: unknown) => void
   /** LLM 客户端（agent 路径）；省略则真实 fetch。 */
@@ -31,20 +34,23 @@ function cleanMentions(m: unknown): Mention[] {
  */
 export function makeChatPlugin(deps: ChatPluginDeps): MigratedPlugin {
   const { db, publish, publishMany } = deps
+  const taskRepos = deps.taskRepos ?? createTaskRepoFactory({ db })
+  const genId = deps.genId ?? ((prefix: string): string => makePrefixedId(prefix)())
   const wiring = {
     db,
+    taskRepos,
     publish,
     publishMany,
     ...(deps.llm ? { llm: deps.llm } : {}),
     ...(deps.clock ? { clock: deps.clock } : {}),
-    ...(deps.genId ? { genId: deps.genId } : {}),
+    genId,
   }
   const chatLimiter = deps.chatLimiter ?? createMemoryRateLimiter({ limit: 40, windowMs: 60_000 })
 
   const gate = async (
     req: FastifyRequest,
     reply: FastifyReply,
-  ): Promise<{ userId: string; name: string; message: string; conversationId?: string; mentions: Mention[] } | undefined> => {
+  ): Promise<{ userId: string; name: string; email: string; role: string; message: string; sourceMessageId: string; conversationId?: string; mentions: Mention[] } | undefined> => {
     const u = req.user
     if (!u) {
       void reply.status(401).send({ error: 'unauthorized', code: 'UNAUTHENTICATED' })
@@ -63,7 +69,10 @@ export function makeChatPlugin(deps: ChatPluginDeps): MigratedPlugin {
     return {
       userId: u.id,
       name: u.name,
+      email: u.email,
+      role: u.role,
       message,
+      sourceMessageId: genId('msg'),
       ...(typeof body.conversationId === 'string' ? { conversationId: body.conversationId } : {}),
       mentions: cleanMentions(body.mentions),
     }
@@ -75,7 +84,12 @@ export function makeChatPlugin(deps: ChatPluginDeps): MigratedPlugin {
       app.post('/api/chat', async (req, reply) => {
         const g = await gate(req, reply)
         if (!g) return
-        const chatApp = buildChatApp({ ...wiring, userId: g.userId })
+        const chatApp = buildChatApp({
+          ...wiring,
+          userId: g.userId,
+          actor: { id: g.userId, name: g.name, email: g.email, role: g.role },
+          source: { kind: 'chat', text: g.message, messageId: g.sourceMessageId },
+        })
         return chatApp.chat({
           message: g.message,
           user: { id: g.userId, name: g.name },
@@ -103,7 +117,12 @@ export function makeChatPlugin(deps: ChatPluginDeps): MigratedPlugin {
           }
         }
         try {
-          const chatApp = buildChatApp({ ...wiring, userId: g.userId })
+          const chatApp = buildChatApp({
+            ...wiring,
+            userId: g.userId,
+            actor: { id: g.userId, name: g.name, email: g.email, role: g.role },
+            source: { kind: 'chat', text: g.message, messageId: g.sourceMessageId },
+          })
           const result = await chatApp.chat({
             message: g.message,
             user: { id: g.userId, name: g.name },

@@ -1,0 +1,12 @@
+{
+  "name": "LinX Baserow Plugin",
+  "version": "0.1.0",
+  "supported_baserow_versions": "2.3.2",
+  "plugin_api_version": "0.0.1-alpha",
+  "description": "LinX identity exchange, task schema, row ACL and immutable source audit.",
+  "author": "LinX",
+  "author_url": "https://example.invalid/linx",
+  "url": "https://example.invalid/linx-baserow",
+  "license": "MIT",
+  "contact": "security@example.invalid"
+}

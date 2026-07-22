@@ -1,6 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import {
-  makeTaskRepo,
   makeIdeaRepo,
   makeNonTodoRepo,
   makeCaptureRecordRepo,
@@ -12,9 +11,11 @@ import {
 import { makeTasksApp, type TasksApp } from '@linx/app-tasks'
 import type { PrivacySettings, TaskListFilter, TaskView, NewTaskInput } from '@linx/domain-tasks'
 import type { MigratedPlugin } from '../facade/build-api.js'
+import { actorFromUser, createTaskRepoFactory, type TaskRepoFactory } from '../composition/task-repo-factory.js'
 
 export interface TasksPluginDeps {
   db: Queryable
+  taskRepos?: TaskRepoFactory
   /** 隐私设置读取（settings BC 未迁移前由 composition root 提供，如查 app_settings）。 */
   getPrivacySettings: (userId: string) => Promise<PrivacySettings>
 }
@@ -47,15 +48,21 @@ function parseListFilter(query: unknown): TaskListFilter {
  *   待 P5/P6（collab/notification）就绪后经端口/事件接入再纳入。
  */
 export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
-  function appFor(userId: string): TasksApp {
+  const taskRepos = deps.taskRepos ?? createTaskRepoFactory({ db: deps.db })
+  function appFor(req: FastifyRequest, userId: string): TasksApp {
     const repoDeps = { db: deps.db, userId }
     return makeTasksApp({
-      tasks: makeTaskRepo(repoDeps),
+      tasks: taskRepos.forRequest({
+        actor: actorFromUser(req.user!),
+        source: { kind: 'manual', text: '用户通过 LinX 操作任务' },
+      }),
       ideas: makeIdeaRepo(repoDeps),
       nonTodos: makeNonTodoRepo(repoDeps),
       captureRecords: makeCaptureRecordRepo(repoDeps),
       corrections: makeCorrectionRepo(repoDeps),
-      activity: makeActivityRepo(repoDeps),
+      activity: taskRepos.backend === 'baserow'
+        ? { byTask: async () => [], log: async () => {} }
+        : makeActivityRepo(repoDeps),
       subtasks: makeSubtaskRepo(repoDeps),
       getPrivacySettings: () => deps.getPrivacySettings(userId),
     })
@@ -78,13 +85,13 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.get('/api/tasks', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        return appFor(userId).listTasks(parseListFilter(req.query))
+        return appFor(req, userId).listTasks(parseListFilter(req.query))
       })
 
       app.get('/api/tasks/:id', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const result = await appFor(userId).getTask(idParam(req))
+        const result = await appFor(req, userId).getTask(idParam(req))
         if (!result) return reply.status(404).send({ error: 'task not found' })
         return result
       })
@@ -92,13 +99,13 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.get('/api/todo-ideas', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        return appFor(userId).listIdeas()
+        return appFor(req, userId).listIdeas()
       })
 
       app.get('/api/non-todo-outputs', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        return appFor(userId).listNonTodos()
+        return appFor(req, userId).listNonTodos()
       })
 
       // ── writes (activity-only, no cross-user notify) ──
@@ -110,13 +117,13 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
         if (!b.title || !String(b.title).trim()) {
           return reply.status(400).send({ error: 'title is required' })
         }
-        return appFor(userId).createTask(b as unknown as NewTaskInput)
+        return appFor(req, userId).createTask(b as unknown as NewTaskInput)
       })
 
       app.post('/api/tasks/:id/move-out', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const non = await appFor(userId).moveOutTask(idParam(req))
+        const non = await appFor(req, userId).moveOutTask(idParam(req))
         if (!non) return reply.status(404).send({ error: 'task not found' })
         return { nonTodo: non }
       })
@@ -124,7 +131,7 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.post('/api/tasks/:id/reopen', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const t = await appFor(userId).reopenTask(idParam(req))
+        const t = await appFor(req, userId).reopenTask(idParam(req))
         if (!t) return reply.status(404).send({ error: 'task not found' })
         return t
       })
@@ -132,7 +139,7 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.post('/api/todo-ideas/:id/convert', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const res = await appFor(userId).convertIdea(idParam(req))
+        const res = await appFor(req, userId).convertIdea(idParam(req))
         if (!res) return reply.status(404).send({ error: 'idea not found' })
         return res
       })
@@ -140,7 +147,7 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.post('/api/todo-ideas/:id/archive', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const idea = await appFor(userId).archiveIdea(idParam(req))
+        const idea = await appFor(req, userId).archiveIdea(idParam(req))
         if (!idea) return reply.status(404).send({ error: 'idea not found' })
         return idea
       })
@@ -148,7 +155,7 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.post('/api/todo-ideas/:id/discard', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const ok = await appFor(userId).discardIdea(idParam(req))
+        const ok = await appFor(req, userId).discardIdea(idParam(req))
         if (!ok) return reply.status(404).send({ error: 'idea not found' })
         return { ok: true }
       })
@@ -156,7 +163,7 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.post('/api/non-todo-outputs/:id/convert-to-todo', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const res = await appFor(userId).convertNonToTask(idParam(req))
+        const res = await appFor(req, userId).convertNonToTask(idParam(req))
         if (!res) return reply.status(404).send({ error: 'non-todo not found' })
         return res
       })
@@ -164,7 +171,7 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.post('/api/non-todo-outputs/:id/discard', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const ok = await appFor(userId).discardNon(idParam(req))
+        const ok = await appFor(req, userId).discardNon(idParam(req))
         if (!ok) return reply.status(404).send({ error: 'non-todo not found' })
         return { ok: true }
       })
@@ -173,8 +180,11 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.post('/api/tasks/:id/subtasks', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
+        if (taskRepos.backend === 'baserow') {
+          return reply.status(410).send({ error: '首版 Baserow 任务不提供旧版子任务接口' })
+        }
         const id = idParam(req)
-        const application = appFor(userId)
+        const application = appFor(req, userId)
         // 承接现网顺序：先校验任务存在(404)，再校验 text(400)；text 用 `|| ''`（与现网一致）
         if (!(await application.getTask(id))) return reply.status(404).send({ error: 'task not found' })
         const text = String((req.body as { text?: unknown } | undefined)?.text || '').trim()
@@ -187,7 +197,10 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.patch('/api/subtasks/:id', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        const sub = await appFor(userId).toggleSubtask(idParam(req))
+        if (taskRepos.backend === 'baserow') {
+          return reply.status(410).send({ error: '首版 Baserow 任务不提供旧版子任务接口' })
+        }
+        const sub = await appFor(req, userId).toggleSubtask(idParam(req))
         if (!sub) return reply.status(404).send({ error: 'subtask not found' })
         return sub
       })
@@ -195,7 +208,10 @@ export function makeTasksPlugin(deps: TasksPluginDeps): MigratedPlugin {
       app.delete('/api/subtasks/:id', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        await appFor(userId).removeSubtask(idParam(req))
+        if (taskRepos.backend === 'baserow') {
+          return reply.status(410).send({ error: '首版 Baserow 任务不提供旧版子任务接口' })
+        }
+        await appFor(req, userId).removeSubtask(idParam(req))
         return { ok: true }
       })
     },

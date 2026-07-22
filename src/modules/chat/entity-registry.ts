@@ -65,7 +65,7 @@ export const ENTITY_REGISTRY: Record<EntityKind, EntityEntry> = {
     feedLabel: '任务',
     feedDot: 'var(--accent)',
     open: (ctx, id) => ctx.openTask(id),
-    discard: (id) => TasksAPI.deleteTask(id),
+    discard: (id) => TasksAPI.deleteTask(id, true),
     searchExecute: (_router: Router, _id: string) => { /* openTask called via store, not router */ },
   },
   idea: {

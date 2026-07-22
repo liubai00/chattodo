@@ -1,11 +1,67 @@
 <script setup lang="ts">
-// 设置 · 账号 section：头像/账户名/称呼/邮箱/角色/改密/退出。状态经 SETTINGS_KEY 注入。
-import { inject } from 'vue'
+// 设置 · 账号 section：头像/账户名/称呼/邮箱/角色/团队邀请/改密/退出。状态经 SETTINGS_KEY 注入。
+import { computed, inject, onMounted, ref } from 'vue'
 import { SETTINGS_KEY } from '@/modules/settings/composables/useSettings'
+import { BaserowAPI, type TeamInvitation } from '@/modules/baserow/api'
+import { useToast } from '@/stores/toast'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
 
-const { user, sAccountName, roleLabel, meBig, pwdOpen, pwdOld, pwdNew, pwdBusy, onName, onAccountName, submitPwd, logout } = inject(SETTINGS_KEY)!
+const { user, canAdmin, sAccountName, roleLabel, meBig, pwdOpen, pwdOld, pwdNew, pwdBusy, onName, onAccountName, submitPwd, logout } = inject(SETTINGS_KEY)!
+const toast = useToast()
+const baserowEnabled = ref(false)
+const inviteBusy = ref(false)
+const inviteUrl = ref('')
+const inviteExpiresAt = ref('')
+const invitations = ref<TeamInvitation[]>([])
+const activeInviteCount = computed(() => {
+  const now = Date.now()
+  return invitations.value.filter((invite) => !invite.usedAt && Date.parse(invite.expiresAt) > now).length
+})
+
+function shortDate(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}
+
+async function loadInvitations() {
+  if (!canAdmin.value) return
+  try {
+    const status = await BaserowAPI.status()
+    baserowEnabled.value = status.enabled
+    if (!status.enabled) return
+    invitations.value = (await BaserowAPI.listInvitations()).invitations
+  } catch {
+    baserowEnabled.value = false
+  }
+}
+
+async function copyInvitation() {
+  if (!inviteUrl.value) return
+  try {
+    await navigator.clipboard.writeText(inviteUrl.value)
+    toast.flash('邀请链接已复制')
+  } catch {
+    toast.flash('无法自动复制，请手动复制输入框中的链接')
+  }
+}
+
+async function createInvitation() {
+  inviteBusy.value = true
+  try {
+    const invite = await BaserowAPI.createInvitation()
+    inviteUrl.value = invite.url
+    inviteExpiresAt.value = invite.expiresAt
+    await loadInvitations()
+    await copyInvitation()
+  } catch (error) {
+    toast.flash('创建邀请失败：' + (error instanceof Error ? error.message : '请稍后重试'))
+  } finally {
+    inviteBusy.value = false
+  }
+}
+
+onMounted(loadInvitations)
 </script>
 
 <template>
@@ -45,6 +101,23 @@ const { user, sAccountName, roleLabel, meBig, pwdOpen, pwdOld, pwdNew, pwdBusy, 
         <Input v-model="pwdNew" type="password" placeholder="新密码（至少 8 位，改密后其他设备将退出登录）" />
         <Button :disabled="pwdBusy" class="self-start" @click="submitPwd">{{ pwdBusy ? '提交中…' : '确认修改' }}</Button>
       </div>
+    </div>
+  </div>
+
+  <div v-if="canAdmin && baserowEnabled" class="rounded-[14px] border border-[var(--line)] bg-[var(--panel)] p-[18px] shadow-md">
+    <div class="flex items-start gap-[14px]">
+      <div class="flex-1">
+        <div class="text-[13.5px] font-semibold text-[var(--text)]">邀请团队成员</div>
+        <div class="mt-[3px] text-xs font-medium leading-relaxed text-[var(--text3)]">链接 7 天内有效且只能注册一次。当前有 {{ activeInviteCount }} 条未使用邀请。</div>
+      </div>
+      <Button size="sm" :disabled="inviteBusy" @click="createInvitation"><i class="ph ph-user-plus"></i>{{ inviteBusy ? '生成中…' : '生成并复制' }}</Button>
+    </div>
+    <div v-if="inviteUrl" class="mt-[14px] rounded-[11px] bg-[var(--mid)] p-[12px]">
+      <div class="flex gap-2">
+        <input :value="inviteUrl" readonly aria-label="团队邀请链接" class="min-w-0 flex-1 rounded-[9px] border border-[var(--line2)] bg-[var(--bg)] px-[11px] py-2 text-xs font-medium text-[var(--text)]" @focus="($event.target as HTMLInputElement).select()" />
+        <Button variant="outline" size="sm" @click="copyInvitation"><i class="ph ph-copy"></i>复制</Button>
+      </div>
+      <div class="mt-2 text-[11.5px] font-medium text-[var(--text3)]">有效期至 {{ shortDate(inviteExpiresAt) }}。出于安全考虑，离开本页后无法再次查看这条链接。</div>
     </div>
   </div>
 

@@ -1,12 +1,14 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { makePrefixedId } from '@linx/kernel-ids'
-import { makeTaskRepo, makeIdeaRepo, makeNonTodoRepo, type Queryable } from '@linx/infra-tasks-pg'
+import { makeIdeaRepo, makeNonTodoRepo, type Queryable } from '@linx/infra-tasks-pg'
 import { makeProjectRepo } from '@linx/infra-projects-pg'
 import { makeSettingsRepo, makeAgentRepo } from '@linx/infra-settings-pg'
 import type { MigratedPlugin } from '../facade/build-api.js'
+import { actorFromUser, createTaskRepoFactory, type TaskRepoFactory } from '../composition/task-repo-factory.js'
 
 export interface DataPluginDeps {
   db: Queryable
+  taskRepos?: TaskRepoFactory
   clock?: () => Date
   genId?: (prefix: string) => string
 }
@@ -18,6 +20,7 @@ export interface DataPluginDeps {
  */
 export function makeDataPlugin(deps: DataPluginDeps): MigratedPlugin {
   const { db } = deps
+  const taskRepos = deps.taskRepos ?? createTaskRepoFactory({ db })
   const clock = deps.clock ?? ((): Date => new Date())
   const genId = deps.genId ?? ((p: string): string => makePrefixedId(p)())
 
@@ -39,8 +42,8 @@ export function makeDataPlugin(deps: DataPluginDeps): MigratedPlugin {
         const opt = { db, userId, clock, genId }
         const [projects, tasks, todoIdeas, nonTodoOutputs, agentProfile, appSettings, captureRecords, corrections, chat, friendships] =
           await Promise.all([
-            makeProjectRepo({ db, userId }).all(),
-            makeTaskRepo(opt).all(),
+            taskRepos.backend === 'baserow' ? Promise.resolve([]) : makeProjectRepo({ db, userId }).all(),
+            taskRepos.forRequest({ actor: actorFromUser(req.user!), clock, genId }).all(),
             makeIdeaRepo(opt).all(),
             makeNonTodoRepo(opt).all(),
             makeAgentRepo({ db, userId, clock }).get(),
@@ -72,6 +75,9 @@ export function makeDataPlugin(deps: DataPluginDeps): MigratedPlugin {
       app.post('/api/data/clear', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
+        if (taskRepos.backend === 'baserow') {
+          return reply.status(409).send({ error: 'Baserow 数据清空需要在数据库内逐项确认，LinX 不会静默删除' })
+        }
         const convId = 'conv_' + userId
         const ts = clock().toISOString()
         const tables = ['tasks', 'todo_ideas', 'non_todo_outputs', 'projects', 'capture_records', 'corrections', 'ai_errors', 'chat_messages', 'subtasks', 'comments', 'activity', 'notifications']

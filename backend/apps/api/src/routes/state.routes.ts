@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { makePrefixedId } from '@linx/kernel-ids'
-import { makeTaskRepo, makeIdeaRepo, makeNonTodoRepo, type Queryable } from '@linx/infra-tasks-pg'
+import { makeIdeaRepo, makeNonTodoRepo, type Queryable } from '@linx/infra-tasks-pg'
 import { makeProjectRepo } from '@linx/infra-projects-pg'
 import { makeSettingsRepo, makeAgentRepo } from '@linx/infra-settings-pg'
 import { makeConversationRepo, makeChatReadRepo } from '@linx/infra-conversations-pg'
@@ -8,9 +8,11 @@ import { makeNotificationRepo } from '@linx/infra-notifications-pg'
 import { makeCollaboratorRepo } from '@linx/infra-collab-pg'
 import { visibleFilter } from '@linx/domain-settings'
 import type { MigratedPlugin } from '../facade/build-api.js'
+import { actorFromUser, createTaskRepoFactory, type TaskRepoFactory } from '../composition/task-repo-factory.js'
 
 export interface StatePluginDeps {
   db: Queryable
+  taskRepos?: TaskRepoFactory
   clock?: () => Date
   genId?: (prefix: string) => string
 }
@@ -30,6 +32,7 @@ interface Taskish {
  */
 export function makeStatePlugin(deps: StatePluginDeps): MigratedPlugin {
   const { db } = deps
+  const taskRepos = deps.taskRepos ?? createTaskRepoFactory({ db })
   const clock = deps.clock ?? ((): Date => new Date())
   const genId = deps.genId ?? ((p: string): string => makePrefixedId(p)())
 
@@ -54,7 +57,11 @@ export function makeStatePlugin(deps: StatePluginDeps): MigratedPlugin {
         const userId = uid(req, reply)
         if (!userId) return
         const opt = { db, userId, clock, genId }
-        const tasksRepo = makeTaskRepo(opt)
+        const tasksRepo = taskRepos.forRequest({
+          actor: actorFromUser(req.user!),
+          clock,
+          genId,
+        })
         const ideasRepo = makeIdeaRepo(opt)
         const nonRepo = makeNonTodoRepo(opt)
         const projRepo = makeProjectRepo({ db, userId })
@@ -69,17 +76,17 @@ export function makeStatePlugin(deps: StatePluginDeps): MigratedPlugin {
         const [settings, collabMap, rawTasks, todoIdeas, nonTodoOutputs, projects, records, chatRows, invites, agentProfile, conversations] =
           await Promise.all([
             settingsRepo.get(),
-            collabRepo.myAcceptedMap(),
+            taskRepos.backend === 'baserow' ? Promise.resolve(new Map()) : collabRepo.myAcceptedMap(),
             tasksRepo.all(),
             ideasRepo.all(),
             nonRepo.all(),
-            projRepo.all(),
+            taskRepos.backend === 'baserow' ? Promise.resolve([]) : projRepo.all(),
             db.execute<{ raw_input: string | null; result_entity_type: string | null; result_entity_id: string | null }>(
               'SELECT raw_input, result_entity_type, result_entity_id FROM capture_records WHERE user_id = $1 ORDER BY created_at DESC',
               [userId],
             ),
             chatRepo.all(activeConversationId),
-            collabRepo.myPending(),
+            taskRepos.backend === 'baserow' ? Promise.resolve([]) : collabRepo.myPending(),
             agentRepo.get(),
             convRepo.list(),
           ])

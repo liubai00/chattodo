@@ -242,9 +242,10 @@ export function useDatabaseBoard(props: DatabaseProps, notify: (m: string) => vo
   }
   function batchDelete(): void {
     const ids = dbSelected.value.slice()
+    if (!ids.length || !window.confirm(`确认删除选中的 ${ids.length} 个任务？`)) return
     tasks.value = tasks.value.filter((t) => !ids.includes(t.id))
     dbSelected.value = []
-    ids.forEach((id) => TasksAPI.deleteTask(id).catch(() => {}))
+    ids.forEach((id) => TasksAPI.deleteTask(id, true).catch(() => {}))
     notify('已删除 ' + ids.length + ' 项')
   }
   function toggleSort(key: string): void { dbSortKey.value = key; dbSortDir.value = (dbSortKey.value === key && dbSortDir.value === 'asc') ? 'desc' : 'asc' }

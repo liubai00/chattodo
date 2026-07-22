@@ -72,7 +72,7 @@ export interface ChatSettingsRepo {
 }
 export interface ChatMessagesRepo {
   all(conversationId?: string): Promise<ChatMessageLike[]>
-  create(data: { role: string; text: string; isError?: boolean; conversationId?: string }): Promise<unknown>
+  create(data: { id?: string; role: string; text: string; isError?: boolean; conversationId?: string }): Promise<unknown>
 }
 export interface ChatConversationRepo {
   get(id: string): Promise<unknown>
@@ -461,6 +461,14 @@ export function makeChatApp(deps: ChatAppDeps): {
         await deps.activity.log(t.id, '通过聊天标记完成')
         if (deps.collab) await deps.collab.notifyTaskDone(user ?? null, t.id)
         return finish(scopedChat, { message, intent, reply: `✅ 已完成「${t.title}」。`, performed: [{ type: 'complete_task', id: t.id, task }] })
+      }
+      if (!/(确认|确定)(要)?删除/.test(message)) {
+        return finish(scopedChat, {
+          message,
+          intent,
+          reply: `删除「${t.title}」后会从任务表移除。若要继续，请明确回复「确认删除 ${t.title}」。`,
+          performed: [{ type: 'delete_confirmation_required', id: t.id, title: t.title }],
+        })
       }
       await deps.tasks.remove(t.id)
       return finish(scopedChat, { message, intent, reply: `🗑️ 已删除「${t.title}」。`, performed: [{ type: 'delete_task', id: t.id, title: t.title }] })

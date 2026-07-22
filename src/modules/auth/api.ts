@@ -2,8 +2,10 @@
 import { request } from '@/infrastructure/request'
 import type { User } from '@/types/api'
 
+interface AuthResponse { token: string; user?: User }
+
 export const AuthAPI = {
-  register: (name: string, email: string, password: string) => request<User>('POST', '/auth/register', { name, email, password }),
+  register: (name: string, email: string, password: string, inviteToken?: string) => request<AuthResponse>('POST', '/auth/register', { name, email, password, inviteToken }),
   login: (email: string, password: string) => request<{ token: string; user?: User }>('POST', '/auth/login', { email, password }),
   logout: () => request<null>('POST', '/auth/logout'),
   me: () => request<User>('GET', '/auth/me'),

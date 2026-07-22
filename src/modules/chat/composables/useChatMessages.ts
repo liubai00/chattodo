@@ -15,6 +15,7 @@ export function useChatMessages(ctx: ChatCtx, send: (forcedText?: string) => Pro
   function undoEntity(msg: RawMsg): void {
     const kind = (msg.kind || '') as EntityKind, refId = msg.refId, title = msg.title || msg.text || ''
     if (!refId || !kind) return
+    if (kind === 'task' && !window.confirm(`确认撤销并删除任务「${String(title).slice(0, 30)}」？`)) return
     discardEntity(kind, refId)
       .then(() => {
         if (kind === 'task') tasks.value = tasks.value.filter((x) => x.id !== refId)

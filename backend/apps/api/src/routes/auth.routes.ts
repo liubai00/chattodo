@@ -19,6 +19,12 @@ export interface AuthPluginDeps {
   authLimiter?: RateLimiter
   clock?: () => Date
   genId?: (prefix: string) => string
+  /** Baserow 模式的邀请制注册。首个管理员仍可无邀请完成冷启动。 */
+  requireInvite?: boolean
+  invitationGate?: {
+    claimInvite(token: string, userId: string): Promise<boolean>
+    releaseInvite(token: string, userId: string): Promise<void>
+  }
 }
 
 const DEFAULT_AGENT = {
@@ -90,7 +96,7 @@ export function makeAuthPlugin(deps: AuthPluginDeps): MigratedPlugin {
     group: 'auth',
     register: async (app) => {
       app.post('/api/auth/register', async (req, reply) => {
-        const b = (req.body ?? {}) as { name?: unknown; email?: unknown; password?: unknown }
+        const b = (req.body ?? {}) as { name?: unknown; email?: unknown; password?: unknown; inviteToken?: unknown }
         const email = String(b.email ?? '')
         if (!(await limiter.hit(`reg:${req.ip}:${email.toLowerCase()}`)).allowed) {
           return reply.status(429).send({ error: '尝试过于频繁，请 10 分钟后再试' })
@@ -103,7 +109,24 @@ export function makeAuthPlugin(deps: AuthPluginDeps): MigratedPlugin {
         if (password.length < 8) return reply.status(400).send({ error: '密码至少 8 位' })
         if (await identity.findByEmail(email)) return reply.status(409).send({ error: '该邮箱已注册，请直接登录' })
         const first = (await identity.countAll()) === 0
-        const id = await identity.create({ name, email, passwordHash: await hashPassword(password), role: first ? 'admin' : 'member' })
+        const id = genId('u')
+        const inviteToken = String(b.inviteToken ?? '')
+        let inviteClaimed = false
+        if (!first && deps.requireInvite) {
+          if (!deps.invitationGate || !inviteToken) {
+            return reply.status(403).send({ error: '当前仅支持邀请注册', code: 'INVITE_REQUIRED' })
+          }
+          inviteClaimed = await deps.invitationGate.claimInvite(inviteToken, id)
+          if (!inviteClaimed) {
+            return reply.status(410).send({ error: '邀请链接无效、已使用或已过期', code: 'INVITE_INVALID' })
+          }
+        }
+        try {
+          await identity.create({ id, name, email, passwordHash: await hashPassword(password), role: first ? 'admin' : 'member' })
+        } catch (error) {
+          if (inviteClaimed && deps.invitationGate) await deps.invitationGate.releaseInvite(inviteToken, id)
+          throw error
+        }
         await seedDefaults(id)
         const user = await identity.get(id)
         return { token: await sessions.issue(id), user }

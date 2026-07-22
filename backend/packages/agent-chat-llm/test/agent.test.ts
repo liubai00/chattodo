@@ -116,4 +116,84 @@ describe('agentChat turn', () => {
     await makeAgentChatApp(deps)({ message: 'x', aiConfig: { provider: 'anthropic', apiKey: 'k', model: 'claude' }, onEvent: (e) => { if (e.type === 'delta') deltas.push(e.text) } })
     expect(deltas.join('')).toBe('流式回复内容')
   })
+
+  it('lets the AI create a dynamic field through the bound user database port', async () => {
+    const createdFields: unknown[] = []
+    const taskDatabase: NonNullable<AgentChatDeps['taskDatabase']> = {
+      async schema() { return { tables: {} } },
+      async listRows() { return [] },
+      async updateRow() { return {} },
+      async getView(space) { return { id: space === 'team' ? 1 : 2, filters: [], sorts: [], groupBys: [] } },
+      async createField(space, field) { createdFields.push({ space, field }); return { id: 7, ...field } },
+      async updateField() { return {} },
+      async deleteField() { return true },
+      async updateView() { return {} },
+    }
+    const { deps } = fakeDeps(
+      '{"reply":"已新增文本列。","actions":[{"type":"create_field","space":"team","name":"客户","fieldType":"text"}]}',
+      { taskDatabase },
+    )
+    const result = await makeAgentChatApp(deps)({
+      message: '在团队任务增加一个客户文本列',
+      aiConfig: { provider: 'anthropic', apiKey: 'k', model: 'claude' },
+    })
+    expect(createdFields).toEqual([{ space: 'team', field: { name: '客户', type: 'text' } }])
+    expect(result.performed).toContainEqual(expect.objectContaining({ type: 'create_field', space: 'team' }))
+  })
+
+  it('requires confirmation in the user message before deleting a field', async () => {
+    let deleteCalls = 0
+    const taskDatabase: NonNullable<AgentChatDeps['taskDatabase']> = {
+      async schema() { return { tables: {} } },
+      async listRows() { return [] },
+      async updateRow() { return {} },
+      async getView() { return { id: 1, filters: [], sorts: [], groupBys: [] } },
+      async createField() { return {} },
+      async updateField() { return {} },
+      async deleteField() { deleteCalls++; return true },
+      async updateView() { return {} },
+    }
+    const llm = '{"reply":"我来删除。","actions":[{"type":"delete_field","space":"team","fieldId":12}]}'
+    const first = fakeDeps(llm, { taskDatabase })
+    const pending = await makeAgentChatApp(first.deps)({
+      message: '删除客户列',
+      aiConfig: { provider: 'anthropic', apiKey: 'k', model: 'claude' },
+    })
+    expect(deleteCalls).toBe(0)
+    expect(pending.reply).toContain('明确说“确认”')
+
+    const second = fakeDeps(llm, { taskDatabase })
+    const confirmed = await makeAgentChatApp(second.deps)({
+      message: '确认删除客户字段',
+      aiConfig: { provider: 'anthropic', apiKey: 'k', model: 'claude' },
+    })
+    expect(deleteCalls).toBe(1)
+    expect(confirmed.performed).toContainEqual({ type: 'delete_field', space: 'team', fieldId: 12 })
+  })
+
+  it('reads visible dynamic values and updates an arbitrary task field through the user-scoped port', async () => {
+    const updates: unknown[] = []
+    const taskDatabase: NonNullable<AgentChatDeps['taskDatabase']> = {
+      async schema() { return { tables: {} } },
+      async listRows(space) {
+        return space === 'team'
+          ? [{ ref: { space: 'team', tableId: 12, rowId: 34 }, values: { 任务名称: '写方案', 客户: '甲方', 来源记录: '不可进入模型上下文' } }]
+          : []
+      },
+      async updateRow(id, values) { updates.push({ id, values }); return { id, values } },
+      async getView() { return { id: 1, filters: [], sorts: [], groupBys: [] } },
+      async createField() { return {} },
+      async updateField() { return {} },
+      async deleteField() { return true },
+      async updateView() { return {} },
+    }
+    const llm = '{"reply":"已更新客户。","actions":[{"type":"set_task_fields","id":"brw:team:12:34","values":{"客户":"乙方"}}]}'
+    const { deps } = fakeDeps(llm, { taskDatabase })
+    const result = await makeAgentChatApp(deps)({
+      message: '把写方案的客户改成乙方',
+      aiConfig: { provider: 'anthropic', apiKey: 'k', model: 'claude' },
+    })
+    expect(updates).toEqual([{ id: 'brw:team:12:34', values: { 客户: '乙方' } }])
+    expect(result.performed).toContainEqual(expect.objectContaining({ type: 'set_task_fields', id: 'brw:team:12:34' }))
+  })
 })

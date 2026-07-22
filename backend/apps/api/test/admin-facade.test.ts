@@ -6,6 +6,7 @@ import type { AuthUser } from '@linx/platform-auth'
 import { buildApi } from '../src/facade/build-api.js'
 import { RouteRegistry } from '../src/facade/route-registry.js'
 import { makeAdminPlugin } from '../src/routes/admin.routes.js'
+import type { TaskRepoFactory } from '../src/composition/task-repo-factory.js'
 
 const admin: AuthUser = { id: 'uAdmin', name: 'Admin', accountName: 'admin', email: 'admin@x.io', role: 'admin', createdAt: '2026-01-01T00:00:00' }
 const member: AuthUser = { ...admin, id: 'uMember', name: 'Member', accountName: 'member', email: 'm@x.io', role: 'member' }
@@ -21,10 +22,10 @@ async function legacyStub(): Promise<FastifyInstance> {
   return app
 }
 
-async function buildWith(target: 'new' | 'legacy'): Promise<FastifyInstance> {
+async function buildWith(target: 'new' | 'legacy', taskRepos?: TaskRepoFactory): Promise<FastifyInstance> {
   return buildApi({
     legacyApp: await legacyStub(),
-    migratedPlugins: [makeAdminPlugin({ db })],
+    migratedPlugins: [makeAdminPlugin({ db, ...(taskRepos ? { taskRepos } : {}) })],
     registry: new RouteRegistry({ groups: { admin: target } }),
     auth: { resolveSession: async (t) => (t === 'adm' ? admin : t === 'mem' ? member : undefined) },
   })
@@ -88,6 +89,47 @@ describe('Admin facade (registry admin=new)', () => {
       expect(body.totalErrors).toBe(1)
       const bob = body.users.find((u: { id: string }) => u.id === 'uBob')
       expect(bob).toMatchObject({ taskCount: 2, ideaCount: 1, errorCount: 1, nonCount: 0, accountName: 'bob' })
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('uses Baserow task repositories for admin counts and capture titles in Baserow mode', async () => {
+    const baserowTask = {
+      id: 't1',
+      title: 'Baserow 方案',
+      notes: '',
+      status: 'todo' as const,
+      projectId: null,
+      tags: [],
+      context: '',
+      dueAt: null,
+      plannedAt: null,
+      durationMinutes: null,
+      priority: 3 as const,
+      privacyScope: 'personal' as const,
+      sourceIdeaId: null,
+      assignee: null,
+      createdAt: '2026-07-15T09:00:00',
+      updatedAt: '2026-07-15T09:00:00',
+    }
+    const taskRepos: TaskRepoFactory = {
+      backend: 'baserow',
+      forRequest: ({ actor }) => ({
+        all: async () => (actor.id === 'uBob' ? [baserowTask] : []),
+        get: async (id) => (actor.id === 'uBob' && id === baserowTask.id ? baserowTask : undefined),
+        access: async () => null,
+        create: async () => baserowTask,
+        update: async () => baserowTask,
+        remove: async () => undefined,
+      }),
+    }
+    const app = await buildWith('new', taskRepos)
+    try {
+      const overview = (await app.inject({ method: 'GET', url: '/api/admin/overview', headers: asAdmin })).json()
+      expect(overview.users.find((u: { id: string }) => u.id === 'uBob').taskCount).toBe(1)
+      const detail = (await app.inject({ method: 'GET', url: '/api/admin/users/uBob', headers: asAdmin })).json()
+      expect(detail.records[0].resultTitle).toBe('Baserow 方案')
     } finally {
       await app.close()
     }

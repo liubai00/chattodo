@@ -26,6 +26,13 @@ import { makeEventsPlugin } from './routes/events.routes.js'
 import { makeStatePlugin } from './routes/state.routes.js'
 import { makeDataPlugin } from './routes/data.routes.js'
 import { makeAuthPlugin } from './routes/auth.routes.js'
+import { makeBaserowPlugin } from './routes/baserow.routes.js'
+import {
+  BaserowClient,
+  bootstrapBaserowControlSchema,
+  createBaserowControlStore,
+} from '@linx/infra-baserow'
+import { createTaskRepoFactory } from './composition/task-repo-factory.js'
 
 const config = loadConfig()
 
@@ -48,6 +55,7 @@ const MIGRATED_GROUPS = [
   'state',
   'data',
   'auth',
+  'baserow',
 ] as const
 
 async function main(): Promise<void> {
@@ -68,6 +76,19 @@ async function main(): Promise<void> {
 
     // 统一鉴权：读现网同一 sessions 表；DB 异常 → fail-closed 到 401。
     const store = createSessionStore({ db })
+    const baserowEnabled = config.tasks.backend === 'baserow'
+    const baserowControl = baserowEnabled ? createBaserowControlStore(db) : undefined
+    const baserowClient = baserowEnabled
+      ? new BaserowClient({
+          internalUrl: config.baserow.internalUrl,
+          sharedSecret: config.baserow.sharedSecret,
+        })
+      : undefined
+    const taskRepos = createTaskRepoFactory({
+      db,
+      ...(baserowClient ? { baserow: baserowClient } : {}),
+    })
+    if (baserowEnabled) await bootstrapBaserowControlSchema(db)
     auth = {
       resolveSession: async (token) => {
         try {
@@ -77,6 +98,13 @@ async function main(): Promise<void> {
           return undefined
         }
       },
+      isOpenPath: (path) =>
+        path === '/api/auth' ||
+        path.startsWith('/api/auth/') ||
+        path === '/api/health' ||
+        path.startsWith('/api/health/') ||
+        path === '/api/internal/baserow/exchange' ||
+        path === '/api/internal/baserow/events',
     }
 
     // 事件总线（本地模式；多副本可注入 redis transport）。跨用户实时扇出用它。
@@ -97,27 +125,49 @@ async function main(): Promise<void> {
     }
 
     migratedPlugins.push(
-      makeTasksPlugin({ db, getPrivacySettings }),
-      makeTaskWritesPlugin({ db, publish, publishMany }),
-      makeProjectsPlugin({ db }),
-      makeCapturePlugin({ db }),
+      makeTasksPlugin({ db, taskRepos, getPrivacySettings }),
+      makeTaskWritesPlugin({ db, taskRepos, publish, publishMany }),
+      makeCapturePlugin({ db, taskRepos }),
       makeSocialPlugin({ db, publish }),
-      makeCollabPlugin({ db, publish, publishMany }),
       makeNotificationsPlugin({ db }),
       makeSettingsPlugin({ db }),
-      makeSearchPlugin({ db }),
-      makePlanPlugin({ db }),
+      makeSearchPlugin({ db, taskRepos }),
+      makePlanPlugin({ db, taskRepos }),
       makeConversationsPlugin({ db }),
-      makeAdminPlugin({ db }),
-      makeChatPlugin({ db, publish, publishMany }),
+      makeAdminPlugin({ db, taskRepos }),
+      makeChatPlugin({ db, taskRepos, publish, publishMany }),
       makeAiConfigPlugin({ db }),
       // 实时 SSE 订阅：挂在与上面各插件 publish 相同的 bus 上，闭合发布→投递回环。
       makeEventsPlugin({ bus }),
-      makeStatePlugin({ db }),
-      makeDataPlugin({ db }),
+      makeStatePlugin({ db, taskRepos }),
+      makeDataPlugin({ db, taskRepos }),
       // 认证：复用同一 SessionStore（与 authPlugin 读同一 sessions 表）。
-      makeAuthPlugin({ db, sessions: store }),
+      makeAuthPlugin({
+        db,
+        sessions: store,
+        requireInvite: baserowEnabled,
+        ...(baserowControl ? { invitationGate: baserowControl } : {}),
+      }),
     )
+    if (!baserowEnabled) {
+      migratedPlugins.push(
+        makeProjectsPlugin({ db }),
+        makeCollabPlugin({ db, publish, publishMany }),
+      )
+    }
+    if (baserowControl && baserowClient) {
+      migratedPlugins.push(
+        makeBaserowPlugin({
+          db,
+          control: baserowControl,
+          client: baserowClient,
+          sharedSecret: config.baserow.sharedSecret,
+          publicUrl: config.baserow.publicUrl,
+          linxPublicUrl: config.baserow.linxPublicUrl,
+          publish,
+        }),
+      )
+    }
     for (const g of MIGRATED_GROUPS) registry.set(g, 'new')
     baseLogger.info({ groups: MIGRATED_GROUPS.length }, '[linx-api] migrated plugins live (new stack authoritative)')
   }

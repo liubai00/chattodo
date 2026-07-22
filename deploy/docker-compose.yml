@@ -1,6 +1,24 @@
 services:
+  linx-web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: linx-web
+    container_name: linx-web
+    ports:
+      - "${LINX_BIND_ADDRESS:-127.0.0.1}:${LINX_WEB_PORT:-9090}:80"
+    depends_on:
+      chattodo-api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
   chattodo-api:
-    build: ../server
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
     image: chattodo-api
     container_name: chattodo-api
     # Bound to localhost only — reached via nginx /todo/api/, never exposed directly.
@@ -9,12 +27,23 @@ services:
     volumes:
       - chattodo-data:/data   # 旧 SQLite 库 → 首次启动迁移到 Postgres 的来源
     environment:
-      - REDIS_URL=redis://chattodo-redis:6379
-      - DATABASE_URL=postgres://chattodo:chattodo_internal_pw@chattodo-postgres:5432/chattodo
+      HOST: 0.0.0.0
+      PORT: 8787
+      REDIS_URL: redis://chattodo-redis:6379
+      DATABASE_URL: postgres://chattodo:${LINX_POSTGRES_PASSWORD:-chattodo_internal_pw}@chattodo-postgres:5432/chattodo
+      LINX_DDL_BOOTSTRAP: "1"
+      TASK_BACKEND: ${TASK_BACKEND:-baserow}
+      BASEROW_INTERNAL_URL: http://linx-baserow
+      BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL:-http://localhost:8090}
+      BASEROW_SHARED_SECRET: ${BASEROW_SHARED_SECRET:?set BASEROW_SHARED_SECRET to at least 32 random characters}
+      LINX_PUBLIC_URL: ${LINX_PUBLIC_URL:-http://localhost:9090}
+      CORS_ORIGIN: ${LINX_PARENT_ORIGIN:-http://localhost:9090}
     depends_on:
       chattodo-redis:
         condition: service_healthy
       chattodo-postgres:
+        condition: service_healthy
+      linx-baserow:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -27,13 +56,41 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
+  # 固定版本的 Baserow OSE + LinX 本地插件。正式环境仅由反向代理暴露 80/443。
+  linx-baserow:
+    build:
+      context: ../integrations/baserow
+    image: linx-baserow:2.3.2
+    container_name: linx-baserow
+    environment:
+      BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL:-http://localhost:8090}
+      BASEROW_OSS_ONLY: "1"
+      LINX_INTERNAL_URL: http://chattodo-api:8787
+      LINX_PUBLIC_URL: ${LINX_PUBLIC_URL:-http://localhost:9090}
+      LINX_PARENT_ORIGIN: ${LINX_PARENT_ORIGIN:-http://localhost:9090}
+      LINX_BASEROW_SHARED_SECRET: ${BASEROW_SHARED_SECRET:?set BASEROW_SHARED_SECRET to at least 32 random characters}
+    ports:
+      - "${BASEROW_BIND_ADDRESS:-127.0.0.1}:${BASEROW_PORT:-8090}:80"
+    volumes:
+      - baserow-data:/baserow/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/api/linx/v1/health/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
   # 主数据库（独立卷，仅 compose 内网可达，不发布端口 → 与你现有 PG / 其它应用零干扰）。
   chattodo-postgres:
     image: postgres:16-alpine
     container_name: chattodo-postgres
     environment:
       POSTGRES_USER: chattodo
-      POSTGRES_PASSWORD: chattodo_internal_pw
+      POSTGRES_PASSWORD: ${LINX_POSTGRES_PASSWORD:-chattodo_internal_pw}
       POSTGRES_DB: chattodo
     volumes:
       - chattodo-pgdata:/var/lib/postgresql/data
@@ -65,3 +122,5 @@ services:
 volumes:
   chattodo-data:
   chattodo-pgdata:
+  baserow-data:
+    name: linx-baserow-data

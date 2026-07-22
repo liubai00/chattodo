@@ -33,8 +33,8 @@ export const useAuthStore = defineStore('auth', () => {
     const r: AuthResult = await AuthAPI.login(email, pw)
     setToken(r.token); if (r.user) applyUser(r.user); authed.value = true
   }
-  async function register(name: string, email: string, pw: string) {
-    const r = await AuthAPI.register(name, email, pw) as unknown as AuthResult
+  async function register(name: string, email: string, pw: string, inviteToken?: string) {
+    const r = await AuthAPI.register(name, email, pw, inviteToken) as AuthResult
     setToken(r.token); applyUser(r.user); authed.value = true
   }
   async function logout() {

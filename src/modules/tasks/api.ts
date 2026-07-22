@@ -19,7 +19,11 @@ export const TasksAPI = {
   taskDone: (id: string) => request<Task>('POST', `/tasks/${id}/done`),
   taskReopen: (id: string) => request<Task>('POST', `/tasks/${id}/reopen`),
   taskMoveOut: (id: string) => request<unknown>('POST', `/tasks/${id}/move-out`),
-  deleteTask: (id: string) => request<null>('DELETE', `/tasks/${id}`),
+  deleteTask: (id: string, confirmed: boolean) => request<null>(
+    'DELETE',
+    `/tasks/${id}`,
+    confirmed ? { confirmation: 'confirmed-by-linx' } : undefined,
+  ),
   getTaskDetail: (id: string) => request<TaskDetail>('GET', `/tasks/${id}/detail`),
   addSubtask: (id: string, text: string) => request<Subtask>('POST', `/tasks/${id}/subtasks`, { text }),
   toggleSubtask: (id: string) => request<Subtask>('PATCH', `/subtasks/${id}`),

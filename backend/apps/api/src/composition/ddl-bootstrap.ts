@@ -11,6 +11,7 @@ import { NOTIFICATIONS_DDL } from '@linx/infra-notifications-pg'
 import { CONVERSATIONS_DDL } from '@linx/infra-conversations-pg'
 import { AI_CONFIG_DDL } from '@linx/infra-ai-config-pg'
 import { AI_ERRORS_DDL } from '@linx/infra-ai-errors-pg'
+import { BASEROW_CONTROL_DDL } from '@linx/infra-baserow'
 
 /** sessions 表归 platform-auth 的 SessionStore 读写;现网建表在 legacy schema.sql,这里补齐权威 DDL。 */
 const SESSIONS_DDL: readonly string[] = [
@@ -36,6 +37,7 @@ export const ALL_DDL: readonly string[] = [
   ...CONVERSATIONS_DDL,
   ...AI_CONFIG_DDL,
   ...AI_ERRORS_DDL,
+  ...BASEROW_CONTROL_DDL,
 ]
 
 interface Executable {

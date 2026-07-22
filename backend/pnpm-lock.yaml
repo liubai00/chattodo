@@ -86,6 +86,9 @@ importers:
       '@linx/domain-social':
         specifier: workspace:*
         version: link:../../packages/domain-social
+      '@linx/domain-task-database':
+        specifier: workspace:*
+        version: link:../../packages/domain-task-database
       '@linx/domain-tasks':
         specifier: workspace:*
         version: link:../../packages/domain-tasks
@@ -95,6 +98,9 @@ importers:
       '@linx/infra-ai-errors-pg':
         specifier: workspace:*
         version: link:../../packages/infra-ai-errors-pg
+      '@linx/infra-baserow':
+        specifier: workspace:*
+        version: link:../../packages/infra-baserow
       '@linx/infra-collab-pg':
         specifier: workspace:*
         version: link:../../packages/infra-collab-pg
@@ -312,6 +318,8 @@ importers:
 
   packages/domain-social: {}
 
+  packages/domain-task-database: {}
+
   packages/domain-tasks: {}
 
   packages/infra-ai-config-pg:
@@ -336,6 +344,15 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.2.17
         version: 0.2.17
+
+  packages/infra-baserow:
+    dependencies:
+      '@linx/domain-task-database':
+        specifier: workspace:*
+        version: link:../domain-task-database
+      '@linx/domain-tasks':
+        specifier: workspace:*
+        version: link:../domain-tasks
 
   packages/infra-collab-pg:
     dependencies:
@@ -479,8 +496,8 @@ importers:
         specifier: ^0.2.17
         version: 0.2.17
       drizzle-orm:
-        specifier: ^0.44.0
-        version: 0.44.7(@electric-sql/pglite@0.2.17)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.22.0)
+        specifier: ^0.45.2
+        version: 0.45.2(@electric-sql/pglite@0.2.17)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.22.0)
       pg:
         specifier: ^8.22.0
         version: 8.22.0
@@ -1122,8 +1139,8 @@ packages:
     resolution: {integrity: sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA==}
     engines: {node: '>=6'}
 
-  drizzle-orm@0.44.7:
-    resolution: {integrity: sha512-quIpnYznjU9lHshEOAYLoZ9s3jweleHlZIAWR/jX9gAWNg/JhQ1wj0KGRf7/Zm+obRrYd9GjPVJg790QY9N5AQ==}
+  drizzle-orm@0.45.2:
+    resolution: {integrity: sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
@@ -2223,7 +2240,7 @@ snapshots:
 
   dequal@2.0.3: {}
 
-  drizzle-orm@0.44.7(@electric-sql/pglite@0.2.17)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.22.0):
+  drizzle-orm@0.45.2(@electric-sql/pglite@0.2.17)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.22.0):
     optionalDependencies:
       '@electric-sql/pglite': 0.2.17
       '@opentelemetry/api': 1.9.1

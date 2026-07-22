@@ -1,9 +1,14 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { Queryable } from '@linx/infra-tasks-pg'
 import type { MigratedPlugin } from '../facade/build-api.js'
+import {
+  createTaskRepoFactory,
+  type TaskRepoFactory,
+} from '../composition/task-repo-factory.js'
 
 export interface AdminPluginDeps {
   db: Queryable
+  taskRepos?: TaskRepoFactory
 }
 
 /**
@@ -14,6 +19,7 @@ export interface AdminPluginDeps {
  */
 export function makeAdminPlugin(deps: AdminPluginDeps): MigratedPlugin {
   const { db } = deps
+  const taskRepos = deps.taskRepos ?? createTaskRepoFactory({ db })
 
   const requireAdmin = (req: FastifyRequest, reply: FastifyReply): boolean => {
     if (!req.user || req.user.role !== 'admin') {
@@ -35,7 +41,7 @@ export function makeAdminPlugin(deps: AdminPluginDeps): MigratedPlugin {
     register: async (app) => {
       app.get('/api/admin/overview', async (req, reply) => {
         if (!requireAdmin(req, reply)) return
-        const [users, tasks, ideas, nons, errs, totalErrors] = await Promise.all([
+        const [users, legacyTasks, ideas, nons, errs, totalErrors] = await Promise.all([
           db.execute<{
             id: string
             name: string | null
@@ -44,12 +50,31 @@ export function makeAdminPlugin(deps: AdminPluginDeps): MigratedPlugin {
             role: string | null
             created_at: string | null
           }>('SELECT id, name, account_name, email, role, created_at FROM users ORDER BY created_at'),
-          countMap('SELECT user_id, COUNT(*) c FROM tasks GROUP BY user_id'),
+          taskRepos.backend === 'legacy'
+            ? countMap('SELECT user_id, COUNT(*) c FROM tasks GROUP BY user_id')
+            : Promise.resolve(new Map<string, number>()),
           countMap(`SELECT user_id, COUNT(*) c FROM todo_ideas WHERE status = 'clarifying' GROUP BY user_id`),
           countMap('SELECT user_id, COUNT(*) c FROM non_todo_outputs GROUP BY user_id'),
           countMap('SELECT user_id, COUNT(*) c FROM ai_errors GROUP BY user_id'),
           db.execute<{ c: number | string }>('SELECT COUNT(*) c FROM ai_errors'),
         ])
+        const tasks = taskRepos.backend === 'legacy'
+          ? legacyTasks
+          : new Map(
+              await Promise.all(
+                users.map(async (user) => {
+                  const rows = await taskRepos.forRequest({
+                    actor: {
+                      id: user.id,
+                      name: user.name ?? '',
+                      email: user.email ?? '',
+                      role: user.role ?? 'member',
+                    },
+                  }).all()
+                  return [user.id, rows.length] as const
+                }),
+              ),
+            )
         return {
           users: users.map((u) => ({
             id: u.id,
@@ -93,6 +118,17 @@ export function makeAdminPlugin(deps: AdminPluginDeps): MigratedPlugin {
 
         const titleOf = async (type: unknown, id: unknown): Promise<string> => {
           if (!type || !id) return ''
+          if (type === 'task' && taskRepos.backend === 'baserow') {
+            const task = await taskRepos.forRequest({
+              actor: {
+                id: user.id,
+                name: user.name ?? '',
+                email: user.email ?? '',
+                role: user.role ?? 'member',
+              },
+            }).get(String(id))
+            return task?.title ?? '（已删除）'
+          }
           const table = type === 'task' ? 'tasks' : type === 'todo_idea' ? 'todo_ideas' : 'non_todo_outputs'
           const row = (await db.execute<{ title: string }>(`SELECT title FROM ${table} WHERE id = $1`, [id]))[0]
           return row ? row.title : '（已删除）'

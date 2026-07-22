@@ -9,6 +9,7 @@ import type { AuthUser } from '@linx/platform-auth'
 import { buildApi } from '../src/facade/build-api.js'
 import { RouteRegistry } from '../src/facade/route-registry.js'
 import { makeTaskWritesPlugin } from '../src/routes/task-writes.routes.js'
+import type { TaskRepoFactory } from '../src/composition/task-repo-factory.js'
 
 const owner: AuthUser = { id: 'uOwner', name: 'Owner', accountName: 'owner', email: 'o@x.io', role: 'admin', createdAt: '2026-01-01T00:00:00' }
 const bob: AuthUser = { ...owner, id: 'uBob', name: 'Bob', accountName: 'bob', email: 'b@x.io' }
@@ -30,6 +31,44 @@ async function build(): Promise<FastifyInstance> {
     migratedPlugins: [makeTaskWritesPlugin({ db, publish: (userId, payload) => events.push({ userId, payload }), publishMany: (ids, payload) => ids.forEach((userId) => events.push({ userId, payload })), clock: () => new Date('2026-07-15T09:00:00'), genId: (p) => `${p}_t${++idc}` })],
     registry: new RouteRegistry({ groups: { tasks: 'new' } }),
     auth: { resolveSession: async (t) => (t === 'tokO' ? owner : t === 'tokB' ? bob : undefined) },
+  })
+}
+
+async function buildBaserow(onRemove: (id: string) => void): Promise<FastifyInstance> {
+  const task = {
+    id: 'brw:personal:11:21',
+    title: 'Baserow 任务',
+    notes: '',
+    status: 'todo' as const,
+    projectId: null,
+    tags: [],
+    context: '',
+    dueAt: null,
+    plannedAt: null,
+    durationMinutes: null,
+    priority: 3 as const,
+    privacyScope: 'personal' as const,
+    sourceIdeaId: null,
+    assignee: null,
+    createdAt: '2026-07-15T09:00:00',
+    updatedAt: '2026-07-15T09:00:00',
+  }
+  const taskRepos: TaskRepoFactory = {
+    backend: 'baserow',
+    forRequest: () => ({
+      all: async () => [task],
+      get: async (id) => (id === task.id ? task : undefined),
+      access: async (id) => (id === task.id ? 'owner' : null),
+      create: async () => task,
+      update: async (id) => (id === task.id ? task : undefined),
+      remove: async (id) => { onRemove(id) },
+    }),
+  }
+  return buildApi({
+    legacyApp: await legacyStub(),
+    migratedPlugins: [makeTaskWritesPlugin({ db, taskRepos, publish: () => {}, publishMany: () => {} })],
+    registry: new RouteRegistry({ groups: { tasks: 'new' } }),
+    auth: { resolveSession: async (token) => (token === 'tokO' ? owner : undefined) },
   })
 }
 const asO = { authorization: 'Bearer tokO' }
@@ -112,6 +151,30 @@ describe('Task-writes facade (group tasks)', () => {
       expect(await db.execute(`SELECT * FROM tasks WHERE id = 't1'`)).toHaveLength(0)
       expect(await db.execute(`SELECT * FROM task_collaborators WHERE task_id = 't1'`)).toHaveLength(0)
       expect((await db.execute(`SELECT * FROM notifications WHERE user_id = 'uBob' AND icon = 'ph-trash'`))).toHaveLength(1)
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('requires an explicit confirmation marker before deleting a Baserow row', async () => {
+    const removed: string[] = []
+    const app = await buildBaserow((id) => removed.push(id))
+    try {
+      const url = '/api/tasks/brw:personal:11:21'
+      const denied = await app.inject({ method: 'DELETE', url, headers: asO })
+      expect(denied.statusCode).toBe(409)
+      expect(denied.json()).toMatchObject({ code: 'CONFIRMATION_REQUIRED', action: 'row.delete' })
+      expect(removed).toEqual([])
+
+      const confirmed = await app.inject({
+        method: 'DELETE',
+        url,
+        headers: asO,
+        payload: { confirmation: 'confirmed-by-linx' },
+      })
+      expect(confirmed.statusCode).toBe(200)
+      expect(confirmed.json()).toEqual({ ok: true })
+      expect(removed).toEqual(['brw:personal:11:21'])
     } finally {
       await app.close()
     }

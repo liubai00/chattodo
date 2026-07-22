@@ -12,9 +12,12 @@ import { COLLAB_DDL } from '@linx/infra-collab-pg'
 import { NOTIFICATIONS_DDL } from '@linx/infra-notifications-pg'
 import type { AuthUser } from '@linx/platform-auth'
 import type { LlmClient } from '@linx/platform-llm'
+import type { TaskDatabasePort, TaskMutationSource } from '@linx/domain-task-database'
+import { makeBaserowTaskRepo } from '@linx/infra-baserow'
 import { buildApi } from '../src/facade/build-api.js'
 import { RouteRegistry } from '../src/facade/route-registry.js'
 import { makeChatPlugin } from '../src/routes/chat.routes.js'
+import type { TaskRepoFactory } from '../src/composition/task-repo-factory.js'
 
 const alice: AuthUser = { id: 'uA', name: 'Alice', accountName: 'alice', email: 'a@x.io', role: 'admin', createdAt: '2026-01-01T00:00:00' }
 
@@ -98,6 +101,47 @@ describe('Chat facade — POST /api/chat (rule path)', () => {
       expect(res.json().intent).toBe('identity')
       expect(res.json().reply).toContain('离线规则模式')
       expect(await db.execute(`SELECT * FROM tasks WHERE user_id = 'uA'`)).toHaveLength(0)
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('Baserow mode links the exact source phrase to the persisted user message id without writing legacy tasks', async () => {
+    let sourceSeen: TaskMutationSource | undefined
+    const database = {
+      async listRows() { return [] },
+      async createRow(_actor: unknown, space: 'team' | 'personal', values: Record<string, unknown>, source: TaskMutationSource) {
+        sourceSeen = source
+        return {
+          ref: { space, tableId: space === 'team' ? 10 : 11, rowId: 42 },
+          values,
+          createdAt: '2026-07-15T09:00:00',
+          updatedAt: '2026-07-15T09:00:00',
+          access: 'owner',
+        }
+      },
+      async schema() { return { workspaceId: 1, databaseId: 2, tables: {} } },
+      async getView() { return { id: 1, filterType: 'AND', filtersDisabled: false, filters: [], sorts: [], groupBys: [] } },
+    } as unknown as TaskDatabasePort
+    const taskRepos: TaskRepoFactory = {
+      backend: 'baserow',
+      database,
+      forRequest: ({ actor, source }) => makeBaserowTaskRepo({ database, actor, ...(source ? { source } : {}) }),
+    }
+    const app = await buildApi({
+      legacyApp: await legacyStub(),
+      migratedPlugins: [makeChatPlugin({ db, taskRepos, publish: () => {}, publishMany: () => {}, clock: () => FIXED, genId: (p) => `${p}_t${++idc}` })],
+      registry: new RouteRegistry({ groups: { chat: 'new' } }),
+      auth: { resolveSession: async (t) => (t === 'tok' ? alice : undefined) },
+    })
+    try {
+      const phrase = '明天下午3点前提交Baserow评审稿'
+      const response = await app.inject({ method: 'POST', url: '/api/chat', headers: auth, payload: { message: phrase } })
+      expect(response.statusCode).toBe(200)
+      const body = response.json()
+      expect(sourceSeen).toEqual({ kind: 'chat', text: phrase, messageId: body.userMessage.id })
+      expect(await db.execute(`SELECT id FROM chat_messages WHERE id = $1`, [body.userMessage.id])).toHaveLength(1)
+      expect(await db.execute(`SELECT id FROM tasks WHERE user_id = 'uA'`)).toHaveLength(0)
     } finally {
       await app.close()
     }

@@ -175,6 +175,7 @@ export function makeChatReadRepo(deps: { db: Queryable; userId: string }): ChatR
 export interface ChatWriteRepo extends ChatReadRepo {
   /** 落一条消息（承 repos.chat.create）：INSERT chat_messages + 触碰会话 updated_at。 */
   create(data: {
+    id?: string
     role: string
     text: string
     isError?: boolean
@@ -201,7 +202,7 @@ export function makeChatRepo(deps: ConversationRepoDeps): ChatWriteRepo {
   return {
     all: read.all,
     async create(data): Promise<ChatMessage> {
-      const id = genId('msg')
+      const id = data.id || genId('msg')
       const convId = data.conversationId || defaultConvId
       await db.execute(
         `INSERT INTO chat_messages (id,user_id,conversation_id,role,text,is_error,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,

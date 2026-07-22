@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // P4c-step2：新应用壳(TS)。替代 legacy App.vue 的壳职能。
-// 用 auth/ui/events store；登录屏(未authed) + rail(nav+theme+avatar+logout) + 视图switch(按route.name) + toast + TaskDetailView。
+// 用 auth/ui/events store；登录屏(未authed) + rail(nav+theme+avatar+logout) + 视图switch(按route.name) + toast。
 // 暂缓(记为 gap，路由可逆、legacy 留 fallback)：通知面板/搜索⌘K/快捷键/移动端布局/pane 拖拽。
 // openIdea/openNon/搜索结果 经路由参数 :selId 深选(跨视图选中 idea/non/project)。
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } from 'vue'
@@ -12,6 +12,7 @@ import { useToast } from '@/stores/toast'
 import { TasksAPI } from '@/modules/tasks/api'
 import { FriendsAPI } from '@/modules/friends/api'
 import { AppAPI } from '@/modules/app/api'
+import { parseTaskRef } from '@/modules/baserow/api'
 import type { ServerEvent } from '@/modules/chat/api'
 import type { Notification, SearchResult } from '@/types/api'
 import { lxFmtDue } from '@/shared/utils/format'
@@ -29,7 +30,6 @@ const api = { ...TasksAPI, ...FriendsAPI, ...AppAPI }
 // 首屏视图（#/chat 为默认路由）保持同步 import；其余视图懒加载以拆分构建产物。
 import ChatView from '@/views/ChatView.vue'
 const DatabaseView = defineAsyncComponent(() => import('@/views/DatabaseView.vue'))
-const ProjectsView = defineAsyncComponent(() => import('@/views/ProjectsView.vue'))
 const FriendsView = defineAsyncComponent(() => import('@/views/FriendsView.vue'))
 const ClarifyView = defineAsyncComponent(() => import('@/views/ClarifyView.vue'))
 const NonTodoView = defineAsyncComponent(() => import('@/views/NonTodoView.vue'))
@@ -47,9 +47,12 @@ const toast = useToast()
 const router = useRouter()
 const route = useRoute()
 
+const inviteToken = computed(() => typeof route.query.invite === 'string' ? route.query.invite : '')
+
 const authMode = ref<'login' | 'register'>('login')
 const authName = ref(''); const authEmail = ref(''); const authPassword = ref(''); const authError = ref(''); const authBusy = ref(false)
 const booting = ref(true)
+watch(inviteToken, (token) => { if (token) authMode.value = 'register' }, { immediate: true })
 
 // 命令面板条目（导航项 / 搜索结果统一形状）。
 interface PaletteItem { icon: string; label: string; subtitle?: string; run: () => void }
@@ -60,7 +63,6 @@ const view = computed(() => route.name as string)
 const viewComponentMap: Record<string, ReturnType<typeof defineAsyncComponent> | null> = {
   chat: ChatView,
   database: DatabaseView,
-  projects: ProjectsView,
   friends: FriendsView,
   clarify: ClarifyView,
   nontodo: NonTodoView,
@@ -71,7 +73,7 @@ const viewComponentMap: Record<string, ReturnType<typeof defineAsyncComponent> |
 const currentView = computed(() => viewComponentMap[view.value] ?? null)
 const viewProps = computed(() => {
   const base: Record<string, unknown> = { isMobile: ui.isMobile }
-  const viewsWithWorkspace = new Set(['chat', 'database', 'projects', 'clarify', 'nontodo'])
+  const viewsWithWorkspace = new Set(['chat', 'database', 'clarify', 'nontodo'])
   if (viewsWithWorkspace.has(view.value)) {
     base.workspace = ui.workspace
     base.privacy = ui.privacy
@@ -80,7 +82,7 @@ const viewProps = computed(() => {
     base.openTask = openTask; base.openIdea = openIdea; base.openNon = openNon
     base.afterSend = afterSend; base.setWorkspace = ui.setWorkspace; base.togglePrivacy = ui.togglePrivacy
   }
-  if (view.value === 'database' || view.value === 'projects') base.openTask = openTask
+  if (view.value === 'database') base.openTask = openTask
   return base
 })
 const meBig = computed(() => (auth.user.name || '我').slice(-1))
@@ -91,7 +93,7 @@ const unread = computed(() => ui.notifs.filter((n) => !n.read).length)
 const hasUnread = computed(() => unread.value > 0)
 const notifList = computed(() => ui.notifs.map((n: Notification) => ({
   ...n, icon: n.icon || 'ph-bell', color: n.color || 'var(--accent-ink)', time: lxFmtDue(n.createdAt),
-  isInvite: n.actionType === 'invite', isFriendReq: n.actionType === 'friend_request',
+  isInvite: n.actionType === 'invite', isFriendReq: n.actionType === 'friend_request', isTask: n.actionType === 'task',
   wasInvite: n.actionType === 'invite' && n.handled, wasFriendReq: n.actionType === 'friend_request' && n.handled,
   dot: n.read ? 'var(--text3)' : 'var(--accent)',
 })))
@@ -126,7 +128,7 @@ function executeSearch(r: SearchResult) {
   if (r.type === 'task') openTask(r.id)
   else if (r.type === 'idea') router.push({ name: 'clarify', params: { selId: r.id } })
   else if (r.type === 'nono') router.push({ name: 'nontodo', params: { selId: r.id } })
-  else if (r.type === 'project') router.push({ name: 'projects', params: { selId: r.id } })
+  else if (r.type === 'project') router.push({ name: 'database', params: { space: 'team' } })
 }
 function flatIndex(gi: number, ii: number): number { let n = 0; for (let i = 0; i < gi; i++) n += paletteGroups.value[i].items.length; return n + ii }
 function paletteKey(e: KeyboardEvent) {
@@ -145,19 +147,36 @@ function onGlobalKey(e: KeyboardEvent) {
   if (e.key === '?') { e.preventDefault(); ui.toggleShortcuts(); return }
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); go('chat'); setTimeout(() => document.getElementById('lx-composer')?.focus(), 80); return }
   const k = (e.key || '').toLowerCase()
-  if (_gPending) { _gPending = false; if (_gTimer) clearTimeout(_gTimer); const map: Record<string, string> = { c: 'chat', d: 'database', p: 'projects', f: 'friends', s: 'settings', l: 'clarify', a: 'agent', t: 'nontodo' }; if (map[k]) { e.preventDefault(); go(map[k]) } return }
+  if (_gPending) { _gPending = false; if (_gTimer) clearTimeout(_gTimer); const map: Record<string, string> = { c: 'chat', d: 'database', f: 'friends', s: 'settings', l: 'clarify', a: 'agent', t: 'nontodo' }; if (map[k]) { e.preventDefault(); go(map[k]) } return }
   if (k === 'g') { _gPending = true; if (_gTimer) clearTimeout(_gTimer); _gTimer = setTimeout(() => { _gPending = false }, 900) }
 }
 function onResize() { ui.setMobile(window.innerWidth < 820) }
 
 const NAV: Array<[string, string, string]> = [
-  ['chat', '聊天', 'ph-chat-circle'], ['database', 'Todo 数据库', 'ph-table'], ['projects', '项目', 'ph-folders'],
+  ['chat', '聊天', 'ph-chat-circle'], ['database', 'Todo 数据库', 'ph-table'],
   ['friends', '好友', 'ph-users'], ['clarify', '待澄清区', 'ph-lightbulb'], ['nontodo', '非 todo 隔离区', 'ph-tray'],
   ['agent', 'Agent 配置', 'ph-sparkle'], ['settings', '设置', 'ph-gear'],
 ]
 
 // 视图回调（从 store）
-const openTask = (id: string) => ui.openTask(id)
+const openTask = (id: string) => {
+  const ref = parseTaskRef(id)
+  if (!ref) {
+    ui.openTask(id)
+    return
+  }
+  ui.closeDetail()
+  void router.push({
+    name: 'database',
+    params: { space: ref?.space || 'team' },
+    query: ref ? { ref: id } : {},
+  })
+}
+function openNotification(notification: { isTask: boolean; actionRef?: string | null }) {
+  if (!notification.isTask || !notification.actionRef) return
+  ui.closeNotif()
+  openTask(notification.actionRef)
+}
 const openIdea = (id: string) => router.push({ name: 'clarify', params: { selId: id } })
 const openNon = (id: string) => router.push({ name: 'nontodo', params: { selId: id } })
 const afterSend = () => ui.load()   // 刷新壳状态；视图自身按需 remount 刷新
@@ -170,7 +189,7 @@ async function submitAuth() {
   if (!pw) { authError.value = '请输入密码'; return }
   authError.value = ''; authBusy.value = true
   try {
-    if (authMode.value === 'register') await auth.register(name, email, pw)
+    if (authMode.value === 'register') await auth.register(name, email, pw, inviteToken.value || undefined)
     else await auth.login(email, pw)
     await ui.load(); ui.loadNotifs(); events.connect(); subscribeEvents()
     router.push({ name: 'chat' })
@@ -232,7 +251,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
           <Button @click="submitAuth" :disabled="authBusy" class="mt-1 h-11 gap-[7px] rounded-[11px] text-[14.5px] font-semibold shadow-[var(--shadow)]">{{ authBusy ? '请稍候…' : (authMode === 'register' ? '注册并进入' : '登录') }} <i class="ph ph-arrow-right"></i></Button>
           <div class="text-center text-[12.5px] font-medium text-[var(--text3)]">{{ authMode === 'register' ? '已有账号？' : '还没有账号？' }}<span @click="authMode = authMode === 'register' ? 'login' : 'register'" class="ml-[5px] cursor-pointer font-semibold text-[var(--accent-ink)]">{{ authMode === 'register' ? '去登录' : '注册新账号' }}</span></div>
         </Card>
-        <div class="text-center text-xs font-medium leading-relaxed text-[var(--text3)]">你的数据仅自己可见 · 首个注册账号为管理员</div>
+        <div class="text-center text-xs font-medium leading-relaxed text-[var(--text3)]">{{ inviteToken ? '你正在通过团队邀请注册 · 邀请链接仅可使用一次' : '团队采用邀请制 · 首个注册账号为管理员' }}</div>
       </div>
     </div>
 
@@ -298,7 +317,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
           >未知视图</div>
         </Transition>
 
-        <!-- 任务详情抽屉（P14: lx-drawer 右侧滑入 + scrim 淡入） -->
+        <!-- 仅供 TASK_BACKEND=legacy 的可逆回滚；Baserow TaskRef 始终打开原生行。 -->
         <Transition name="lx-drawer" :duration="{ enter: 250, leave: 200 }">
           <TaskDetailView
             v-if="ui.detailId"
@@ -308,6 +327,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
             @close="ui.closeDetail()"
           />
         </Transition>
+
       </div>
 
       <!-- 移动端底栏 -->
@@ -326,7 +346,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
           <div @click="ui.closeNotif()" class="fixed inset-0 z-[-1]"></div>
           <div class="flex items-center gap-2 border-b border-[var(--line)] px-4 py-[14px]"><i class="ph ph-bell text-[var(--accent-ink)]"></i><span class="text-sm font-semibold text-[var(--text)]" style="font-family:var(--display);">通知</span><div class="flex-1"></div><button @click="ui.markAllRead()" class="text-[11.5px] font-semibold text-[var(--accent-ink)]" style="border:0;background:transparent;cursor:pointer;">全部已读</button></div>
           <div class="max-h-[360px] overflow-auto">
-            <div v-for="(n, i) in notifList" :key="i" class="flex gap-[11px] border-b border-[var(--line)] px-4 py-3"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-relaxed text-[var(--text)]">{{ n.text }}</div><div class="mt-[3px] text-[11px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ n.time }}</span></div><template v-if="n.isInvite && !n.wasInvite"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptInvite(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受并提醒我</button><button @click="followInvite(n.actionRef)" title="不进我的任务库，只接收进展通知" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">仅关注</button><button @click="declineInvite(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq && !n.wasFriendReq"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click="acceptFriend(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受好友</button><button @click="declineFriend(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div>
+            <div v-for="(n, i) in notifList" :key="i" @click="openNotification(n)" :class="['flex gap-[11px] border-b border-[var(--line)] px-4 py-3', n.isTask ? 'cursor-pointer hover:bg-[var(--panel2)]' : '']"><i :class="`ph ${n.icon}`" :style="`color:${n.color};font-size:18px;margin-top:1px;flex:0 0 auto;`"></i><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-relaxed text-[var(--text)]">{{ n.text }}</div><div class="mt-[3px] text-[11px] font-medium text-[var(--text3)]"><span class="lx-mono">{{ n.time }}</span></div><template v-if="n.isInvite && !n.wasInvite"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click.stop="acceptInvite(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受并提醒我</button><button @click.stop="followInvite(n.actionRef)" title="不进我的任务库，只接收进展通知" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">仅关注</button><button @click.stop="declineInvite(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasInvite"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template><template v-if="n.isFriendReq && !n.wasFriendReq"><div class="mt-2 flex flex-wrap gap-[7px]"><button @click.stop="acceptFriend(n.actionRef)" class="rounded-lg bg-[var(--accent)] px-[12px] py-[6px] text-xs font-semibold text-[var(--accent-contrast)]" style="border:0;cursor:pointer;">接受好友</button><button @click.stop="declineFriend(n.actionRef)" class="rounded-lg border border-[var(--line2)] bg-[var(--panel)] px-[11px] py-[6px] text-xs font-semibold text-[var(--text2)]" style="cursor:pointer;">拒绝</button></div></template><template v-if="n.wasFriendReq"><div class="mt-1.5 flex items-center gap-1 text-xs font-semibold text-[var(--text3)]"><i class="ph ph-check"></i>已处理</div></template></div><span :style="`width:8px;height:8px;border-radius:50%;background:${n.dot};margin-top:5px;flex:0 0 auto;`"></span></div>
             <div v-if="notifList.length === 0" class="flex flex-col items-center gap-2 px-4 py-[30px] text-center text-[var(--text3)]"><i class="ph ph-bell-slash text-[22px]"></i><div class="text-xs font-medium">暂无通知</div></div>
           </div>
         </div>
@@ -379,7 +399,7 @@ onBeforeUnmount(() => { if (_unsub) _unsub(); window.removeEventListener('keydow
             <div class="px-[18px] py-[14px]">
               <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">命令面板</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">⌘K&nbsp;/&nbsp;/</span></div>
               <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">新建捕获</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">N</span></div>
-              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">跳转 · 聊天/数据库/项目/设置</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">G 然后 C/D/P/S</span></div>
+              <div class="flex items-center gap-3 border-b border-[var(--line)] py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">跳转 · 聊天/数据库/设置</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">G 然后 C/D/S</span></div>
               <div class="flex items-center gap-3 py-[11px]"><span class="flex-1 text-[13px] font-medium text-[var(--text)]">显示 / 关闭本表</span><span class="rounded-md border border-[var(--line2)] px-2 py-1 text-[11.5px] font-semibold text-[var(--text2)]">?</span></div>
             </div>
           </div>

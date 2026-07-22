@@ -1,12 +1,14 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
-import { makeTaskRepo, makeIdeaRepo, type Queryable } from '@linx/infra-tasks-pg'
+import { makeIdeaRepo, type Queryable } from '@linx/infra-tasks-pg'
 import { makeProjectRepo } from '@linx/infra-projects-pg'
 import { makeSettingsRepo } from '@linx/infra-settings-pg'
 import { makeSearchApp, type SearchAppDeps } from '@linx/app-search'
 import type { MigratedPlugin } from '../facade/build-api.js'
+import { actorFromUser, createTaskRepoFactory, type TaskRepoFactory } from '../composition/task-repo-factory.js'
 
 export interface SearchPluginDeps {
   db: Queryable
+  taskRepos?: TaskRepoFactory
 }
 
 /**
@@ -16,12 +18,13 @@ export interface SearchPluginDeps {
  */
 export function makeSearchPlugin(deps: SearchPluginDeps): MigratedPlugin {
   const { db } = deps
-  const appFor = (userId: string): ReturnType<typeof makeSearchApp> => {
+  const taskRepos = deps.taskRepos ?? createTaskRepoFactory({ db })
+  const appFor = (req: FastifyRequest, userId: string): ReturnType<typeof makeSearchApp> => {
     const searchDeps: SearchAppDeps = {
       settings: makeSettingsRepo({ db, userId }),
-      tasks: makeTaskRepo({ db, userId }),
+      tasks: taskRepos.forRequest({ actor: actorFromUser(req.user!) }),
       ideas: makeIdeaRepo({ db, userId }),
-      projects: makeProjectRepo({ db, userId }),
+      projects: taskRepos.backend === 'baserow' ? { all: async () => [] } : makeProjectRepo({ db, userId }),
     }
     return makeSearchApp(searchDeps)
   }
@@ -42,12 +45,12 @@ export function makeSearchPlugin(deps: SearchPluginDeps): MigratedPlugin {
       app.get('/api/search', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        return appFor(userId).search(q(req))
+        return appFor(req, userId).search(q(req))
       })
       app.get('/api/mentions', async (req, reply) => {
         const userId = uid(req, reply)
         if (!userId) return
-        return appFor(userId).mentions(q(req))
+        return appFor(req, userId).mentions(q(req))
       })
     },
   }

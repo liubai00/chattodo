@@ -1,7 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { makePrefixedId } from '@linx/kernel-ids'
 import {
-  makeTaskRepo,
   makeCommentRepo,
   makeSubtaskRepo,
   makeCaptureRecordRepo,
@@ -17,9 +16,11 @@ import {
   buildSocialApp,
 } from '../composition/wiring.js'
 import { buildCollabApp } from '../composition/chat-wiring.js'
+import { actorFromUser, createTaskRepoFactory, type TaskRepoFactory } from '../composition/task-repo-factory.js'
 
 export interface TaskWritesPluginDeps {
   db: Queryable
+  taskRepos?: TaskRepoFactory
   publish: (userId: string, payload: unknown) => void
   publishMany: (userIds: readonly string[], payload: unknown) => void
   clock?: () => Date
@@ -39,21 +40,28 @@ const STATUS_LABEL: Record<string, string> = { todo: '待办', in_progress: '进
  */
 export function makeTaskWritesPlugin(deps: TaskWritesPluginDeps): MigratedPlugin {
   const { db, publish, publishMany } = deps
+  const taskRepos = deps.taskRepos ?? createTaskRepoFactory({ db })
   const clock = deps.clock ?? ((): Date => new Date())
   const genId = deps.genId ?? ((p: string): string => makePrefixedId(p)())
   const { nowIso } = makeClocks(clock)
 
-  const forUser = (userId: string) => ({
-    tasks: makeTaskRepo({ db, userId, clock, genId }),
-    collaborators: makeCollaboratorRepo({ db, userId, clock, genId }),
-    comments: makeCommentRepo({ db, userId, clock, genId }),
-    subtasks: makeSubtaskRepo({ db, userId, clock, genId }),
-    captureRecords: makeCaptureRecordRepo({ db, userId, clock, genId }),
-    activity: makeActivityRepo({ db, userId, clock, genId }),
-    collab: buildCollabApp({ db, userId, publish, publishMany, clock, genId }),
+  const forUser = (actor: { id: string; name: string; email: string; role: string }) => ({
+    tasks: taskRepos.forRequest({
+      actor: actorFromUser(actor),
+      source: { kind: 'manual', text: '用户通过 LinX API 修改任务' },
+      clock,
+      genId,
+    }),
+    userId: actor.id,
+    collaborators: makeCollaboratorRepo({ db, userId: actor.id, clock, genId }),
+    comments: makeCommentRepo({ db, userId: actor.id, clock, genId }),
+    subtasks: makeSubtaskRepo({ db, userId: actor.id, clock, genId }),
+    captureRecords: makeCaptureRecordRepo({ db, userId: actor.id, clock, genId }),
+    activity: makeActivityRepo({ db, userId: actor.id, clock, genId }),
+    collab: buildCollabApp({ db, userId: actor.id, publish, publishMany, clock, genId }),
     social: buildSocialApp({ db, publish, nowIso, genId, clock }),
     userDir: makeUserDirectory(db),
-    notifier: makeNotifierForUser(db, publish, userId, { nowIso, genId }),
+    notifier: makeNotifierForUser(db, publish, actor.id, { nowIso, genId }),
   })
   type Ctx = ReturnType<typeof forUser>
 
@@ -66,13 +74,13 @@ export function makeTaskWritesPlugin(deps: TaskWritesPluginDeps): MigratedPlugin
     await ctx.notifier.push(target.id, { type: 'assign', icon, color: 'var(--accent-ink)', text })
   }
 
-  const actor = (req: FastifyRequest, reply: FastifyReply): { id: string; name: string } | undefined => {
+  const actor = (req: FastifyRequest, reply: FastifyReply): { id: string; name: string; email: string; role: string } | undefined => {
     const u = req.user
     if (!u) {
       void reply.status(401).send({ error: 'unauthorized', code: 'UNAUTHENTICATED' })
       return undefined
     }
-    return { id: u.id, name: u.name }
+    return { id: u.id, name: u.name, email: u.email, role: u.role }
   }
   const pid = (req: FastifyRequest): string => (req.params as { id: string }).id
 
@@ -82,7 +90,10 @@ export function makeTaskWritesPlugin(deps: TaskWritesPluginDeps): MigratedPlugin
       app.get('/api/tasks/:id/detail', async (req, reply) => {
         const me = actor(req, reply)
         if (!me) return
-        const ctx = forUser(me.id)
+        if (taskRepos.backend === 'baserow') {
+          return reply.status(410).send({ error: '任务详情已由 Baserow 行面板取代' })
+        }
+        const ctx = forUser(me)
         const id = pid(req)
         const task = await ctx.tasks.get(id)
         if (!task) return reply.status(404).send({ error: 'task not found' })
@@ -100,7 +111,7 @@ export function makeTaskWritesPlugin(deps: TaskWritesPluginDeps): MigratedPlugin
       app.patch('/api/tasks/:id', async (req, reply) => {
         const me = actor(req, reply)
         if (!me) return
-        const ctx = forUser(me.id)
+        const ctx = forUser(me)
         const id = pid(req)
         const prev = await ctx.tasks.get(id)
         if (!prev) return reply.status(404).send({ error: 'task not found' })
@@ -108,12 +119,14 @@ export function makeTaskWritesPlugin(deps: TaskWritesPluginDeps): MigratedPlugin
         // 路由边界：现网信任前端 body；此处强转到 TaskPatch（infra 层再做 owner/collaborator 门禁）。
         const updated = await ctx.tasks.update(id, patch as never)
         if (patch.status && patch.status !== prev.status) {
-          await ctx.activity.log(prev.id, '状态改为「' + (STATUS_LABEL[patch.status] || patch.status) + '」')
+          if (taskRepos.backend === 'legacy') await ctx.activity.log(prev.id, '状态改为「' + (STATUS_LABEL[patch.status] || patch.status) + '」')
         }
-        if (patch.status === 'done' && prev.status !== 'done') await ctx.collab.notifyTaskDone(me, prev.id)
+        if (taskRepos.backend === 'legacy' && patch.status === 'done' && prev.status !== 'done') await ctx.collab.notifyTaskDone(me, prev.id)
         if (patch.assignee && patch.assignee !== prev.assignee) {
-          await ctx.activity.log(prev.id, '指派给 ' + patch.assignee)
-          await notifyByName(ctx, patch.assignee, me, `${me.name || '有人'} 把「${prev.title}」指派给你`)
+          if (taskRepos.backend === 'legacy') await ctx.activity.log(prev.id, '指派给 ' + patch.assignee)
+          if (taskRepos.backend === 'legacy') {
+            await notifyByName(ctx, patch.assignee, me, `${me.name || '有人'} 把「${prev.title}」指派给你`)
+          }
         }
         return updated
       })
@@ -121,32 +134,44 @@ export function makeTaskWritesPlugin(deps: TaskWritesPluginDeps): MigratedPlugin
       app.post('/api/tasks/:id/done', async (req, reply) => {
         const me = actor(req, reply)
         if (!me) return
-        const ctx = forUser(me.id)
+        const ctx = forUser(me)
         const id = pid(req)
         const prev = await ctx.tasks.get(id)
         if (!prev) return reply.status(404).send({ error: 'task not found' })
         const t = await ctx.tasks.update(id, { status: 'done' })
-        await ctx.activity.log(id, '状态改为「已完成」')
-        if (prev.status !== 'done') await ctx.collab.notifyTaskDone(me, id)
+        if (taskRepos.backend === 'legacy') await ctx.activity.log(id, '状态改为「已完成」')
+        if (taskRepos.backend === 'legacy' && prev.status !== 'done') await ctx.collab.notifyTaskDone(me, id)
         return t
       })
 
       app.delete('/api/tasks/:id', async (req, reply) => {
         const me = actor(req, reply)
         if (!me) return
-        const ctx = forUser(me.id)
+        if (
+          taskRepos.backend === 'baserow' &&
+          (req.body as { confirmation?: unknown } | undefined)?.confirmation !== 'confirmed-by-linx'
+        ) {
+          return reply.status(409).send({
+            error: '删除任务前需要明确确认',
+            code: 'CONFIRMATION_REQUIRED',
+            action: 'row.delete',
+          })
+        }
+        const ctx = forUser(me)
         const id = pid(req)
         const task = await ctx.tasks.get(id)
         if (!task) return reply.status(404).send({ error: 'task not found' })
         if ((await ctx.tasks.access(id)) !== 'owner') {
           return reply.status(403).send({ error: '协作任务只有创建者可以删除，你可以选择「退出协作」' })
         }
-        for (const uid of await ctx.collaborators.acceptedUsersOf(id)) {
-          await ctx.notifier.push(uid, { type: 'assign', icon: 'ph-trash', color: 'var(--danger)', text: `「${task.title}」已被 ${me.name || '创建者'} 删除` })
+        if (taskRepos.backend === 'legacy') {
+          for (const uid of await ctx.collaborators.acceptedUsersOf(id)) {
+            await ctx.notifier.push(uid, { type: 'assign', icon: 'ph-trash', color: 'var(--danger)', text: `「${task.title}」已被 ${me.name || '创建者'} 删除` })
+          }
+          // 失效该任务相关邀请通知的按钮
+          await db.execute('UPDATE notifications SET handled = 1, read = 1 WHERE action_ref IN (SELECT id FROM task_collaborators WHERE task_id = $1)', [id])
+          await ctx.collaborators.removeForTask(id)
         }
-        // 失效该任务相关邀请通知的按钮
-        await db.execute('UPDATE notifications SET handled = 1, read = 1 WHERE action_ref IN (SELECT id FROM task_collaborators WHERE task_id = $1)', [id])
-        await ctx.collaborators.removeForTask(id)
         await ctx.tasks.remove(id)
         return { ok: true }
       })
@@ -154,7 +179,10 @@ export function makeTaskWritesPlugin(deps: TaskWritesPluginDeps): MigratedPlugin
       app.post('/api/tasks/:id/comments', async (req, reply) => {
         const me = actor(req, reply)
         if (!me) return
-        const ctx = forUser(me.id)
+        if (taskRepos.backend === 'baserow') {
+          return reply.status(410).send({ error: '任务评论不在 Baserow 首版范围内' })
+        }
+        const ctx = forUser(me)
         const id = pid(req)
         const task = await ctx.tasks.get(id)
         if (!task) return reply.status(404).send({ error: 'task not found' })

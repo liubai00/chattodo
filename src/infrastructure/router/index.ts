@@ -10,8 +10,8 @@ import AppShell from '@/app/AppShell.vue'
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/chat' },
   { path: '/chat', name: 'chat', component: AppShell },
-  { path: '/database', name: 'database', component: AppShell },
-  { path: '/projects/:selId?', name: 'projects', component: AppShell },
+  { path: '/database/:space(team|personal)?', name: 'database', component: AppShell },
+  { path: '/projects/:selId?', redirect: '/database/team' },
   { path: '/friends', name: 'friends', component: AppShell },
   { path: '/clarify/:selId?', name: 'clarify', component: AppShell },
   { path: '/nontodo/:selId?', name: 'nontodo', component: AppShell },

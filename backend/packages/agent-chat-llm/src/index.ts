@@ -14,13 +14,18 @@ export const AGENT_SYSTEM = `你是用户的 todo-first 智能助理。读懂用
 【B. 要归档的内容】用户丢进来的想法、待办、信息——才需要 create_* 动作。
 
 可用动作（放进 actions 数组，可为空、可多个）：
-- create_task {title, dueAt(ISO字符串或null), priority(1-4), durationMinutes(数字或null), tags(字符串数组), privacyScope(work|personal|mixed), notes, projectId(上下文 projects 里的 id 或 null)}
+- create_task {title, dueAt(ISO字符串或null), priority(1-4), durationMinutes(数字或null), tags(字符串数组), privacyScope(work|personal|mixed), notes, projectId(上下文 projects 里的 id 或 null), values?(动态列名到值)}
 - create_idea {title, suggestedNextAction, privacyScope}
 - create_non_todo {title, summary, privacyScope}
 - convert_idea {id, dueAt?, priority?, notes?}
 - complete_task {id}
 - update_task {id, patch}
 - delete_task {id}
+- create_field {space(team|personal), name, fieldType(text|long_text|number|boolean|date|single_select|multiple_select|multiple_collaborators), options?}
+- update_field {space, fieldId, patch}；patch 可含 name/type/hidden/order/width/options
+- delete_field {space, fieldId}
+- set_task_fields {id, values}；按上下文中的真实字段名修改任意动态列
+- update_view {space, patch}；patch 可含 filterType(AND|OR)、filtersDisabled、filters、sorts、groupBys，数组表示完整替换
 - plan {}
 - remember {note}
 - invite_collaborator {taskId?, userName}
@@ -31,6 +36,7 @@ export const AGENT_SYSTEM = `你是用户的 todo-first 智能助理。读懂用
 额外规则：一句多事 → 拆多个 create_task；与 openTasks 明显同一件事 → 不重复创建；能对应 projects 就填 projectId；
 上一轮提了澄清、这轮回答 → 用 convert_idea；@team 成员 → 追加 invite_collaborator（userName 逐字取 team 里名字，只能邀请好友）；
 pendingInvites 非空且在回应 → 用 respond_invite，绝不 create_task。
+taskDatabase 非空时，动态列值、字段与共享 Grid 视图操作必须使用 set_task_fields / *_field / update_view；只能引用上下文中真实存在的任务 id、字段名和 fieldId。create_task 可额外携带 values 设置动态列。删除字段、改变字段类型仅在用户本轮明确说“确认/确定”时发动作，否则先解释风险并让用户确认。
 【重要】协作/邀请结果由系统统一准确追加到回复末尾。你的 reply 只描述任务本身，绝对不要出现"已邀请X/已通知X"之类关于某人是否被邀请的说法。
 
 铁律：只有 actions 数组里的动作会被真正执行。actions 为空却在 reply 里说"已添加/已完成/已删除"是撒谎，绝对禁止。
@@ -44,6 +50,11 @@ const TYPE_ALIAS: Record<string, string> = {
   complete_task: 'complete_task', completetask: 'complete_task', finish_task: 'complete_task', done_task: 'complete_task', mark_done: 'complete_task', complete: 'complete_task', done: 'complete_task',
   update_task: 'update_task', updatetask: 'update_task', edit_task: 'update_task', modify_task: 'update_task', update: 'update_task',
   delete_task: 'delete_task', deletetask: 'delete_task', remove_task: 'delete_task', del_task: 'delete_task', delete: 'delete_task', remove: 'delete_task',
+  create_field: 'create_field', add_field: 'create_field', new_field: 'create_field', create_column: 'create_field', add_column: 'create_field',
+  update_field: 'update_field', edit_field: 'update_field', modify_field: 'update_field', update_column: 'update_field',
+  delete_field: 'delete_field', remove_field: 'delete_field', delete_column: 'delete_field', remove_column: 'delete_field',
+  set_task_fields: 'set_task_fields', update_task_fields: 'set_task_fields', set_fields: 'set_task_fields', update_row: 'set_task_fields',
+  update_view: 'update_view', configure_view: 'update_view', edit_view: 'update_view',
   plan: 'plan', make_plan: 'plan', schedule: 'plan',
   remember: 'remember', memorize: 'remember', save_memory: 'remember', add_memory: 'remember',
   convert_idea: 'convert_idea', convertidea: 'convert_idea', idea_to_task: 'convert_idea', promote_idea: 'convert_idea',
@@ -183,6 +194,75 @@ interface TaskRow {
   privacyScope?: string
 }
 
+type TaskSpace = 'team' | 'personal'
+type TaskFieldKind =
+  | 'text'
+  | 'long_text'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'single_select'
+  | 'multiple_select'
+  | 'multiple_collaborators'
+
+interface AgentTaskDatabase {
+  schema(): Promise<unknown>
+  listRows(space: TaskSpace): Promise<readonly AgentDatabaseRow[]>
+  updateRow(id: string, values: Readonly<Record<string, unknown>>): Promise<unknown>
+  getView(space: TaskSpace): Promise<unknown>
+  createField(
+    space: TaskSpace,
+    field: { name: string; type: TaskFieldKind; options?: Readonly<Record<string, unknown>> },
+  ): Promise<unknown>
+  updateField(
+    space: TaskSpace,
+    fieldId: number,
+    patch: Readonly<Record<string, unknown>>,
+    confirmed: boolean,
+  ): Promise<unknown>
+  deleteField(space: TaskSpace, fieldId: number, confirmed: boolean): Promise<boolean>
+  updateView(space: TaskSpace, patch: Readonly<Record<string, unknown>>): Promise<unknown>
+}
+
+interface AgentDatabaseRow {
+  readonly ref: { readonly space: TaskSpace; readonly tableId: number; readonly rowId: number }
+  readonly values: Readonly<Record<string, unknown>>
+}
+
+function compactPromptValue(value: unknown, depth = 0): unknown {
+  if (typeof value === 'string') return value.slice(0, 300)
+  if (value == null || typeof value === 'number' || typeof value === 'boolean') return value
+  if (depth >= 2) return '[复杂值]'
+  if (Array.isArray(value)) return value.slice(0, 12).map((item) => compactPromptValue(item, depth + 1))
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .slice(0, 16)
+        .map(([key, item]) => [key, compactPromptValue(item, depth + 1)]),
+    )
+  }
+  return String(value).slice(0, 300)
+}
+
+function databaseRowsForContext(rows: readonly AgentDatabaseRow[]): unknown[] {
+  return rows.slice(0, 40).map((row) => ({
+    id: `brw:${row.ref.space}:${row.ref.tableId}:${row.ref.rowId}`,
+    values: Object.fromEntries(
+      Object.entries(row.values)
+        .filter(([name]) => name !== '来源记录')
+        .slice(0, 30)
+        .map(([name, value]) => [name, compactPromptValue(value)]),
+    ),
+  }))
+}
+
+function dynamicFieldValues(value: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([name]) => name !== '任务名称' && name !== '来源记录')
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
+
 export interface AgentChatDeps {
   llm: LlmClient
   settings: { get(): Promise<{ privacyMode: boolean; workspaceMode: string } | undefined> }
@@ -198,7 +278,7 @@ export interface AgentChatDeps {
   projects: { all(): Promise<Array<{ id: string; name: string; description?: string }>>; get(id: string): Promise<{ id: string } | undefined> }
   projectIdForText: (text: string) => Promise<string | null>
   agent: { get(): Promise<{ soul?: string; memory?: string; preferences?: string; workingStyle?: string } | undefined>; update(patch: { memory?: string }): Promise<unknown> }
-  chat: { all(): Promise<Array<{ role: string; text: string; isError?: boolean }>>; create(d: { role: string; text: string; isError?: boolean }): Promise<unknown> }
+  chat: { all(): Promise<Array<{ role: string; text: string; isError?: boolean }>>; create(d: { id?: string; role: string; text: string; isError?: boolean }): Promise<unknown> }
   captureRecords: { create(input: Record<string, unknown>): Promise<unknown> }
   activity: { log(taskId: string, text: string): Promise<void> }
   collaborators: { myPending(): Promise<Array<{ id: string; taskTitle?: string; inviterName?: string; taskDueAt?: string | null }>> }
@@ -217,6 +297,7 @@ export interface AgentChatDeps {
     requestById(user: AgentActor, targetId: string): Promise<{ error?: string; friendship?: unknown; pending?: boolean }>
   }
   users?: { byName(name: string): Promise<{ id: string; name: string } | undefined> }
+  taskDatabase?: AgentTaskDatabase
   /** team 上下文名字（好友名；无用户时全量）。 */
   teamNames: () => Promise<string[]>
   clock?: () => Date
@@ -242,6 +323,7 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
   return async function agentChat({ message, aiConfig, onEvent, user, mentions = [] }: AgentChatInput): Promise<TurnResult> {
     const settings = (await deps.settings.get()) ?? { privacyMode: false, workspaceMode: 'work' }
     const visibleTasks = visibleFilter(await deps.tasks.all(), settings)
+    const visibleTaskIds = new Set(visibleTasks.map((task) => task.id))
     const profile = (await deps.agent.get()) ?? {}
     const [projList, ideaList, teamNames, pendingList, chatRows] = await Promise.all([
       deps.projects.all(),
@@ -250,6 +332,33 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
       deps.collaborators.myPending(),
       deps.chat.all(),
     ])
+    const taskDatabase = deps.taskDatabase
+      ? await Promise.all([
+          deps.taskDatabase.schema(),
+          deps.taskDatabase.getView('team'),
+          deps.taskDatabase.getView('personal'),
+          deps.taskDatabase.listRows('team'),
+          deps.taskDatabase.listRows('personal'),
+        ]).then(([schema, teamView, personalView, teamRows, personalRows]) => ({
+          schema,
+          views: { team: teamView, personal: personalView },
+          rows: {
+            team: !settings.privacyMode || settings.workspaceMode !== 'personal'
+              ? databaseRowsForContext(teamRows)
+              : [],
+            personal: !settings.privacyMode || settings.workspaceMode === 'personal'
+              ? databaseRowsForContext(personalRows)
+              : [],
+          },
+        }))
+      : undefined
+    const visibleDatabaseIds = new Set(
+      taskDatabase
+        ? [...taskDatabase.rows.team, ...taskDatabase.rows.personal]
+            .map((row) => (row as { id?: unknown }).id)
+            .filter((id): id is string => typeof id === 'string')
+        : [],
+    )
     const context = {
       now: nowIso(),
       workspaceMode: settings.workspaceMode,
@@ -263,6 +372,7 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
       clarifyingIdeas: ideaList.filter((i) => i.status === 'clarifying').slice(0, 5).map((i) => ({ id: i.id, title: i.title, suggestedNextAction: i.suggestedNextAction })),
       team: teamNames,
       pendingInvites: pendingList.slice(0, 5).map((i) => ({ id: i.id, taskTitle: i.taskTitle, from: i.inviterName, dueAt: i.taskDueAt })),
+      ...(taskDatabase ? { taskDatabase } : {}),
     }
     const history = chatRows.filter((m) => !m.isError).slice(-12).map((m) => ({ role: m.role === 'agent' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 600) }))
     const mentionBrief = summarizeMentions(mentions)
@@ -289,6 +399,9 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
 
     const performed: unknown[] = []
     const entities: TurnEntity[] = []
+    const deleteConfirmations: string[] = []
+    const structuralConfirmations: string[] = []
+    const actionErrors: string[] = []
     let planOut: Array<{ task: { title: string }; minutes: number }> | null = null
     const rec = (kind: string, reason: string, type: string, id: string): Promise<unknown> =>
       deps.captureRecords.create({ rawInput: message, source: 'chat', aiKind: kind, confidence: 0.9, aiReason: (reason || '').slice(0, 160), resultEntityType: type, resultEntityId: id, status: 'ok' })
@@ -309,6 +422,15 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
         priority: [1, 2, 3, 4].includes(t.priority as number) ? (t.priority as number) : 3,
         privacyScope: ['work', 'personal', 'mixed'].includes(t.privacyScope as string) ? (t.privacyScope as string) : 'work',
       })
+      const dynamicValues = dynamicFieldValues(t.values)
+      if (dynamicValues && deps.taskDatabase) {
+        try {
+          await deps.taskDatabase.updateRow(task.id, dynamicValues)
+          performed.push({ type: 'set_task_fields', id: task.id, values: dynamicValues })
+        } catch (error) {
+          actionErrors.push(error instanceof Error ? error.message.slice(0, 240) : '动态列写入失败')
+        }
+      }
       await rec('task', reason, 'task', task.id)
       await deps.activity.log(task.id, '任务已创建（来自聊天输入）')
       entities.push({ type: 'task', entity: task })
@@ -339,22 +461,93 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
           entities.push({ type: 'non_todo', entity: non })
           performed.push({ type: 'create_non_todo', id: non.id, title: non.title })
         } else if (a.type === 'complete_task' && a.id) {
-          if (await deps.tasks.get(a.id)) {
+          if (visibleTaskIds.has(a.id) && await deps.tasks.get(a.id)) {
             const task = await deps.tasks.update(a.id, { status: 'done' })
             await deps.activity.log(a.id, '通过聊天标记完成')
             if (deps.collab) await deps.collab.notifyTaskDone(user ?? null, a.id)
             performed.push({ type: 'complete_task', id: a.id, task })
           }
         } else if (a.type === 'update_task' && a.id && a.patch) {
-          if (await deps.tasks.get(a.id)) {
+          if (visibleTaskIds.has(a.id) && await deps.tasks.get(a.id)) {
             const task = await deps.tasks.update(a.id, a.patch)
             performed.push({ type: 'update_task', id: a.id, task })
           }
         } else if (a.type === 'delete_task' && a.id) {
-          const t = await deps.tasks.get(a.id)
+          const t = visibleTaskIds.has(a.id) ? await deps.tasks.get(a.id) : undefined
           if (t) {
-            await deps.tasks.remove(a.id)
-            performed.push({ type: 'delete_task', id: a.id, title: t.title })
+            if (/(确认|确定)(要)?删除/.test(message)) {
+              await deps.tasks.remove(a.id)
+              performed.push({ type: 'delete_task', id: a.id, title: t.title })
+            } else {
+              deleteConfirmations.push(t.title)
+              performed.push({ type: 'delete_confirmation_required', id: a.id, title: t.title })
+            }
+          }
+        } else if (a.type === 'create_field' && deps.taskDatabase) {
+          const name = String(a.payload.name || a.payload.title || '').trim()
+          const fieldType = String(a.payload.fieldType || a.payload.field_type || '') as TaskFieldKind
+          const space: TaskSpace = a.payload.space === 'personal' ? 'personal' : 'team'
+          const rawOptions = a.payload.options
+          const options = rawOptions && typeof rawOptions === 'object'
+            ? rawOptions as Readonly<Record<string, unknown>>
+            : undefined
+          if (name && fieldType) {
+            const field = await deps.taskDatabase.createField(space, {
+              name,
+              type: fieldType,
+              ...(options ? { options } : {}),
+            })
+            performed.push({ type: 'create_field', space, field })
+          }
+        } else if (a.type === 'update_field' && deps.taskDatabase) {
+          const fieldId = Number(a.payload.fieldId || a.payload.field_id || a.id || 0)
+          const rawPatch = a.patch || a.payload.patch
+          const patch = rawPatch && typeof rawPatch === 'object'
+            ? rawPatch as Readonly<Record<string, unknown>>
+            : undefined
+          const space: TaskSpace = a.payload.space === 'personal' ? 'personal' : 'team'
+          if (fieldId > 0 && patch) {
+            const changesType = Object.prototype.hasOwnProperty.call(patch, 'type')
+            const confirmed = /(确认|确定).*(字段|列)?.*类型|(确认|确定)(修改|改变|转换)类型/.test(message)
+            if (changesType && !confirmed) {
+              structuralConfirmations.push(`修改字段 ${fieldId} 的类型`)
+              performed.push({ type: 'field_type_confirmation_required', space, fieldId })
+            } else {
+              const field = await deps.taskDatabase.updateField(space, fieldId, patch, confirmed)
+              performed.push({ type: 'update_field', space, fieldId, field })
+            }
+          }
+        } else if (a.type === 'delete_field' && deps.taskDatabase) {
+          const fieldId = Number(a.payload.fieldId || a.payload.field_id || a.id || 0)
+          const space: TaskSpace = a.payload.space === 'personal' ? 'personal' : 'team'
+          const confirmed = /(确认|确定).*(删除|移除).*(字段|列)|(确认|确定)(删除|移除)/.test(message)
+          if (fieldId > 0) {
+            if (!confirmed) {
+              structuralConfirmations.push(`删除字段 ${fieldId}`)
+              performed.push({ type: 'delete_field_confirmation_required', space, fieldId })
+            } else {
+              await deps.taskDatabase.deleteField(space, fieldId, true)
+              performed.push({ type: 'delete_field', space, fieldId })
+            }
+          }
+        } else if (a.type === 'set_task_fields' && deps.taskDatabase) {
+          const id = String(a.id || a.payload.taskId || a.payload.task_id || '')
+          const values = dynamicFieldValues(a.payload.values || a.patch)
+          if (id && values && visibleDatabaseIds.has(id)) {
+            const row = await deps.taskDatabase.updateRow(id, values)
+            performed.push({ type: 'set_task_fields', id, row })
+          } else {
+            actionErrors.push('任务不在当前 AI 可见范围，或动态字段值无效')
+          }
+        } else if (a.type === 'update_view' && deps.taskDatabase) {
+          const rawPatch = a.patch || a.payload.patch || a.payload.configuration
+          const patch = rawPatch && typeof rawPatch === 'object'
+            ? rawPatch as Readonly<Record<string, unknown>>
+            : undefined
+          const space: TaskSpace = a.payload.space === 'personal' ? 'personal' : 'team'
+          if (patch) {
+            const view = await deps.taskDatabase.updateView(space, patch)
+            performed.push({ type: 'update_view', space, view })
           }
         } else if (a.type === 'plan') {
           planOut = planNextBlock(visibleTasks as PlanTask[]).plan
@@ -413,8 +606,14 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
             }
           }
         }
-      } catch {
-        /* skip malformed action */
+      } catch (error) {
+        const detail = error instanceof Error && error.message
+          ? error.message.slice(0, 240)
+          : '操作参数无效或没有权限'
+        if (['create_field', 'update_field', 'delete_field', 'set_task_fields', 'update_view'].includes(a.type)) {
+          actionErrors.push(detail)
+          performed.push({ type: 'database_action_failed', action: a.type, error: detail })
+        }
       }
     }
 
@@ -428,6 +627,15 @@ export function makeAgentChatApp(deps: AgentChatDeps): (input: AgentChatInput) =
     }
 
     let reply = (String(out.reply || '好的。')).trim()
+    if (deleteConfirmations.length) {
+      reply = `删除${deleteConfirmations.map((title) => `「${title}」`).join('、')}后会从任务表移除。若要继续，请明确回复「确认删除 + 完整任务名」。`
+    }
+    if (structuralConfirmations.length) {
+      reply = `${structuralConfirmations.join('、')}可能导致数据丢失或无法恢复。若要继续，请在同一句话中明确说“确认”，并说明要执行的操作。`
+    }
+    if (actionErrors.length) {
+      reply = `${reply}\n（有 ${actionErrors.length} 个数据库操作未执行：${actionErrors.join('；')}）`.trim()
+    }
 
     // 协作口径统一（K1）：结算 @成员真实结果 + 剥离 LLM 错误的"已邀请"断言
     if (deps.collab && user) {
